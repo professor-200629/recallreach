@@ -17,7 +17,9 @@ test('vendored Meterless H-MEM files match the recorded upstream hashes', () => 
   assert.equal(sums.length, 10);
   for (const line of sums) {
     const [hash, file] = line.split(/\s+\*?/);
-    assert.equal(createHash('sha256').update(readFileSync(new URL(`../vendor/meterless-hmem/${file}`, import.meta.url))).digest('hex'), hash, file);
+    // Hashes are of the upstream git blobs (LF line endings); normalise in case a checkout converted them.
+    const text = readFileSync(new URL(`../vendor/meterless-hmem/${file}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+    assert.equal(createHash('sha256').update(text).digest('hex'), hash, file);
   }
 });
 
