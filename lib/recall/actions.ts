@@ -27,6 +27,7 @@ export const changeSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('correct'), version: z.number().int(), record_id: z.string().max(300), kind: z.enum(['supersede', 'withdraw']), reason: note, evidence_reference: z.string().trim().min(3, 'Name the evidence for this correction.').max(300), replacement: replacementSchema.optional() }),
   z.object({ action: z.literal('agent'), version: z.number().int(), question: z.string().trim().min(5).max(500), mode: z.enum(['auto', 'rules']).default('auto') }),
   z.object({ action: z.literal('external_import'), version: z.number().int(), source: z.enum(EXTERNAL_SOURCE_KEYS as [ExternalSourceKey, ...ExternalSourceKey[]]) }),
+  z.object({ action: z.literal('memory_feedback'), version: z.number().int(), memory_id: z.string().regex(/^mem-\d{1,6}$/), kind: z.enum(['wrong', 'helpful']), note }),
 ]);
 export type ChangeBody = z.infer<typeof changeSchema>;
 

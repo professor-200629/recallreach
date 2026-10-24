@@ -172,3 +172,17 @@ test('an unreachable Zetaris instance is reported as a failure, not as connected
   assert.equal(status.zetaris.connected, false); assert.equal(status.checks.every((c: { ok: boolean }) => !c.ok), true);
   assert.equal(JSON.stringify(status).includes('test-key'), false, 'secrets are never returned');
 });
+
+test('operators can mark a memory wrong; it is kept, flagged, and the agent is told not to rely on it', async () => {
+  const a = app(), { data } = await a.call('POST', '/api/cases', { user: 'alice', body: { action: 'sample' } }), id = data.case.id;
+  const run = await change(a, id, 1, { action: 'agent', question: 'Why are 40 bottles still unresolved, and what evidence would resolve this?', mode: 'rules' });
+  const target = run.data.memory.items[0];
+  assert.equal((await change(a, id, 2, { action: 'memory_feedback', memory_id: 'mem-x', kind: 'wrong', note: 'Not a valid memory id at all.' })).status, 400);
+  assert.equal((await change(a, id, 2, { action: 'memory_feedback', memory_id: 'mem-999', kind: 'wrong', note: 'This memory does not exist here.' })).status, 404);
+  const res = await change(a, id, 2, { action: 'memory_feedback', memory_id: target.memory_id, kind: 'wrong', note: 'Contradicts what the pharmacy told us on the phone.' });
+  assert.equal(res.status, 200, JSON.stringify(res.data));
+  const after = res.data.memory.items.find((m: { memory_id: string }) => m.memory_id === target.memory_id);
+  assert.equal(after.disputed, true); assert.equal(after.content, target.content); assert.ok(after.confidence < target.confidence);
+  assert.match(res.data.case.audit.at(-1).action, /Memory marked wrong/);
+  assert.equal(res.data.memory.ledger.by_action.feedback, 1);
+});

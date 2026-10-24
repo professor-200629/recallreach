@@ -15,14 +15,14 @@ export type ToolContext = {
   c: RecallCase; r: Reconciliation; memory: CaseMemory | null; external: ExternalSource | null;
   previous: EvidenceSnapshot | undefined; current: EvidenceSnapshot;
   handles: Map<string, string>; byRecord: Map<string, string>; externalRows: Map<string, ExternalHandle>;
-  issueIds: Set<string>; memoryIds: Set<string>; toolsUsed: Set<string>; diffs: Map<string, string>;
+  issueIds: Set<string>; memoryIds: Set<string>; disputedMemoryIds: Set<string>; toolsUsed: Set<string>; diffs: Map<string, string>;
   proposals: ProposalDraft[]; memoryRecalled: number; numbers: Set<number>;
 };
 export type ToolResult = { ok: boolean; data?: unknown; error?: string; summary: string; record_ids: string[] };
 type ToolDef<S extends z.ZodType> = { name: string; description: string; schema: S; run: (args: z.infer<S>, ctx: ToolContext) => Promise<ToolResult> | ToolResult };
 
 export function createContext(base: Pick<ToolContext, 'c' | 'r' | 'memory' | 'external' | 'previous' | 'current'>): ToolContext {
-  return { ...base, handles: new Map(), byRecord: new Map(), externalRows: new Map(), issueIds: new Set(), memoryIds: new Set(), toolsUsed: new Set(), diffs: new Map(), proposals: [], memoryRecalled: 0, numbers: new Set() };
+  return { ...base, handles: new Map(), byRecord: new Map(), externalRows: new Map(), issueIds: new Set(), memoryIds: new Set(), disputedMemoryIds: new Set(), toolsUsed: new Set(), diffs: new Map(), proposals: [], memoryRecalled: 0, numbers: new Set() };
 }
 
 const purpose = z.string().max(200).optional().describe('Why you call this (shown to the operator).');
@@ -154,11 +154,11 @@ export const TOOLS = [
       if (!ctx.memory) return { ok: false, record_ids: [], error: 'Investigation memory is unavailable for this run.', summary: 'Memory unavailable.' };
       const found = ctx.memory.recall(a.query, { c: ctx.c, r: ctx.r });
       ctx.memoryRecalled += found.length;
-      for (const m of found) ctx.memoryIds.add(m.memory_id);
+      for (const m of found) { ctx.memoryIds.add(m.memory_id); if (m.disputed) ctx.disputedMemoryIds.add(m.memory_id); }
       const cites = found.flatMap(m => m.cites).filter(id => ctx.c.records.some(r => r.id === id));
       return { ok: true, record_ids: [...new Set(cites)], summary: `${found.length} memories (${found.filter(m => m.validity === 'current').length} current, ${found.filter(m => m.validity !== 'current').length} stale or superseded).`, data: {
         memories: found.map(m => ({ memory_id: m.memory_id, content: m.content, kind: m.kind, review: m.review, validity: m.validity, validity_reason: m.validity_reason, written_at: m.created_at, cites: m.cites.map(id => ctx.c.records.some(r => r.id === id) ? handle(ctx, id) : id),
-          how_to_use: m.kind === 'recheck' ? 'Recheck note: the earlier conclusion it quotes is superseded because its evidence changed. Do not repeat it as current; check current records.' : m.validity === 'current' ? 'Context only. Confirm against current records before relying on it.' : 'Outdated: its evidence changed after it was written.' })),
+          how_to_use: m.disputed ? 'An operator marked this memory wrong. Do not rely on it.' : m.kind === 'recheck' ? 'Recheck note: the earlier conclusion it quotes is superseded because its evidence changed. Do not repeat it as current; check current records.' : m.validity === 'current' ? 'Context only. Confirm against current records before relying on it.' : 'Outdated: its evidence changed after it was written.' })),
         rule: 'Memory is context only. Current records and reconciliation always take precedence. Report stale memories as rechecks, not facts.',
       } };
     },
@@ -226,7 +226,8 @@ export type FinalArgs = z.infer<typeof FINAL_TOOL.schema>;
 
 export function toolSpecs() {
   return [...TOOLS, FINAL_TOOL].map(t => {
-    const { $schema: _, ...parameters } = z.toJSONSchema(t.schema) as Record<string, unknown>;
+    const parameters = z.toJSONSchema(t.schema) as Record<string, unknown>;
+    delete parameters.$schema;
     return { type: 'function' as const, function: { name: t.name, description: t.description, parameters } };
   });
 }

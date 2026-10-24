@@ -73,7 +73,7 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
   const messages: ChatMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `${header(input.ctx)}\n\nQuestion: ${input.question}` }];
   const tools = toolSpecs(), deadline = started + limits.totalTimeoutMs;
   const compacted = new Map<string, string>(), toolOrder: string[] = [];
-  let toolCalls = 0, invalidStreak = 0, nudged = false, waitedMs = 0, forced = false;
+  let toolCalls = 0, invalidStreak = 0, nudged = false, waitedMs = 0, forced = false, askedForProposal = false;
   // Older tool results are sent as their summary and handles to keep each request within token limits.
   const contextView = (): ChatMessage[] => {
     const keep = new Set(toolOrder.slice(-limits.fullToolResults));
@@ -133,6 +133,15 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
         if (!parsed.success) {
           turnInvalid++; const detail = parsed.error.issues.slice(0, 4).map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
           run.steps.push(rejectedStep(run, call, `Invalid findings: ${detail}`)); reply(JSON.stringify({ ok: false, error: `Invalid findings: ${detail}` })); continue;
+        }
+        // Checklist: an investigation that looked at an open follow-up issue should propose a next step.
+        // Asked once, and never when the budget is low (the forced final call is always accepted).
+        const openSeen = input.ctx.r.issues.filter(i => i.severity !== 'info' && i.kind !== 'Record review' && input.ctx.issueIds.has(i.id));
+        if (!input.ctx.proposals.length && openSeen.length && !askedForProposal && !forced) {
+          askedForProposal = true;
+          run.steps.push(rejectedStep(run, call, `No follow-up proposed for the open issues reviewed (${openSeen.slice(0, 3).map(i => i.id).join(', ')}).`));
+          reply(JSON.stringify({ ok: false, error: `Before submitting, call propose_follow_up for at least one open issue you reviewed, e.g. ${openSeen[0].id}, then call submit_findings again.` }));
+          continue;
         }
         final = parsed.data;
         run.steps.push({ seq: run.steps.length + 1, tool: FINAL_TOOL.name, purpose: 'Submit cited findings.', args: { findings: final.findings.length, missing_evidence: final.missing_evidence.length }, ok: true, summary: `${final.findings.length} findings, ${final.missing_evidence.length} evidence gaps submitted.`, record_ids: [], duration_ms: 0 });

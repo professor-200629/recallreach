@@ -66,6 +66,7 @@ function check(text: string, citations: string[], ctx: ToolContext, unit: string
   for (const token of rejected) problems.push(TOOL_NAMES.has(token) ? `Cited the tool name “${token}” instead of an identifier it returned.` : `Citation “${token}” was not retrieved in this run.`);
   if (!resolved.length) problems.push('No valid citation supports this statement.');
   else if (resolved.every(id => id.startsWith('memory:'))) problems.push('Supported only by earlier memory. Memory is context, not current evidence; cite current records or issues.');
+  for (const id of resolved) if (id.startsWith('memory:') && ctx.disputedMemoryIds.has(id.slice(7))) problems.push(`Cites ${id.slice(7)}, which an operator marked wrong.`);
   problems.push(...contradictsEngine(text, ctx, unit));
   for (const n of quantities(text, unit)) if (!ctx.numbers.has(n)) problems.push(`Quantity ${n} does not match any retrieved record or reconciliation figure.`);
   if (basis === 'engine_calculated' && !ctx.toolsUsed.has('run_reconciliation') && !ctx.toolsUsed.has('get_shipment_ledger')) problems.push('Marked as engine-calculated, but the reconciliation was not consulted.');

@@ -15,6 +15,8 @@ export type MemoryValidity = 'current' | 'stale' | 'superseded';
 export type RecalledMemory = {
   memory_id: string; content: string; kind: MemoryKind; review: string; confidence: number; created_at: string;
   source: string; cites: string[]; shipments: string[]; validity: MemoryValidity; validity_reason: string; relevance: number;
+  /** An operator marked it wrong (H-MEM "wrong" feedback adds the review tag and lowers confidence). */
+  disputed: boolean;
 };
 export type RememberInput = {
   content: string; kind: MemoryKind; confidence: number; source: string; label: string;
@@ -80,7 +82,15 @@ export class CaseMemory {
     const v = this.validity(m, evidence);
     return { memory_id: m.id, content: m.content, kind: (tagValue(m, 'kind:')[0] ?? 'finding') as MemoryKind, review: tagValue(m, 'review:')[0] ?? 'unreviewed',
       confidence: Number(m.confidence.toFixed(2)), created_at: new Date(m.timestamp).toISOString(), source: m.source,
-      cites: m.provenance.refs ?? [], shipments: tagValue(m, 'shipment:'), validity: v.validity, validity_reason: v.reason, relevance: Number(relevance.toFixed(3)) };
+      cites: m.provenance.refs ?? [], shipments: tagValue(m, 'shipment:'), validity: v.validity, validity_reason: v.reason, relevance: Number(relevance.toFixed(3)), disputed: m.tags.includes('review') };
+  }
+
+  /** Operator feedback through H-MEM's own feedback deltas; "wrong" also tags the memory for review. */
+  feedback(memoryId: string, kind: 'wrong' | 'helpful'): RecalledMemory['content'] {
+    const m = this.hmem.store.get(memoryId);
+    if (!m || m.chatId !== this.caseId) throw new Error('Memory not found in this case.');
+    this.hmem.feedback(memoryId, kind);
+    return m.content;
   }
 
   /** H-MEM hybrid retrieval scoped to this case, labelled with current validity. */

@@ -1,0 +1,256 @@
+{
+  "generated_at": "2026-10-24T14:50:25.959Z",
+  "note": "Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.",
+  "scenarios": {
+    "missing-40": {
+      "initial": {
+        "baseline": {
+          "unresolved_found": {
+            "RR-104": 40
+          },
+          "unresolved_precision": 1,
+          "unresolved_recall": 1,
+          "wrongly_counted_records": 5,
+          "totals": {
+            "shipped": 1000,
+            "available": -219,
+            "quarantined": 914,
+            "returned": 245,
+            "dispensed": 60
+          },
+          "totals_correct": false,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": false,
+            "Which records need review?": false,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": false,
+            "Are the source-reported totals correct?": false
+          },
+          "questions_correct": 3,
+          "questions_total": 7
+        },
+        "recallreach": {
+          "unresolved_found": {
+            "RR-104": 40
+          },
+          "unresolved_precision": 1,
+          "unresolved_recall": 1,
+          "wrongly_counted_records": 0,
+          "totals": {
+            "shipped": 1000,
+            "available": 40,
+            "quarantined": 800,
+            "returned": 100,
+            "dispensed": 60
+          },
+          "totals_correct": true,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": true,
+            "Which records need review?": true,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": true
+          },
+          "questions_correct": 7,
+          "questions_total": 7
+        }
+      },
+      "after_followup": {
+        "baseline": {
+          "unresolved_found": {},
+          "unresolved_precision": 1,
+          "unresolved_recall": 1,
+          "wrongly_counted_records": 5,
+          "totals": {
+            "shipped": 1000,
+            "available": -259,
+            "quarantined": 954,
+            "returned": 245,
+            "dispensed": 60
+          },
+          "totals_correct": false,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": false,
+            "Which records need review?": false,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": false,
+            "Are the source-reported totals correct?": false
+          },
+          "questions_correct": 3,
+          "questions_total": 7
+        },
+        "recallreach": {
+          "unresolved_found": {},
+          "unresolved_precision": 1,
+          "unresolved_recall": 1,
+          "wrongly_counted_records": 0,
+          "totals": {
+            "shipped": 1000,
+            "available": 0,
+            "quarantined": 840,
+            "returned": 100,
+            "dispensed": 60
+          },
+          "totals_correct": true,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": true,
+            "Which records need review?": true,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": true
+          },
+          "questions_correct": 7,
+          "questions_total": 7
+        }
+      },
+      "agent_rules_mode": {
+        "mode": "rules",
+        "provider": "none",
+        "model": "rules-v2",
+        "status": "completed",
+        "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
+        "duration_ms": 16,
+        "tool_calls": 13,
+        "rejected_tool_calls": 0,
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "estimated_cost_usd": null,
+        "findings": 4,
+        "verified_findings": 4,
+        "citations_valid": 9,
+        "citations_rejected": 0,
+        "unresolved_shipments_correctly_stated": "1/1",
+        "follow_ups_proposed": 2
+      },
+      "agent_live": {
+        "mode": "live",
+        "provider": "groq",
+        "model": "openai/gpt-oss-120b",
+        "status": "completed",
+        "status_detail": "2 tool calls, 3 model calls.",
+        "duration_ms": 4407,
+        "tool_calls": 2,
+        "rejected_tool_calls": 0,
+        "model_calls": 3,
+        "input_tokens": 7196,
+        "output_tokens": 1067,
+        "estimated_cost_usd": null,
+        "findings": 1,
+        "verified_findings": 1,
+        "citations_valid": 3,
+        "citations_rejected": 0,
+        "unresolved_shipments_correctly_stated": "1/1",
+        "follow_ups_proposed": 0
+      }
+    },
+    "velora-pens": {
+      "initial": {
+        "baseline": {
+          "unresolved_found": {
+            "VS-204": 25
+          },
+          "unresolved_precision": 1,
+          "unresolved_recall": 0.3333333333333333,
+          "wrongly_counted_records": 10,
+          "totals": {
+            "shipped": 505,
+            "available": -134.5,
+            "quarantined": 439,
+            "returned": 160,
+            "dispensed": 40.5
+          },
+          "totals_correct": false,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": false,
+            "How much was dispensed, and where?": false,
+            "Which destinations are unconfirmed?": false,
+            "Which records need review?": false,
+            "Which near-miss batch records need checking?": false,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": false
+          },
+          "questions_correct": 1,
+          "questions_total": 7
+        },
+        "recallreach": {
+          "unresolved_found": {
+            "VS-202": 12,
+            "VS-203": 10,
+            "VS-204": 25
+          },
+          "unresolved_precision": 1,
+          "unresolved_recall": 1,
+          "wrongly_counted_records": 0,
+          "totals": {
+            "shipped": 425,
+            "available": 47,
+            "quarantined": 280,
+            "returned": 60,
+            "dispensed": 38
+          },
+          "totals_correct": true,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": true,
+            "Which records need review?": true,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": true
+          },
+          "questions_correct": 7,
+          "questions_total": 7
+        }
+      },
+      "agent_rules_mode": {
+        "mode": "rules",
+        "provider": "none",
+        "model": "rules-v2",
+        "status": "completed",
+        "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
+        "duration_ms": 2,
+        "tool_calls": 18,
+        "rejected_tool_calls": 0,
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "estimated_cost_usd": null,
+        "findings": 12,
+        "verified_findings": 12,
+        "citations_valid": 19,
+        "citations_rejected": 0,
+        "unresolved_shipments_correctly_stated": "3/3",
+        "follow_ups_proposed": 4
+      },
+      "agent_live": {
+        "mode": "live",
+        "provider": "groq",
+        "model": "openai/gpt-oss-120b",
+        "status": "completed",
+        "status_detail": "5 tool calls, 6 model calls. Waited 137 s for provider rate limits.",
+        "duration_ms": 153549,
+        "tool_calls": 5,
+        "rejected_tool_calls": 0,
+        "model_calls": 6,
+        "input_tokens": 23006,
+        "output_tokens": 3090,
+        "estimated_cost_usd": null,
+        "findings": 3,
+        "verified_findings": 3,
+        "citations_valid": 10,
+        "citations_rejected": 0,
+        "unresolved_shipments_correctly_stated": "3/3",
+        "follow_ups_proposed": 0
+      }
+    }
+  }
+}

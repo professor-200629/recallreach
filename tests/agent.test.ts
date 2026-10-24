@@ -32,7 +32,7 @@ test('a scripted investigation retrieves evidence, proposes a follow-up and gets
     () => turn([['run_reconciliation', { purpose: 'Get balances' }]]),
     () => turn([['get_shipment_ledger', { purpose: 'Open RR-104', shipment_id: 'RR-104' }]]),
     m => { const cite = lastTool(m).data.records[0].cite; return turn([['propose_follow_up', { purpose: 'Next step', issue_id: 'stock:RR-104', action: 'Ask the distributor for proof of delivery for RR-104.', owner_role: 'distributor', evidence_requested: 'Proof of delivery', citations: [cite] }]]); },
-    m => submit([{ claim: 'Shipment RR-104 has 40 bottles with no accepted containment record.', citations: ['stock:RR-104', 'E1'], basis: 'engine_calculated' }]),
+    () => submit([{ claim: 'Shipment RR-104 has 40 bottles with no accepted containment record.', citations: ['stock:RR-104', 'E1'], basis: 'engine_calculated' }]),
   ]);
   assert.equal(result.status, 'completed'); assert.equal(result.mode, 'live');
   assert.deepEqual(result.steps.map(s => s.tool), ['run_reconciliation', 'get_shipment_ledger', 'propose_follow_up', 'submit_findings']);
@@ -178,7 +178,8 @@ test('comparisons and memories are citable; tool names are not', async () => {
   const ctx = setup();
   const result = await run(ctx, [
     () => turn([['compare_with_previous_run', {}]]),
-    m => { assert.equal(lastTool(m).data.cite, 'D1'); return submit([
+    // The first submission may be returned once with a request to propose a follow-up.
+    m => { const t = lastTool(m); if (t.data) assert.equal(t.data.cite, 'D1'); return submit([
       { claim: 'There is no earlier run to compare with.', citations: ['D1'], basis: 'source_reported' },
       { claim: 'Nothing changed.', citations: ['compare_with_previous_run'], basis: 'source_reported' },
     ]); },
@@ -206,4 +207,28 @@ test('memory alone cannot verify a claim, and claims that contradict current bal
   assert.equal(memOnly.verification, 'unverified'); assert.match(memOnly.problems.join(' '), /only by earlier memory/);
   assert.equal(contradiction.verification, 'unverified'); assert.match(contradiction.problems.join(' '), /RR-104 has 0 bottles awaiting containment/);
   assert.equal(fine.verification, 'verified', fine.problems.join(' '));
+});
+
+test('the provider maps HTTP errors, including Groq rate-limit waits and malformed tool calls', async () => {
+  const { OpenAICompatibleProvider } = await import('../lib/recall/agent/provider.ts');
+  const call = (res: Response) => new OpenAICompatibleProvider({ name: 'groq', baseUrl: 'https://api.test/v1', apiKey: 'k', model: 'm', fetcher: (async () => res) as unknown as typeof fetch })
+    .complete({ messages: [], tools: [], maxTokens: 10, signal: AbortSignal.timeout(1000) });
+  await assert.rejects(call(new Response('{"error":{"message":"Rate limit reached. Please try again in 7.5s."}}', { status: 429 })), (e: ProviderError) => e.kind === 'rate_limit' && e.retryAfterMs === 7500);
+  await assert.rejects(call(new Response('{"error":{"code":"tool_use_failed","message":"bad"}}', { status: 400 })), (e: ProviderError) => e.kind === 'malformed' && e.retryable);
+  await assert.rejects(call(new Response('nope', { status: 401 })), (e: ProviderError) => e.kind === 'auth' && !e.retryable);
+  await assert.rejects(call(new Response('not json', { status: 200 })), (e: ProviderError) => e.kind === 'malformed');
+  const ok = await call(Response.json({ choices: [{ message: { content: null, tool_calls: [{ id: 'a', function: { name: 'run_reconciliation', arguments: '{}' } }] }, finish_reason: 'tool_calls' }], usage: { prompt_tokens: 5, completion_tokens: 2 } }));
+  assert.deepEqual([ok.tool_calls[0].name, ok.usage.input_tokens], ['run_reconciliation', 5]);
+});
+
+test('a run that reviewed open issues is asked once to propose a follow-up before its findings are accepted', async () => {
+  const result = await run(setup(), [
+    () => turn([['run_reconciliation', {}]]),
+    () => submit([]),
+    m => { assert.match(lastTool(m).error, /propose_follow_up for at least one open issue/); return turn([['propose_follow_up', { issue_id: 'stock:RR-104', action: 'Ask the distributor for proof of delivery.', owner_role: 'distributor', evidence_requested: 'Proof of delivery', citations: ['stock:RR-104'] }]]); },
+    () => submit([]),
+  ]);
+  assert.equal(result.status, 'completed'); assert.equal(result.answer!.follow_ups.length, 1);
+  const again = await run(setup(), [() => turn([['run_reconciliation', {}]]), () => submit([]), () => submit([])]);
+  assert.equal(again.status, 'completed', 'asked only once; a second submission is accepted'); assert.equal(again.answer!.follow_ups.length, 0);
 });

@@ -9,6 +9,7 @@ import type { CaseRepository } from './repo.ts';
 import type { ChatProvider, ProviderSettings } from './agent/provider.ts';
 import type { ExternalSource, IntegrationEvent } from './sources/external.ts';
 import { exportCase, type ExportFormat } from './export.ts';
+import { appendAudit } from './audit.ts';
 
 export type Identity = { userId: string; displayName: string };
 export type ExternalSetup = { source: ExternalSource | null; mode: 'live' | 'mock' | 'none'; detail: string; tables?: Record<string, string> };
@@ -120,6 +121,13 @@ export function createHandlers(deps: Deps) {
         if (!res.ok) throw new ActionError(`Zetaris${res.mode === 'mock' ? ' (mock)' : ''} query failed (${res.failure}): ${res.message}`, 502);
         extras = { imported: await importExternal(c, res, identity.displayName, now) };
         const re = revalidateMemory(c, memoryState, identity.displayName, 'connected-source evidence imported'); memoryState = re.state; extras.memory_invalidated = re.invalidated;
+      } else if (input.action === 'memory_feedback') {
+        if (!memoryState) throw new ActionError('This case has no investigation memory yet.', 404);
+        const memory = new CaseMemory(c.id, `recallreach:${identity.displayName}`, memoryState);
+        let content = '';
+        try { content = memory.feedback(input.memory_id, input.kind); } catch (e) { throw new ActionError((e as Error).message, 404); }
+        memoryState = memory.toState();
+        await appendAudit(c, identity.displayName, input.kind === 'wrong' ? 'Memory marked wrong' : 'Memory marked helpful', `${input.memory_id}: “${content.slice(0, 200)}” — ${input.note}`);
       } else {
         const effect = await applyChange(c, input, identity.displayName, now);
         if (effect.evidenceChanged) { const re = revalidateMemory(c, memoryState, identity.displayName, input.action === 'correct' ? 'a record was corrected' : 'new evidence was imported'); memoryState = re.state; extras.memory_invalidated = re.invalidated; }

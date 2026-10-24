@@ -11,12 +11,12 @@ const TOOL_LABELS: Record<string, string> = {
   query_connected_source: 'Query source via Zetaris', propose_follow_up: 'Propose follow-up', submit_findings: 'Submit cited findings',
 };
 
-export function AgentPanel({ data, busy, onRun, onEvidence, onRecord, onQueue }: {
-  data: Payload; busy: string;
+export function AgentPanel({ data, busy, onRun, onEvidence, onRecord, onQueue, onMemoryWrong }: {
+  data: Payload; busy: string; onMemoryWrong: (memoryId: string, content: string) => void;
   onRun: (question: string, mode: 'auto' | 'rules') => void;
   onEvidence: (ids: string[]) => void; onRecord: (row: LedgerRecord) => void; onQueue: () => void;
 }) {
-  const { case: c, result: r, capabilities, staleness, memory } = data;
+  const { case: c, result: r, capabilities, staleness } = data;
   const live = capabilities.agent.configured;
   const suggestions = [
     r.available > 0 ? `Why are ${r.available} ${c.alert.unit} still unresolved, and what evidence would resolve this?` : `What is still open for this batch, and what evidence would close it?`,
@@ -59,7 +59,7 @@ export function AgentPanel({ data, busy, onRun, onEvidence, onRecord, onQueue }:
           <Tag tone={x.mode === 'live' ? 'teal' : ''}>{x.mode === 'live' ? 'LIVE MODEL' : 'RULES MODE'}</Tag><span><strong>{x.question}</strong><small>{date(x.started_at)} · {x.status.replace('_', ' ')} · {x.steps.length} steps{x.evidence_fingerprint !== staleness.current_fingerprint ? ' · evidence has changed since' : ''}</small></span>
         </button>) : <div className="empty-small"><small>No runs yet.</small></div>}
       </section>
-      <MemoryPanel data={data} open={open} />
+      <MemoryPanel data={data} open={open} busy={!!busy} onMemoryWrong={onMemoryWrong} />
     </div>
   </>;
 }
@@ -96,7 +96,7 @@ function RunView({ run, data, open, onQueue }: { run: AgentRun; data: Payload; o
     </section>
     <section className="panel">
       <div className="panel-heading"><div><span className="eyebrow">TOOL ACTIVITY</span><h2>What the {run.mode === 'live' ? 'agent' : 'procedure'} actually did</h2></div><Wrench size={18} /></div>
-      <p className="panel-intro">Each step is a real tool call against this case's evidence. The purpose line is the {run.mode === 'live' ? 'model' : 'procedure'}'s own one-sentence reason; no hidden reasoning is shown or stored.</p>
+      <p className="panel-intro">Each step is a real tool call against this case’s evidence. The purpose line is the {run.mode === 'live' ? 'model' : 'procedure'}’s own one-sentence reason; no hidden reasoning is shown or stored.</p>
       <ol className="tool-steps">{run.steps.map(s => <li key={s.seq} className={s.ok ? '' : 'failed'}>
         <span className="step-n">{s.seq}</span>
         <div><div className="step-title"><strong>{TOOL_LABELS[s.tool] ?? s.tool}</strong><code>{s.tool}</code>{!s.ok && <Tag tone="red">REJECTED</Tag>}<span className="subtle">{s.duration_ms} ms</span></div>
@@ -110,7 +110,7 @@ function RunView({ run, data, open, onQueue }: { run: AgentRun; data: Payload; o
   </>;
 }
 
-function MemoryPanel({ data, open }: { data: Payload; open: (row: LedgerRecord | null, ids: string[]) => void }) {
+function MemoryPanel({ data, open, busy, onMemoryWrong }: { data: Payload; open: (row: LedgerRecord | null, ids: string[]) => void; busy: boolean; onMemoryWrong: (memoryId: string, content: string) => void }) {
   const { memory, case: c, result: r } = data;
   const tone = { current: 'teal', stale: 'amber', superseded: '' } as const;
   return <section className="panel memory-panel">
@@ -118,7 +118,7 @@ function MemoryPanel({ data, open }: { data: Payload; open: (row: LedgerRecord |
     <p className="panel-intro">Verified findings, open questions and operator decisions are stored with their evidence. When that evidence changes, the memory is superseded by a recheck note, never deleted. Memory is context only: current records decide stock.</p>
     {memory.contradictions.length > 0 && <div className="memory-conflicts">{memory.contradictions.slice(0, 3).map(x => <p key={`${x.a}-${x.b}`}><AlertTriangle size={13} />Contradiction kept for review: {x.a} and {x.b} ({x.reason}).</p>)}</div>}
     {memory.items.slice(0, 12).map(m => <article key={m.memory_id} className={`memory-item ${m.validity}`}>
-      <div className="claim-head"><Tag tone={tone[m.validity]}>{m.validity.toUpperCase()}</Tag><span className="subtle">{m.kind} · {m.review.replace('-', ' ')} · {m.memory_id} · {date(m.created_at)}</span></div>
+      <div className="claim-head"><Tag tone={tone[m.validity]}>{m.validity.toUpperCase()}</Tag>{m.disputed && <Tag tone="red">MARKED WRONG</Tag>}<span className="subtle">{m.kind} · {m.review.replace('-', ' ')} · {m.memory_id} · {date(m.created_at)}</span>{!m.disputed && m.validity !== 'superseded' && <button className="text-button memory-wrong" onClick={() => onMemoryWrong(m.memory_id, m.content)} disabled={busy}>Mark as wrong</button>}</div>
       <p>{m.content}</p>{m.cites.length > 0 && <CiteChips ids={m.cites} c={c} r={r} onOpen={open} />}
     </article>)}
     {!memory.items.length && <div className="empty-small"><small>Nothing remembered yet. Memory is written after an investigation run or an operator decision.</small></div>}

@@ -48,7 +48,8 @@ export async function runCaseInvestigation(input: InvestigationInput): Promise<{
   const existing = new Set(memory.list(evidence).filter(m => m.validity === 'current').map(m => m.content));
   const source = `recallreach:run:${run.id}:${run.mode}`, origin = run.mode === 'live' ? 'model_response' as const : 'document' as const;
   for (const f of run.answer?.findings ?? []) {
-    if (f.verification !== 'verified' || existing.has(f.claim)) continue;
+    // Statements about memory itself (e.g. "memory mem-5 needs a recheck") are not remembered again.
+    if (f.verification !== 'verified' || existing.has(f.claim) || /\bmem-\d+\b/.test(f.claim)) continue;
     memory.remember({ content: f.claim, kind: 'finding', confidence: 0.6, source, origin, label: `${run.mode} run ${run.id.slice(0, 8)}: unreviewed finding`, refs: f.citations.filter(id => c.records.some(x => x.id === id)), shipments: shipmentsFor(f.citations, c, r), review: 'unreviewed' }, evidence);
     stored++;
   }
