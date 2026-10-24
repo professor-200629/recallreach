@@ -19,6 +19,7 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
+      - ./fixtures/00-reader-auth.sh:/docker-entrypoint-initdb.d/00-reader-auth.sh:ro
       - ./fixtures/01-sources.sql:/docker-entrypoint-initdb.d/01-sources.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]

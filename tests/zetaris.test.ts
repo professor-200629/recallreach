@@ -75,3 +75,37 @@ test('diagnostic probes allow only single read-only statements', async () => {
   }
   assert.equal(seen.length, 1, 'rejected statements are never sent');
 });
+
+test('setup SQL parses into create, register and check steps with no secrets', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { parseSetupSql } = await import('../lib/recall/sources/zetaris-setup.ts');
+  const text = readFileSync(new URL('../integrations/zetaris/setup-datasources.sql', import.meta.url), 'utf8');
+  const steps = parseSetupSql(text);
+  assert.deepEqual(steps.map(s => `${s.kind}:${s.datasource ?? '-'}`), ['create:recall_distributor', 'register:recall_distributor', 'create:recall_pharmacy', 'register:recall_pharmacy', 'create:recall_returns', 'register:recall_returns', 'check:-']);
+  assert.equal(/password/i.test(steps.map(s => s.sql).join(' ')), false, 'no password in datasource definitions');
+  assert.throws(() => parseSetupSql('DROP TABLE x'), /Unexpected statement/);
+});
+
+test('setup skips what exists, honours dry run, and stops at the first failure', async () => {
+  const { parseSetupSql, runZetarisSetup } = await import('../lib/recall/sources/zetaris-setup.ts');
+  const steps = parseSetupSql(['CREATE DATASOURCE a DESCRIBE BY "x" OPTIONS (jdbcurl "j")', 'REGISTER DATASOURCE TABLES FROM a', 'CREATE DATASOURCE b DESCRIBE BY "y" OPTIONS (jdbcurl "k")', 'REGISTER DATASOURCE TABLES FROM b', 'SELECT 1'].join('\n'));
+  const sent: string[] = [];
+  const fetcher = (fail?: string) => (async (_url: string, init: RequestInit) => {
+    const sql = JSON.parse(String(init.body)).sql as string; sent.push(sql);
+    if (fail && sql.startsWith(fail)) return new Response('{"error":"boom"}', { status: 400 });
+    if (sql === 'SHOW DATASOURCES') return Response.json({ data: [['a']] });
+    if (sql === 'SHOW DATASOURCE TABLES a') return Response.json({ data: [['t1']] });
+    if (sql.startsWith('SHOW DATASOURCE TABLES')) return Response.json({ data: [] });
+    return Response.json({ data: [['1']] });
+  }) as unknown as typeof fetch;
+  const log: string[] = [];
+  const dry = await runZetarisSetup(config, steps, { dryRun: true, fetcher: fetcher(), log: l => log.push(l) });
+  assert.equal(dry.ok, true); assert.equal(dry.executed, 0); assert.equal(dry.skipped, 2);
+  assert.deepEqual(sent, ['SHOW DATASOURCES', 'SHOW DATASOURCE TABLES a'], 'a dry run sends only SHOW statements');
+  sent.length = 0;
+  const real = await runZetarisSetup(config, steps, { fetcher: fetcher(), log: () => {} });
+  assert.deepEqual([real.ok, real.executed, real.skipped], [true, 3, 2]);
+  sent.length = 0;
+  const failing = await runZetarisSetup(config, steps, { fetcher: fetcher('CREATE DATASOURCE b'), log: () => {} });
+  assert.equal(failing.ok, false); assert.equal(sent.some(s => s.startsWith('REGISTER DATASOURCE TABLES FROM b')), false, 'nothing runs after a failure');
+});

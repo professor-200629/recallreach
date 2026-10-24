@@ -1,21 +1,12 @@
 // Read-only verification of a real Zetaris connection, using the same settings and adapter
 // as the app (.dev.vars, or ZETARIS_* environment variables). Run: npm run zetaris:check
 // It sends only SELECT and SHOW statements and never prints the API key.
-import { existsSync, readFileSync } from 'node:fs';
 import { zetarisConfigFromEnv, ZetarisSource } from '../lib/recall/sources/zetaris.ts';
 import { EXTERNAL_SOURCE_KEYS, EXTERNAL_SOURCES, isSafeTableName } from '../lib/recall/sources/external.ts';
+import { loadDevVars } from './dev-vars.ts';
 
-function devVars(): Record<string, string> {
-  if (!existsSync('.dev.vars')) return {};
-  const out: Record<string, string> = {};
-  for (const line of readFileSync('.dev.vars', 'utf8').split(/\r?\n/)) {
-    const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
-    if (m && !line.trimStart().startsWith('#')) out[m[1]] = m[2].replace(/^"(.*)"$/, '$1');
-  }
-  return out;
-}
+const vars = loadDevVars();
 
-const vars: Record<string, string> = { ...devVars(), ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k.startsWith('ZETARIS_')) as [string, string][]) };
 const missing = ['ZETARIS_REST_URL', 'ZETARIS_ORG_ID', 'ZETARIS_API_KEY'].filter(k => !vars[k]);
 if (missing.length) { console.error(`Not configured. Missing in .dev.vars: ${missing.join(', ')}`); process.exit(2); }
 const config = zetarisConfigFromEnv(vars)!;

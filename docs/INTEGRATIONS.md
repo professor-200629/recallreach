@@ -4,7 +4,7 @@ RecallReach uses three external pieces. Each one is optional at runtime, and the
 
 | Piece | Role | Status on 24 Oct 2026 |
 | --- | --- | --- |
-| Zetaris | Federated, read-only access to separately owned source systems | Adapter built and contract-tested. **Not connected**: no Zetaris instance has been reachable yet. |
+| Zetaris | Federated, read-only access to separately owned source systems | Adapter built and contract-tested; local platform downloaded and staged, fixture sources running. **Not connected**: install blocked on the registry login, so no real query has run yet. |
 | Meterless H-MEM | Investigation memory across runs | **In use**: vendored, unmodified reference engine; upstream conformance suite 13/13. |
 | Language model (Groq, OpenAI-compatible) | Chooses tools and explains evidence | **Working** with Groq free tier, `openai/gpt-oss-120b`. Rules mode works with no model. |
 
@@ -37,52 +37,51 @@ X-Request-ID: <uuid>
 
 `tests/zetaris.test.ts` checks this request shape, positional row mapping, exponent-format numbers (`4.0E1` → 40), failure classes (auth, timeout, unreachable, bad shape) and SQL-injection resistance with a fake `fetch`. It does not prove compatibility with a real instance.
 
-### Setting up a local instance (your steps)
+### Setting up a local instance
 
-Zetaris requires an account, a licence acceptance and registry credentials that only you can obtain. The steps below follow the official guide, [`docs/install/updated_zetaris_installation_guide.md`](https://github.com/zetaris/getting-started/blob/main/docs/install/updated_zetaris_installation_guide.md). It was checked unchanged at upstream commit `6a2fbaa` on 24 Oct 2026. Run the shell commands in **WSL2 (Ubuntu)**, not PowerShell.
+Sources: the *Run the platform locally* page in Zetaris Cloud (<https://cloud.enterprise.zetaris.com/dashboard/download>, read 24 Oct 2026) and the bundle's own `README.md`. They match the getting-started guide (upstream commit `6a2fbaa`) except in one respect: the current bundle ships with a filled-in `.env` and a **default administrator account** (documented in the bundle README), whose password you change after first sign-in. No `.env` editing is needed.
 
-**Machine check (24 Oct 2026).** Docker Desktop 4.64.0, Compose v5.1.0, WSL 2.6.3 with Ubuntu on WSL2. No `.wslconfig`, so WSL's default cap is 7.7 GB, the same memory Zetaris's own install test used. The test record measures the Zetaris containers at about 1.9 GiB idle and 2.3 GiB after queries; plan for about 4 GB of free Windows memory while it runs. Ports 3000, 8888, 10000 and 5433 were free. A native PostgreSQL already uses 5432.
+**State of this laptop (end of 24 Oct 2026, IST):**
 
-1. **Account.** Register at <https://cloud.enterprise.zetaris.com/register> (or Zetaris Cloud → *Start Free*). Read the [terms](https://cloud.enterprise.zetaris.com/terms) and [privacy policy](https://cloud.enterprise.zetaris.com/privacy) yourself. Without an order, the agreement allows internal evaluation for up to 30 days.
-2. **Bundle and registry login.** Open the *Run locally* page, <https://cloud.enterprise.zetaris.com/dashboard/download>. Download `zetaris-platform.zip` and keep the registry sign-in command it shows. That page also lists the current startup steps; if they differ from these, follow the page.
-3. **Free memory, then start Docker Desktop.** Close what you don't need (on this laptop: ChatGPT, Notion, Wispr Flow, spare Edge windows). Start Docker Desktop and wait until it shows *Engine running*. In Settings → Resources → WSL integration, make sure **Ubuntu** is enabled.
-4. **Unpack in Ubuntu** (`unzip` isn't installed yet; the first command asks for your Linux password):
+| Step | State |
+| --- | --- |
+| Zetaris Cloud account | Done (yours) |
+| `zetaris-platform.zip` (26.7 MB) downloaded and unpacked to `~/zetaris/zetaris-platform` in Ubuntu | Done |
+| `.env`: `UI_PORT=127.0.0.1:3000` so the UI is reachable from this machine only (original kept as `.env.original`) | Done |
+| Docker Desktop 4.64 running, WSL integration for Ubuntu on | Done (see troubleshooting) |
+| `./preflight.sh` | 6 PASS, 1 WARN (memory 7 GB of 8 recommended — the official install test passed with the same), **1 FAIL: not signed in to `zetarishackathon.azurecr.io`** |
+| Registry login | **Missing.** A read-only manifest lookup was refused with `authentication required` from both Ubuntu and Windows Docker |
+| Images pulled, Zetaris started, `verify.sh` | Not yet — blocked on the registry login |
+| Fictional source database (`recallreach-sources`) | Running and checked: reader reads without a password, writes refused, superuser refused without a password, DEMO-042 rows 4/6/4 |
+| Datasources registered in Zetaris | Not yet |
+| RecallReach configured (`.dev.vars`) | `ZETARIS_REST_URL` set; `ZETARIS_ORG_ID` and `ZETARIS_API_KEY` empty |
+
+### Finish the connection (in this order)
+
+1. **Registry login — in Ubuntu, not PowerShell.** On the *Run locally* page click **Get the platform** (step 1), copy the `docker login zetarishackathon.azurecr.io …` command and paste it into an **Ubuntu** window. Expect `Login Succeeded`. (Never paste it anywhere else.)
+2. **One command for the rest of the install** (in the same Ubuntu window; 20–30 minutes, mostly the 4 GB download):
    ```bash
-   sudo apt-get update && sudo apt-get install -y unzip
-   mkdir -p ~/zetaris && cp /mnt/c/Users/Balu/Downloads/zetaris-platform.zip ~/zetaris/
-   cd ~/zetaris && unzip zetaris-platform.zip && cd zetaris-platform
-   docker version && docker compose version
+   bash /mnt/c/Users/Balu/Documents/Codex/2026-10-23/new-chat-4/recallreach/integrations/zetaris/bring-up.sh
    ```
-5. **Registry login.** Paste the `docker login zetarishackathon.azurecr.io` command from the *Run locally* page and type the credentials at the prompt. Never paste them into a chat or a file.
-6. **Preflight:** `./preflight.sh` (or `bash preflight.sh`). A warning that memory is below 8 GB is expected with the 7.7 GB default; the official test passed with the same warning. Fix any failure before continuing.
-7. **Configure `.env`** (in `~/zetaris/zetaris-platform`, e.g. `nano .env`). Keep the supplied image settings and set:
+   It runs `preflight.sh`, `docker compose pull`, `docker compose up -d`, waits for the one-time bootstrap, runs `verify.sh` (expect 9 of 9 PASS), starts the fixture database, attaches it to the Zetaris network as `recallreach-sources`, and checks that Zetaris's network can read it. It stops at the first failure and is safe to rerun.
+3. **Sign in and change the password.** Open <http://localhost:3000>, sign in with the default administrator account from the *Run locally* page (step 7), then change the password from the user menu (top right).
+4. **Organisation ID and API key.** Management → Organisation: copy the numeric **ID** into `ZETARIS_ORG_ID` in `.dev.vars`. Management → API Tokens → **+**: copy the key (shown once) into `ZETARIS_API_KEY` in `.dev.vars` yourself. The key carries the rights of the user who created it; RecallReach only sends fixed, read-only SELECTs. For anything beyond a local demo, create the key as a non-administrator user with SELECT on the three datasources only.
+5. **Register the three source systems** (administrator key needed for this one step):
+   ```bash
+   npm run zetaris:setup -- --dry-run
+   npm run zetaris:setup
+   ```
+   It runs only the statements in [`integrations/zetaris/setup-datasources.sql`](../integrations/zetaris/setup-datasources.sql), skips anything already registered, and stops at the first failure. You can instead paste those statements into the Zetaris SQL Editor one at a time. No password appears in them: the fixture's read-only login needs none (it can only SELECT fictional tables; every other database account keeps password authentication).
+6. **Verify** (next section).
 
-   | Variable | Value |
-   | --- | --- |
-   | `ZETARIS_ADMIN_EMAIL` | your administrator email |
-   | `ZETARIS_ADMIN_PASSWORD` | your own password: ≥ 8 characters, lowercase, uppercase, a digit and one of `@ ! % * ? &` (avoid `$`, which the shell may expand) |
-   | `ZETARIS_ADMIN_ORG` | an organisation name, e.g. `recallreach` (choose before first start) |
-   | `ZSPARK_DRIVER_MEM` / `ZSPARK_DRIVER_CORES` / `ZSPARK_MASTER_URL` / `ZETARIS_API_MAX_HEAP` | `2g` / `2` / `local[2]` / `1g` |
-   | `UI_PORT` | `127.0.0.1:3000` (this machine only, as in the official test) |
-   | `ALLOWED_ORIGINS` and `GUI_URL` | `http://localhost:3000` |
-   | `COMPOSE_PROFILES` | empty |
-   | `ZETARIS_SEED_TPCH` | `true` |
-
-   Then `chmod 600 .env && docker compose config --quiet`.
-8. **Pull and start** (the first pull downloads about 4 GB): `docker compose pull && docker compose up -d`. Wait until `docker compose ps --all` shows `init` and `bootstrap` as `Exited (0)` and the other services healthy, then run `./verify.sh`; expect 9 of 9 checks to pass.
-9. **First login.** Open <http://localhost:3000>, sign in as the administrator and run `SELECT 1 AS one` in the SQL Editor.
-
-### Load the fictional source systems
-
-From the RecallReach folder (PowerShell or WSL):
+### Load the fictional source systems (what `bring-up.sh` step 6 does)
 
 ```bash
 docker compose -f integrations/zetaris/docker-compose.yml up -d
-docker network ls --filter name=zetaris
-docker network connect --alias recallreach-sources <network-from-the-previous-command> recallreach-sources
+docker network connect --alias recallreach-sources zetaris_default recallreach-sources
 ```
 
-This starts PostgreSQL as container `recallreach-sources`, with three databases and a read-only login, `recallreach_reader`. It publishes `127.0.0.1:5433` on this machine only, for inspection. The `docker network connect` command puts it on the Zetaris Compose network, so the Zetaris engine reaches it as `recallreach-sources:5432` without exposing it on your LAN. The fixture SQL is generated from the same fictional scenarios the app uses (`npm run zetaris:fixtures`):
+This starts PostgreSQL as container `recallreach-sources`, with three databases and a read-only login, `recallreach_reader`. It publishes `127.0.0.1:5433` on this machine only, for inspection, and joins the Zetaris Compose network (`zetaris_default`, named on the *Run locally* page) so the Zetaris engine reaches it as `recallreach-sources:5432` without exposing it on your LAN. The fixture SQL is generated from the same fictional scenarios the app uses (`npm run zetaris:fixtures`):
 
 | Database.table | System it stands for | Native columns |
 | --- | --- | --- |
@@ -90,13 +89,11 @@ This starts PostgreSQL as container `recallreach-sources`, with three databases 
 | `recall_pharmacy.stock_events` | Pharmacy stock systems | txn_id, consignment_ref, from_status, to_status, qty, pharmacy_name, doc_ref, recorded_at |
 | `recall_returns.return_notes` | Distributor returns desk | rma_id, consignment_ref, qty, returned_from, rma_ref, received_at |
 
-Then, in the Zetaris SQL Editor as administrator, run the statements in [`integrations/zetaris/setup-datasources.sql`](../integrations/zetaris/setup-datasources.sql) one at a time: three `CREATE DATASOURCE`, three `REGISTER DATASOURCE TABLES`, and a read-only check. If the check says *table not found*, run `SHOW DATASOURCE TABLES recall_distributor` and use the qualified names it shows in `ZETARIS_TABLES` (below). The `<datasource>.<table>` names follow the Zetaris command reference but were not yet checked against a running instance.
-
-**API key.** In the Zetaris UI, open Management → API Tokens, click **+**, and copy the key; it is shown once. The key carries the permissions of the user who created it. RecallReach only ever sends fixed, read-only SELECTs, but an administrator key could do more if it leaked. **Least privilege (recommended beyond a local demo):** create a non-administrator user with SELECT on these three datasources only (Management → Users, Access Control), and create the key while signed in as that user.
+If a query says *table not found*, run `SHOW DATASOURCE TABLES recall_distributor` in the SQL Editor and put the qualified names it shows into `ZETARIS_TABLES` in `.dev.vars`. The `<datasource>.<table>` names follow the Zetaris command reference but have not yet been checked against a running instance.
 
 ### Configure RecallReach
 
-Add to `.dev.vars` (gitignored; never paste the key into a chat or commit it):
+`.dev.vars` (gitignored; never paste the key into a chat or commit it):
 
 ```
 ZETARIS_REST_URL=http://localhost:8888/api/v1.0
@@ -114,7 +111,14 @@ When all three `ZETARIS_*` values are present the mock is disabled automatically
 2. **Integrations → Run connection check.** Expect `CONNECTED · LAST CHECK PASSED` and a latency in the history table. Failures show their class (auth, unreachable, timeout, query failed, invalid response), and nothing is reported as connected.
 3. Create a case with the scope `Example Pharma (fictional)` / `Nivara oral solution` / `DEMO-042` / `bottles`. Use **Import records → From a connected source** for all three sources. Expect 1,000 accepted, 40 awaiting containment, and each source tagged `ZETARIS` with its table and query ID.
 4. Run the agent. Its `query_connected_source` steps show the table, row count and latency, without a `MOCK` label.
-5. New evidence through Zetaris: `docker exec -i recallreach-sources psql -U postgres -d recall_pharmacy < integrations/zetaris/fixtures/02-followup-quarantine.sql`, then import *Pharmacy stock events* again. Existing rows count once as duplicates; the new 40-bottle quarantine moves the case to 940 contained.
+5. New evidence through Zetaris: `docker exec -i recallreach-sources psql -U postgres -d recall_pharmacy < integrations/zetaris/fixtures/02-followup-quarantine.sql` (run this in Ubuntu or Git Bash; PowerShell has no `<` redirection), then import *Pharmacy stock events* again. Existing rows count once as duplicates; the new 40-bottle quarantine moves the case to 940 contained.
+
+### Troubleshooting on this laptop (Windows 11 26H2, build 26300)
+
+- **Docker Desktop crashes at start** with `remove …\Docker\run\<name>: The file cannot be accessed by the system`. On this Windows build Docker can create its AF_UNIX socket files but cannot delete them on its next start; WSL can. Start Docker with `powershell -ExecutionPolicy Bypass -File scripts\windows\start-docker-desktop.ps1` (it removes only those socket entries via WSL, starts Docker Desktop and waits until the engine stays up for a minute), not with the Docker Desktop icon.
+- **WSL integration for Ubuntu** was off; it was enabled in Docker Desktop's `settings-store.json` (backup `settings-store.json.bak-2026-10-24`). Inside Ubuntu, `command -v docker` should print `/usr/bin/docker`.
+- **`Wsl/Service/E_UNEXPECTED`** right after Docker applied the integration: `wsl --terminate Ubuntu` fixed it.
+- **`preflight.sh` says not signed in** although you saw `Login Succeeded`: the login was run somewhere else (another terminal or account). Run it inside Ubuntu as yourself, without `sudo`.
 
 ### Mock mode
 
