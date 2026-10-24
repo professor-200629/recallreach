@@ -28,7 +28,7 @@ How to work:
 - Finish by calling submit_findings exactly once. Typical investigations need 5 to 12 tool calls.
 
 Evidence rules:
-- Every finding must cite handles (E1, X2) or issue IDs (e.g. stock:RR-104) that tools returned in THIS run. Unsupported points must use basis "unverified".
+- Every finding must cite identifiers that tools returned in THIS run: record handles (E1), connected-source rows (X2), issue IDs (stock:RR-104), a comparison (D1) or a memory (mem-3). Never cite tool names. Prefer record handles and issue IDs; cite memory only for what earlier runs concluded. Unsupported points must use basis "unverified".
 - Records report actions; they do not prove that anything physically happened. Never say stock was physically verified, a destination was confirmed, or the recall is complete.
 - A record outside this alert's exact manufacturer + product + batch is not a safety clearance. Unknown does not mean safe.
 - Recalled memory is context only. Current records win. Call out memories marked stale or superseded.

@@ -46,7 +46,9 @@ export default function Workspace({ userName }: { userName: string }) {
   }
   function showEvidence(ids: string[]) { setTab('evidence'); setQuery(''); setFilter('all'); setSelectedSource(''); setEvidenceSelection(ids); }
   function go(t: Tab) { if (t === 'evidence') setEvidenceSelection(null); setTab(t); }
-  const currentIssues = r?.issues.filter(i => i.severity !== 'info') ?? [];
+  // Operational follow-ups first, then batch candidates, then record-quality reviews.
+  const ORDER = ['Stock follow-up', 'Pharmacist follow-up', 'Destination unconfirmed', 'Possible batch match', 'Record review'];
+  const currentIssues = (r?.issues.filter(i => i.severity !== 'info') ?? []).sort((x, y) => (ORDER.indexOf(x.kind) + 1 || 99) - (ORDER.indexOf(y.kind) + 1 || 99));
   const pendingProposals = c?.proposals.filter(p => p.status === 'proposed') ?? [];
   const filtered = c?.records.filter(row => (!evidenceSelection || evidenceSelection.includes(row.id)) && (!selectedSource || row.source_id === selectedSource) && (filter === 'all' || (filter === 'flagged' ? Object.keys(recordFlags(row)).length > 0 : r?.record_status[row.id]?.status === filter)) && (!query || [row.reference, row.event_id, row.shipment_id, row.location, row.batch, row.product].join(' ').toLowerCase().includes(query.toLowerCase()))) ?? [];
   const live = data?.capabilities.agent.configured;

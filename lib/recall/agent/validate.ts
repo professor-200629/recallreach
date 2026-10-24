@@ -1,5 +1,7 @@
 import type { CitedClaim, MissingEvidence, ProposedFollowUp, VerifiedAnswer } from '../types.ts';
-import type { FinalArgs, ToolContext } from './tools.ts';
+import { TOOLS, type FinalArgs, type ToolContext } from './tools.ts';
+
+const TOOL_NAMES = new Set<string>([...TOOLS.map(t => t.name), 'submit_findings']);
 
 // Checks a submitted answer against what the run actually retrieved. Claims keep their
 // text, but anything unsupported is labelled unverified with the reason, and citations
@@ -38,14 +40,33 @@ export function resolveCitation(token: string, ctx: ToolContext): string | null 
   if (ctx.externalRows.has(t)) { const x = ctx.externalRows.get(t)!; return `${x.mode === 'mock' ? 'zetaris-mock' : 'zetaris'}:${x.table}:${x.row_key}`; }
   const issue = t.replace(/^issue:/, '');
   if (ctx.issueIds.has(issue)) return issue;
+  if (ctx.diffs.has(t)) return ctx.diffs.get(t)!;
+  if (ctx.memoryIds.has(t)) return `memory:${t}`;
   return null;
+}
+
+const UNRESOLVED = /\b(unresolved|awaiting containment|unaccounted|not (yet )?contained|without (an? )?(accepted )?(containment|quarantine)|lacks? (an? |any )?(accepted )?containment|still available|remains? available)\b/i;
+const CONTAINED = /\b(quarantined|returned|contained|dispensed)\b/i;
+const PRESENT = /\b(remain|remains|still|currently|now|is|are|has|have)\b/i;
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** A present-tense "N units unresolved" statement about a shipment must match the engine's current balance. */
+export function contradictsEngine(text: string, ctx: ToolContext, unit: string): string[] {
+  if (!UNRESOLVED.test(text) || !PRESENT.test(text) || CONTAINED.test(text)) return [];
+  const mentioned = ctx.r.shipments.filter(s => new RegExp(`\\b${escapeRe(s.shipment_id)}\\b`).test(text));
+  if (mentioned.length !== 1) return [];
+  // Ignore the shipment's opening total when stated as context ("out of 200 pens accepted").
+  const s = mentioned[0], stated = quantities(text.replace(/\bout of [\d,]+\s*\w+\s+accepted\b/gi, ''), unit);
+  return stated.some(n => n !== s.available) ? [`Contradicts the current reconciliation: ${s.shipment_id} has ${s.available} ${unit} awaiting containment.`] : [];
 }
 
 function check(text: string, citations: string[], ctx: ToolContext, unit: string, basis: CitedClaim['basis'] | null) {
   const problems: string[] = [], resolved: string[] = [], rejected: string[] = [];
   for (const token of citations) { const id = resolveCitation(token, ctx); if (id) resolved.push(id); else rejected.push(token); }
-  for (const token of rejected) problems.push(`Citation “${token}” was not retrieved in this run.`);
+  for (const token of rejected) problems.push(TOOL_NAMES.has(token) ? `Cited the tool name “${token}” instead of an identifier it returned.` : `Citation “${token}” was not retrieved in this run.`);
   if (!resolved.length) problems.push('No valid citation supports this statement.');
+  else if (resolved.every(id => id.startsWith('memory:'))) problems.push('Supported only by earlier memory. Memory is context, not current evidence; cite current records or issues.');
+  problems.push(...contradictsEngine(text, ctx, unit));
   for (const n of quantities(text, unit)) if (!ctx.numbers.has(n)) problems.push(`Quantity ${n} does not match any retrieved record or reconciliation figure.`);
   if (basis === 'engine_calculated' && !ctx.toolsUsed.has('run_reconciliation') && !ctx.toolsUsed.has('get_shipment_ledger')) problems.push('Marked as engine-calculated, but the reconciliation was not consulted.');
   if (basis === 'unverified') problems.push('The agent itself marked this as unverified.');

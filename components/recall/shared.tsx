@@ -43,6 +43,8 @@ export function citeLabel(id: string, c: RecallCase): string {
   const row = c.records.find(r => r.id === id);
   if (row) return row.reference || row.event_id || `row ${row.source_row}`;
   if (id.startsWith('zetaris')) return id.split(':').slice(-2).join(' row ');
+  if (id.startsWith('memory:')) return `memory ${id.slice(7)}`;
+  if (id.startsWith('snapshot-diff:')) return 'change since previous run';
   return id;
 }
 

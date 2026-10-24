@@ -101,7 +101,7 @@ export class CaseMemory {
     let count = 0;
     for (const m of this.hmem.store.all()) {
       if (m.chatId !== this.caseId || m.supersededBy || this.validity(m, evidence).validity !== 'stale') continue;
-      this.remember({ content: `Recheck needed (${cause}). Earlier ${tagValue(m, 'kind:')[0] ?? 'note'} ${m.id}: “${m.content.slice(0, 300)}”`, kind: 'recheck',
+      this.remember({ content: `Recheck needed (${cause}). Earlier ${tagValue(m, 'kind:')[0] ?? 'note'} ${m.id} is superseded and may no longer hold. It said: “${m.content.slice(0, 300)}”`, kind: 'recheck',
         confidence: 0.5, source: `recallreach:revalidation:${m.id}`, label: `Evidence changed: ${cause}`, origin: 'document',
         refs: m.provenance.refs ?? [], shipments: tagValue(m, 'shipment:'), review: 'unreviewed', supersedes: m.id }, evidence);
       count++;

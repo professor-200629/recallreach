@@ -1,133 +1,77 @@
-# vinext-starter
+# RecallReach
 
-A clean full-stack starter running on [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and Drizzle support.
+**RecallReach helps a medicine recall coordinator investigate fragmented distribution records, find affected stock that is still unresolved, explain every finding with its evidence, and coordinate accountable human follow-up.**
 
-## Prerequisites
+Built for the [Open Agent Hackathon 2026](https://hackathon.genai.works/event/open-agent-hackathon-2026) (GenAI.Works), track *The Agent That Can Explain Why*. All data in this repository is fictional.
 
-- Node.js `>=22.13.0`
-- Portable: Windows, macOS, or Linux; no Bash required
-- Managed Linux: managed Linux runtime with Bash, `flock`, `curl`, `sha256sum`, and GNU `timeout`
-- Git and `tar` (including Windows `tar.exe`) are required for publishing; portable publication does not require Bash
+> Status: hackathon prototype. Tested on fictional fixtures only. Not validated with real recall coordinators or pharmacists, and not ready for operational use. See [Known limitations](#known-limitations).
 
-## Sites Lifecycle
+## The problem
 
-The Sites initializer copies the shared starter and selects managed-linux only when `SITES_MANAGED_LINUX_CONTAINER=1`; otherwise it selects portable. It saves the selection only in ignored `.sites-runtime/execution-profile.json`. Both profiles copy/configure first, then use the plugin's separate `install-dependencies.mjs` step to measure installation independently. Edit source under `app/` and follow the Sites skill for installation, preview, builds, and publishing.
+When a batch of medicine is recalled, the distributor's dispatch log, each pharmacy's stock system and the returns desk all hold part of the picture. They disagree, duplicate each other, use different units, and sometimes omit the one record that matters. A coordinator must find out quickly which stock may still reach a patient, and must be able to show why they believe it.
 
-Run `node <plugin-root>/scripts/configure-execution-profile.mjs` only when the profile is unknown for the current checkout and environment. Profile changes do not alter tracked source or require reinstalling otherwise-valid dependencies; restart an existing preview to use the new selection. Do not commit or upload `.sites-runtime/`.
+## What it does
 
-This starter does not use `wrangler.jsonc`.
+For one manufacturer + product + batch, counted in one unit:
 
-Publish archives outside the source checkout or under its ignored `outputs/` directory. Local `.env*`, `.dev.vars*`, TypeScript build state, and tool runtime directories are ignored; keep the hosting manifest, migrations, and authored scripts in source control.
+1. **Reconciles** imported records into mutually exclusive states (available, quarantined, returned, dispensed) with a deterministic engine. It catches duplicates, conflicting versions, reused references, double openings, wrong units, ambiguous or future timestamps, movements before shipment, location mismatches and overspends. Uncertain records stay visible with the reason they were not counted. Near-miss batch numbers are flagged, never counted.
+2. **Investigates** with a bounded, tool-using agent. Ask *"Why are 40 bottles still unresolved, and what evidence would resolve this?"* and the agent chooses among 10 read-only tools: reconciliation, shipment ledger, original source row, reference trace, review queue, memory, change comparison, and connected sources through Zetaris. It submits findings that cite the records it actually retrieved. RecallReach checks every citation and every quantity; anything unsupported is labelled **unverified**.
+3. **Proposes follow-up** (who should do what, and which evidence would resolve it) for a person to approve or reject. Approval never changes stock.
+4. **Reassesses** when evidence changes. Evidence snapshots mark earlier conclusions stale, and investigation memory (Meterless H-MEM) supersedes them with recheck notes instead of reusing them.
+5. **Keeps an accountable trail:** operator corrections that preserve the original record, a hash-chained activity log, and Markdown/CSV/JSON exports.
 
-`install:ci` runs `npm ci` once against the shared lockfile, disables parent-workspace discovery, and includes required dev/optional dependencies despite production/omit settings. Sharp defaults to prebuilt binaries unless explicitly configured otherwise. Do not overlap installers.
+Without model credentials, **rules mode** runs a fixed procedure with the same tools and the same citation checks, clearly labelled as using no language model.
 
-- **Portable:** Preserve host HOME, npm cache, registry, proxy, temporary paths, retry/concurrency settings, and lifecycle-script policy. Use `--prefer-offline --no-audit --no-fund`.
-- **Managed Linux:** Use the existing project-local HOME/cache/tmp setup and Linux install lock, tarball preflight, and timeout. Restore the image-seeded npm cache only when its lockfile hash matches; retain network fallback. Builds keep their existing timeout. These helpers are not invoked by the portable profile.
+## Sponsor technology
 
-`scripts/sites-env.mjs` preserves the caller's HOME, npm cache, proxy, XDG, and temporary-directory configuration while defaulting Wrangler and Miniflare state to the checkout. If npm reports an unwritable cache, select a writable path with `npm_config_cache` for that install. The `dev` and `start` scripts also keep Wrangler logs inside the checkout. Generated `.sites-runtime/` and `.wrangler/` directories are disposable and ignored by Git.
+| | How it is used | Status |
+| --- | --- | --- |
+| **Zetaris** | Read-only federated queries across three separately owned source systems (distributor ERP, pharmacy stock, returns desk), each with native columns mapped by code-owned SQL. Every query's latency and result is recorded. | Adapter built and contract-tested; **not yet connected to a running Zetaris instance**. A labelled mock serves the same fixtures meanwhile. |
+| **Meterless H-MEM** | Investigation memory across runs: verified findings, open questions and operator decisions, with provenance, trust ledger, supersession and contradiction detection. | **In use.** Unmodified reference engine (Apache-2.0); upstream conformance suite 13/13. |
 
-On portable, `npm run dev` uses `vinext dev` with HMR, starting at port 5173. Vinext records the running server in ignored `.vinext/` state, rejects an ordinary duplicate launch, and recovers stale state after a stopped process; exactly simultaneous starts can race. Pass `--port <port>` or `--hostname <host>` after `npm run dev --` when needed; keep portable previews on loopback.
+Details and setup: [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
 
-For managed Linux browser QA, follow the Sites skill's managed preview reference. The daemon runs the project's Vite dev script with `--host 0.0.0.0 --port 4173 --strictPort`; use the CLI's returned URL. The ignored local profile survives the daemon's cleared environment.
+## Quick start
 
-The portable profile simulates ChatGPT sign-in only for loopback development requests. Visit `/signin-with-chatgpt?return_to=/` to sign in as `local_seedy` (`seedy@sites.test`, display name `Seedy`) and `/signout-with-chatgpt?return_to=/` to sign out. The development cookie preserves that identity across server restarts. Mock auth is disabled in the managed-linux profile and is not included in production builds; hosted authentication remains dispatch-owned.
-
-The Worker uses `vinext/server/fetch-handler`, including Vinext's config-aware image handling. After building, `npm start` runs that Worker locally through Wrangler on `127.0.0.1`, sharing `.wrangler/state` with dev preview and local D1 migrations; it does not deploy the site or simulate sign-in. Use the URL printed by the server. Pass `npm start -- --port <port>` to select a different built-preview port.
-
-Local previews use Miniflare's placeholder `Request.cf` metadata without a network lookup. Set `CLOUDFLARE_CF_FETCH_ENABLED=true` to opt into fetching preview metadata; this setting does not change hosted request metadata.
-
-Local tool usage metrics are disabled by default. Set `WRANGLER_SEND_METRICS=true` to opt in.
-
-## Included Shape
-
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `worker/index.ts` is the production Worker entrypoint and preserves request-scoped connector bindings
-- `scripts/vite/` contains the maintained Vite integrations and the vendored Sites plugin license
-- `scripts/connector-preview/` contains the local connector preview Worker and session helpers
-- the remaining `scripts/` files select execution profiles and run installation, development, and builds; the plugin's helpers orchestrate the Sites lifecycle
-- `dist/` contains generated deployment output; `.vinext/`, `.wrangler/`, and `.sites-runtime/` contain ignored local tool state
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `@cloudflare/workers-types` provides Worker types; `cloudflare-env.d.ts` declares optional `DB`/`BUCKET` bindings—update these declarations if binding names change
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Use it as the durable user key; use email and name for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive `oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty `name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by `oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+npm ci
+cp .dev.vars.example .dev.vars   # add GROQ_API_KEY for live runs (optional)
+npm run build && npm run db:migrate:local
+npm run dev
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+Open `http://localhost:5173/signin-with-chatgpt?return_to=/` (local test sign-in), then **Explore a mock recall**. Full instructions: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use the returned `userId` as the stable user key for user-owned records; do not use email as a durable identifier.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send anonymous visitors through Sign in with ChatGPT.
-- In a Server Component, start sign-in with `<a href={chatGPTSignInPath(returnTo)} target="_top">`. The auth helper module is server-only; do not import it into a Client Component.
-- Do not use `fetch`, XHR, a client-side router, or a framework link that can prefetch the sign-in route. SIWC must start as a top-level navigation.
-- Never request the AuthAPI authorization endpoint directly. The dispatch-owned `/signin-with-chatgpt` route must start the SIWC flow.
-- Use `chatGPTSignOutPath(returnTo)` for browser sign-out links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the OAuth cookies, and identity header injection. Do not implement app routes for those reserved paths. Routes that do not import and call the helper remain anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the Sites hosting platform's access policy controls for workspace-wide restrictions, or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Local D1 migrations
-
-For a D1-backed local preview, generate SQL with `npm run db:generate`. Build once through the Sites skill's build entrypoint (or `npm run build` for standalone use) to generate `dist/server/wrangler.json`, rebuilding if bindings change. From the project root, apply each pending migration in order:
-
-```sh
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_example.sql
+```bash
+npm test          # 61 automated tests
+npm run eval      # fixture comparison with a batch-lookup baseline
 ```
 
-Replace the filename with the pending migration and `DB` with your D1 binding name if different. Use `.wrangler/state`, not `.wrangler/state/v3`; Wrangler adds the versioned directories. Do not replay migrations already applied locally. This updates only the preview database; publishing applies production migrations separately.
+## Documentation
 
-## Diagnostic Commands
+- [Architecture and data flow](docs/ARCHITECTURE.md): stock model, agent loop, trust boundaries
+- [Integrations](docs/INTEGRATIONS.md): Zetaris, Meterless H-MEM, model provider; setup and verification
+- [Evaluation](docs/EVALUATION.md): test inventory, fixture results, live runs
+- [Demo script](docs/DEMO_SCRIPT.md)
+- [Submission notes](docs/SUBMISSION.md): description, judging checklist, pre-existing work
+- [Pilot plan](docs/PILOT_PLAN.md)
+- [Deployment](docs/DEPLOYMENT.md)
 
-- `npm run install:ci`: perform the one locked dependency install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build the deployable Sites artifact
-- `npm run start`: preview the built Worker locally with D1/R2 support
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+## Principles
 
-When using the Sites plugin, follow its skill instructions for installation, builds, and publishing. These npm commands remain available for standalone use.
+Unknown does not mean safe. A record outside the alert is not a safety clearance. Exact identity is manufacturer + product + batch. Units are never converted. Imported records report actions; they do not prove them. Approval is not completion. There is no "recall complete" conclusion. Every factual claim cites retrieved evidence or is labelled unverified.
 
-The portable build runs Vinext directly without a host `timeout` command. The managed-linux build uses `scripts/build-verified.sh` and its existing `SITES_BUILD_TIMEOUT` setting.
+## Known limitations
 
-## Learn More
+- **Fictional data only.** There has been no real-user pilot and no feedback from coordinators or pharmacists yet.
+- **Zetaris has not been queried for real.** It needs your own instance; see INTEGRATIONS.md.
+- **Live model runs use Groq's free tier** (8,000 tokens per minute), so a live investigation takes 1–3 minutes. Live runs have been recorded on the drill; their quality varies from run to run, and the citation verifier is what keeps that visible.
+- **Not deployed.** Hosting is planned through OpenAI Sites (the existing project identity). Header-based sign-in is only safe behind the Sites dispatcher.
+- One batch and one unit per case; no transfers between locations; no team sharing; no automated alert ingestion.
+- The audit hash chain checks internal consistency only; it is not tamper-proof storage.
+- H-MEM is a reference implementation ("not a production library") with a deterministic hash embedder.
+- No patient data is supported, and no messages are ever sent.
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+## Licence and credits
+
+Application code © 2026 Balu. The vendored Meterless H-MEM reference engine (`vendor/meterless-hmem`) is Apache-2.0. The Vinext/Sites starter, the shadcn/ui components and the vendored Sites Vite plugin are pre-existing third-party components (see `scripts/vite/sites-vite-plugin.LICENSE` and `vendor/shadcn-tailwind-4.13.0.LICENSE.md`).

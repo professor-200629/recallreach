@@ -173,3 +173,37 @@ test('follow-up proposals accept the same citations as findings, including retri
   assert.deepEqual(result.steps.filter(s => s.tool === 'propose_follow_up').map(s => s.ok), [true, false]);
   assert.deepEqual(result.answer!.follow_ups[0].citations, ['stock:RR-104']);
 });
+
+test('comparisons and memories are citable; tool names are not', async () => {
+  const ctx = setup();
+  const result = await run(ctx, [
+    () => turn([['compare_with_previous_run', {}]]),
+    m => { assert.equal(lastTool(m).data.cite, 'D1'); return submit([
+      { claim: 'There is no earlier run to compare with.', citations: ['D1'], basis: 'source_reported' },
+      { claim: 'Nothing changed.', citations: ['compare_with_previous_run'], basis: 'source_reported' },
+    ]); },
+  ]);
+  const [ok, bad] = result.answer!.findings;
+  assert.equal(ok.verification, 'verified'); assert.match(ok.citations[0], /^snapshot-diff:/);
+  assert.equal(bad.verification, 'unverified'); assert.match(bad.problems[0], /tool name/);
+});
+
+test('memory alone cannot verify a claim, and claims that contradict current balances are flagged', async () => {
+  const c = createScenarioCase('missing-40', 'mem-claims', NOW);
+  c.records.push(...(await import('../lib/recall/csv.ts')).parseLedgerCsv((await import('../lib/recall/sample.ts')).FOLLOWUP_CSV, 'followup'));
+  const r = reconcileCase(c);
+  const ctx = createContext({ c, r, memory: null, external: null, previous: undefined, current: takeSnapshot(c, r, 'agent-live', 'T', null, NOW) });
+  ctx.memoryIds.add('mem-4');
+  const result = await investigate({ question: 'q', ctx, provider: new ScriptedProvider([
+    () => turn([['get_shipment_ledger', { shipment_id: 'RR-104' }]]),
+    () => submit([
+      { claim: 'Earlier conclusions that the 40 bottles in shipment RR-104 remain unresolved are still valid.', citations: ['mem-4'], basis: 'source_reported' },
+      { claim: 'Shipment RR-104 still has 40 bottles awaiting containment.', citations: ['E1'], basis: 'engine_calculated' },
+      { claim: 'Shipment RR-104 is now recorded as 40 bottles quarantined.', citations: ['E1', 'E2'], basis: 'source_reported' },
+    ]),
+  ]), actor: 'T', sleep: async () => {} });
+  const [memOnly, contradiction, fine] = result.answer!.findings;
+  assert.equal(memOnly.verification, 'unverified'); assert.match(memOnly.problems.join(' '), /only by earlier memory/);
+  assert.equal(contradiction.verification, 'unverified'); assert.match(contradiction.problems.join(' '), /RR-104 has 0 bottles awaiting containment/);
+  assert.equal(fine.verification, 'verified', fine.problems.join(' '));
+});

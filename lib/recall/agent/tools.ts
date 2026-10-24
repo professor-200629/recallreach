@@ -15,14 +15,14 @@ export type ToolContext = {
   c: RecallCase; r: Reconciliation; memory: CaseMemory | null; external: ExternalSource | null;
   previous: EvidenceSnapshot | undefined; current: EvidenceSnapshot;
   handles: Map<string, string>; byRecord: Map<string, string>; externalRows: Map<string, ExternalHandle>;
-  issueIds: Set<string>; memoryIds: Set<string>; toolsUsed: Set<string>;
+  issueIds: Set<string>; memoryIds: Set<string>; toolsUsed: Set<string>; diffs: Map<string, string>;
   proposals: ProposalDraft[]; memoryRecalled: number; numbers: Set<number>;
 };
 export type ToolResult = { ok: boolean; data?: unknown; error?: string; summary: string; record_ids: string[] };
 type ToolDef<S extends z.ZodType> = { name: string; description: string; schema: S; run: (args: z.infer<S>, ctx: ToolContext) => Promise<ToolResult> | ToolResult };
 
 export function createContext(base: Pick<ToolContext, 'c' | 'r' | 'memory' | 'external' | 'previous' | 'current'>): ToolContext {
-  return { ...base, handles: new Map(), byRecord: new Map(), externalRows: new Map(), issueIds: new Set(), memoryIds: new Set(), toolsUsed: new Set(), proposals: [], memoryRecalled: 0, numbers: new Set() };
+  return { ...base, handles: new Map(), byRecord: new Map(), externalRows: new Map(), issueIds: new Set(), memoryIds: new Set(), toolsUsed: new Set(), diffs: new Map(), proposals: [], memoryRecalled: 0, numbers: new Set() };
 }
 
 const purpose = z.string().max(200).optional().describe('Why you call this (shown to the operator).');
@@ -157,7 +157,8 @@ export const TOOLS = [
       for (const m of found) ctx.memoryIds.add(m.memory_id);
       const cites = found.flatMap(m => m.cites).filter(id => ctx.c.records.some(r => r.id === id));
       return { ok: true, record_ids: [...new Set(cites)], summary: `${found.length} memories (${found.filter(m => m.validity === 'current').length} current, ${found.filter(m => m.validity !== 'current').length} stale or superseded).`, data: {
-        memories: found.map(m => ({ memory_id: m.memory_id, content: m.content, kind: m.kind, review: m.review, validity: m.validity, validity_reason: m.validity_reason, written_at: m.created_at, cites: m.cites.map(id => ctx.c.records.some(r => r.id === id) ? handle(ctx, id) : id) })),
+        memories: found.map(m => ({ memory_id: m.memory_id, content: m.content, kind: m.kind, review: m.review, validity: m.validity, validity_reason: m.validity_reason, written_at: m.created_at, cites: m.cites.map(id => ctx.c.records.some(r => r.id === id) ? handle(ctx, id) : id),
+          how_to_use: m.kind === 'recheck' ? 'Recheck note: the earlier conclusion it quotes is superseded because its evidence changed. Do not repeat it as current; check current records.' : m.validity === 'current' ? 'Context only. Confirm against current records before relying on it.' : 'Outdated: its evidence changed after it was written.' })),
         rule: 'Memory is context only. Current records and reconciliation always take precedence. Report stale memories as rechecks, not facts.',
       } };
     },
@@ -170,7 +171,9 @@ export const TOOLS = [
       for (const t of d.totals) { ctx.numbers.add(t.before); ctx.numbers.add(t.after); }
       for (const s of d.shipments) for (const b of [s.before, s.after]) if (b) for (const n of [b.available, b.quarantined, b.returned, b.dispensed]) ctx.numbers.add(n);
       for (const id of [...d.issues_opened, ...d.issues_closed]) ctx.issueIds.add(id);
-      return { ok: true, record_ids: [], summary: d.previous ? (d.changed ? `Evidence changed since ${d.previous.at}: ${d.totals.length} totals, ${d.shipments.length} shipments.` : `No evidence change since ${d.previous.at}.`) : 'No previous run to compare with.', data: d };
+      // The comparison itself is citable, so a claim about what changed can point at it.
+      const cite = `D${ctx.diffs.size + 1}`; ctx.diffs.set(cite, `snapshot-diff:${d.previous?.id ?? 'none'}:${ctx.current.fingerprint}`);
+      return { ok: true, record_ids: [], summary: d.previous ? (d.changed ? `Evidence changed since ${d.previous.at}: ${d.totals.length} totals, ${d.shipments.length} shipments.` : `No evidence change since ${d.previous.at}.`) : 'No previous run to compare with.', data: { cite, ...d } };
     },
   }),
   tool({
@@ -200,7 +203,7 @@ export const TOOLS = [
       if (!ctx.r.issues.some(i => i.id === a.issue_id)) return { ok: false, record_ids: [], error: `Issue ${a.issue_id} is not an open issue in the current reconciliation.`, summary: `Rejected: unknown issue ${a.issue_id}.` };
       if (!ctx.issueIds.has(a.issue_id)) return { ok: false, record_ids: [], error: `Retrieve issue ${a.issue_id} (run_reconciliation or get_shipment_ledger) before proposing for it.`, summary: `Rejected: issue ${a.issue_id} not retrieved.` };
       // Same citation rules as submit_findings: record handles, connected-source handles or retrieved issue IDs.
-      const bad = a.citations.filter(h => !ctx.handles.has(h) && !ctx.externalRows.has(h) && !ctx.issueIds.has(h.replace(/^issue:/, '')));
+      const bad = a.citations.filter(h => !ctx.handles.has(h) && !ctx.externalRows.has(h) && !ctx.issueIds.has(h.replace(/^issue:/, '')) && !ctx.diffs.has(h) && !ctx.memoryIds.has(h));
       if (bad.length) return { ok: false, record_ids: [], error: `Citations not retrieved in this run: ${bad.join(', ')}.`, summary: 'Rejected: invalid citations.' };
       if (ctx.proposals.length >= 6) return { ok: false, record_ids: [], error: 'At most 6 proposals per run.', summary: 'Rejected: proposal limit.' };
       const draft = { ref: `P${ctx.proposals.length + 1}`, issue_id: a.issue_id, action: a.action, owner_role: a.owner_role, evidence_requested: a.evidence_requested, citations: a.citations };
@@ -212,7 +215,7 @@ export const TOOLS = [
 
 export const FINAL_TOOL = {
   name: 'submit_findings',
-  description: 'Finish the investigation with cited findings. Every finding must cite handles (E#, X#) or issue IDs returned by tools in this run. Use basis "unverified" when evidence is insufficient.',
+  description: 'Finish the investigation with cited findings. Cite only identifiers that tools returned in this run: record handles (E3), connected-source rows (X2), issue IDs (stock:RR-104), comparison handles (D1) or memory IDs (mem-4). Never cite tool names. Use basis "unverified" when evidence is insufficient.',
   schema: z.object({
     summary: z.string().min(10).max(700),
     findings: z.array(z.object({ claim: z.string().min(5).max(400), citations: z.array(z.string().max(200)).max(8), basis: z.enum(['source_reported', 'engine_calculated', 'unverified']) })).max(12),
