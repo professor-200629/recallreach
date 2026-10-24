@@ -8,6 +8,13 @@
       "when": 1792788647672,
       "tag": "0000_adorable_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792851277883,
+      "tag": "0001_memory_and_integrations",
+      "breakpoints": true
     }
   ]
 }

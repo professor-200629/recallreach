@@ -1,6 +1,6 @@
 {
-  "name": "site-creator-vinext-starter",
-  "version": "0.1.0",
+  "name": "recallreach",
+  "version": "0.2.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -11,7 +11,12 @@
     "build": "node scripts/run-framework.mjs build",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test": "node --experimental-transform-types --no-warnings --test \"tests/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p .",
+    "eval": "node --experimental-transform-types --no-warnings scripts/evaluate.ts",
+    "db:migrate:local": "node scripts/migrate-local.mjs",
+    "zetaris:fixtures": "node --experimental-transform-types --no-warnings scripts/zetaris-fixtures.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -66,5 +71,6 @@
     "miniflare": {
       "sharp": "0.35.4"
     }
-  }
+  },
+  "description": "Evidence-linked medicine recall investigation agent (Open Agent Hackathon 2026)."
 }

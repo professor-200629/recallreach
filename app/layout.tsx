@@ -4,9 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "RecallReach — Every batch. Every handoff.",
   description: "Evidence-led medicine recall investigations and mock recall drills.",
-  other: {
-    "codex-preview": "development",
-  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

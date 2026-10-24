@@ -1,7 +1,7 @@
-import type { LedgerRecord } from './types.ts';
+import type { LedgerRecord, Source } from './types.ts';
 export const CSV_COLUMNS=['event_id','shipment_id','type','from_state','to_state','product','manufacturer','batch','quantity','unit','location','reference','occurred_at'];
 export function parseCsvRows(input:string):string[][] {
-  const text=input.replace(/^\uFEFF/,'');const rows:string[][]=[];let row:string[]=[],value='',quoted=false;
+  const text=input.replace(/^﻿/,'');const rows:string[][]=[];let row:string[]=[],value='',quoted=false;
   for(let i=0;i<text.length;i++) {
     const c=text[i];
     if(c==='"') {if(quoted&&text[i+1]==='"'){value+='"';i++;}else if(!quoted&&value!=='')throw new Error('Unexpected quote in CSV field.');else quoted=!quoted;}
@@ -22,8 +22,15 @@ export function parseLedgerCsv(content:string,sourceId:string):LedgerRecord[]{
     if(row.length!==header.length)throw new Error(`Row ${index+2} has ${row.length} fields; expected ${header.length}.`);
     const d=Object.fromEntries(header.map((key,i)=>[key,row[i].trim()]));
     for(const [key,value]of Object.entries(d))if(value.length>500)throw new Error(`Row ${index+2}: ${key} is too long.`);
-    return {id:`${sourceId}:${index+2}`,event_id:d.event_id,shipment_id:d.shipment_id,type:d.type as LedgerRecord['type'],from_state:d.from_state,to_state:d.to_state,product:d.product,manufacturer:d.manufacturer,batch:d.batch,quantity:d.quantity&&/^\d+$/.test(d.quantity)?Number(d.quantity):0,unit:d.unit,location:d.location,reference:d.reference,occurred_at:d.occurred_at,source_id:sourceId,source_row:index+2};
+    const whole=/^\d+$/.test(d.quantity);
+    return {id:`${sourceId}:${index+2}`,event_id:d.event_id,shipment_id:d.shipment_id,type:d.type as LedgerRecord['type'],from_state:d.from_state,to_state:d.to_state,product:d.product,manufacturer:d.manufacturer,batch:d.batch,quantity:whole?Number(d.quantity):0,...(whole?{}:{raw_quantity:d.quantity}),unit:d.unit,location:d.location,reference:d.reference,occurred_at:d.occurred_at,source_id:sourceId,source_row:index+2};
   });
+}
+/** Returns the original cells of one row exactly as retained in the imported source. */
+export function sourceRow(source:Pick<Source,'content'>,rowNumber:number):Record<string,string>|null{
+  const rows=parseCsvRows(source.content);const header=rows[0]?.map(s=>s.trim().toLowerCase());const row=rows[rowNumber-1];
+  if(!header||!row||rowNumber<2)return null;
+  return Object.fromEntries(header.map((key,i)=>[key,row[i]??'']));
 }
 export function toCsv(rows:Record<string,unknown>[],columns:string[]):string{
   const field=(v:unknown)=>{let s=String(v??'');if(/^[=+@\-\t\r]/.test(s))s="'"+s;return /[",\n\r]/.test(s)?'"'+s.replaceAll('"','""')+'"':s;};
