@@ -10,7 +10,9 @@ export type Limits = {
 };
 // totalTimeoutMs allows for free-tier rate-limit waits; fullToolResults is how many recent tool
 // results stay verbatim in the context before older ones are replaced by their summaries.
-export const DEFAULT_LIMITS: Limits = { maxModelCalls: 12, maxToolCalls: 16, callTimeoutMs: 30_000, totalTimeoutMs: 180_000, maxRetries: 1, rateLimitRetries: 4, maxRateLimitWaitMs: 30_000, maxOutputTokens: 1600, maxInvalidStreak: 3, fullToolResults: 4 };
+// Groq's free tier allows 8,000 tokens per minute, so a thorough live run spends most of
+// its time waiting; rate-limited attempts are retried and do not use the model-call budget.
+export const DEFAULT_LIMITS: Limits = { maxModelCalls: 10, maxToolCalls: 16, callTimeoutMs: 30_000, totalTimeoutMs: 240_000, maxRetries: 1, rateLimitRetries: 6, maxRateLimitWaitMs: 30_000, maxOutputTokens: 1600, maxInvalidStreak: 3, fullToolResults: 3 };
 
 export const SYSTEM_PROMPT = `You are RecallReach's investigation agent for ONE medicine recall case. You help a recall coordinator understand what the imported evidence shows, what it does not show, and what a person should check next.
 
@@ -71,7 +73,7 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
   const messages: ChatMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `${header(input.ctx)}\n\nQuestion: ${input.question}` }];
   const tools = toolSpecs(), deadline = started + limits.totalTimeoutMs;
   const compacted = new Map<string, string>(), toolOrder: string[] = [];
-  let toolCalls = 0, invalidStreak = 0, nudged = false, waitedMs = 0;
+  let toolCalls = 0, invalidStreak = 0, nudged = false, waitedMs = 0, forced = false;
   // Older tool results are sent as their summary and handles to keep each request within token limits.
   const contextView = (): ChatMessage[] => {
     const keep = new Set(toolOrder.slice(-limits.fullToolResults));
@@ -80,20 +82,26 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
   const waited = () => waitedMs ? ` Waited ${Math.round(waitedMs / 1000)} s for provider rate limits.` : '';
 
   while (true) {
-    if (run.usage.model_calls >= limits.maxModelCalls) return finish('limit_reached', `Stopped after ${limits.maxModelCalls} model calls without submitted findings.${waited()}`);
     if (now() >= deadline) return finish('limit_reached', `Stopped at the ${limits.totalTimeoutMs / 1000} s time limit.${waited()}`);
+    // Near the end of any budget, ask for the final answer and force the submit_findings tool.
+    const lowBudget = run.usage.model_calls >= limits.maxModelCalls - 1 ? 'model-call' : toolCalls >= limits.maxToolCalls ? 'tool-call' : now() - started > limits.totalTimeoutMs * 0.7 ? 'time' : '';
+    if (lowBudget && !forced) {
+      forced = true;
+      messages.push({ role: 'user', content: `The ${lowBudget} budget is nearly used. Call submit_findings now with the evidence already retrieved; mark anything unsupported as unverified.` });
+    } else if (forced && run.usage.model_calls >= limits.maxModelCalls) return finish('limit_reached', `Stopped after ${limits.maxModelCalls} model calls without submitted findings.${waited()}`);
     let result;
     for (let attempt = 0, rateLimited = 0; ; attempt++) {
       const remaining = deadline - now();
       if (remaining <= 0) return finish('limit_reached', `Stopped at the ${limits.totalTimeoutMs / 1000} s time limit.${waited()}`);
       try {
+        result = await provider.complete({ messages: contextView(), tools, maxTokens: limits.maxOutputTokens, signal: AbortSignal.timeout(Math.min(limits.callTimeoutMs, remaining)), ...(forced ? { forceTool: FINAL_TOOL.name } : {}) });
         run.usage.model_calls++;
-        result = await provider.complete({ messages: contextView(), tools, maxTokens: limits.maxOutputTokens, signal: AbortSignal.timeout(Math.min(limits.callTimeoutMs, remaining)) });
         break;
       } catch (error) {
         const e = error instanceof ProviderError ? error : new ProviderError('network', (error as Error)?.message ?? 'Unknown provider failure', false);
         const isRate = e.kind === 'rate_limit', wait = isRate ? Math.min(e.retryAfterMs ?? 5000, limits.maxRateLimitWaitMs) + 250 : 1500;
         const allowed = isRate ? rateLimited < limits.rateLimitRetries : attempt - rateLimited < limits.maxRetries;
+        if (!isRate) run.usage.model_calls++;
         if (!e.retryable || !allowed || run.usage.model_calls >= limits.maxModelCalls || wait >= deadline - now()) return finish('provider_error', `${e.kind}: ${e.message}${waited()}`);
         if (isRate) rateLimited++;
         waitedMs += wait;

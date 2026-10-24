@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { RecallCase } from './types.ts';
 import { reconcileCase } from './engine.ts';
-import { staleness } from './snapshot.ts';
+import { evidenceFingerprint, staleness } from './snapshot.ts';
 import { ActionError, applyChange, changeSchema, createSchema, importExternal, newCase, normalizeCase } from './actions.ts';
 import { rememberDecision, revalidateMemory, runCaseInvestigation } from './investigation.ts';
 import { CaseMemory, MEMORY_ENGINE, type MemoryState } from './memory/hmem.ts';
@@ -65,7 +65,7 @@ export function createHandlers(deps: Deps) {
     const r = reconcileCase(c), st = staleness(c, r), memory = memoryState ? new CaseMemory(c.id, 'viewer', memoryState) : null;
     const { settings } = deps.provider(), ext = deps.external(() => {});
     return {
-      case: c, result: r, staleness: { stale: st.stale, last_run_at: st.last?.at ?? null, last_trigger: st.last?.trigger ?? null },
+      case: c, result: r, staleness: { stale: st.stale, last_run_at: st.last?.at ?? null, last_trigger: st.last?.trigger ?? null, current_fingerprint: evidenceFingerprint(c, r) },
       memory: memory ? { engine: MEMORY_ENGINE, items: memory.list({ c, r }).slice(0, 60), contradictions: memory.contradictions(), ledger: memory.ledgerSummary() } : { engine: MEMORY_ENGINE, items: [], contradictions: [], ledger: null },
       capabilities: { agent: settings, external: { mode: ext.mode, detail: ext.detail } }, ...extras,
     };

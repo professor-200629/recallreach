@@ -18,7 +18,7 @@ export interface ChatProvider {
   readonly model: string;
   /** USD per million tokens, only when the operator configured it. Null means no cost estimate is made. */
   readonly pricing: { input_per_mtok: number; output_per_mtok: number } | null;
-  complete(req: { messages: ChatMessage[]; tools: ToolSpec[]; maxTokens: number; signal: AbortSignal }): Promise<ChatResult>;
+  complete(req: { messages: ChatMessage[]; tools: ToolSpec[]; maxTokens: number; signal: AbortSignal; forceTool?: string }): Promise<ChatResult>;
 }
 
 type WireToolCall = { id?: string; type?: string; function?: { name?: string; arguments?: unknown } };
@@ -32,7 +32,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, ''); this.apiKey = opts.apiKey; this.fetcher = opts.fetcher ?? fetch;
   }
 
-  async complete({ messages, tools, maxTokens, signal }: { messages: ChatMessage[]; tools: ToolSpec[]; maxTokens: number; signal: AbortSignal }): Promise<ChatResult> {
+  async complete({ messages, tools, maxTokens, signal, forceTool }: { messages: ChatMessage[]; tools: ToolSpec[]; maxTokens: number; signal: AbortSignal; forceTool?: string }): Promise<ChatResult> {
     const wire = messages.map(m => m.role === 'assistant'
       ? { role: 'assistant', content: m.content ?? '', ...(m.tool_calls?.length ? { tool_calls: m.tool_calls.map(c => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.arguments } })) } : {}) }
       : m);
@@ -41,7 +41,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
       response = await this.fetcher(`${this.baseUrl}/chat/completions`, {
         method: 'POST', signal,
         headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: this.model, messages: wire, tools, tool_choice: 'auto', max_tokens: maxTokens, temperature: 0.1 }),
+        body: JSON.stringify({ model: this.model, messages: wire, tools, tool_choice: forceTool ? { type: 'function', function: { name: forceTool } } : 'auto', max_tokens: maxTokens, temperature: 0.1 }),
       });
     } catch (error) {
       const name = (error as Error)?.name;

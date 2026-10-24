@@ -25,7 +25,7 @@ export function createContext(base: Pick<ToolContext, 'c' | 'r' | 'memory' | 'ex
   return { ...base, handles: new Map(), byRecord: new Map(), externalRows: new Map(), issueIds: new Set(), memoryIds: new Set(), toolsUsed: new Set(), proposals: [], memoryRecalled: 0, numbers: new Set() };
 }
 
-const purpose = z.string().max(200).optional().describe('One short sentence, shown to the operator, saying why you are calling this tool.');
+const purpose = z.string().max(200).optional().describe('Why you call this (shown to the operator).');
 const OWNER_ROLES = ['recall_coordinator', 'pharmacy_staff', 'supervising_pharmacist', 'distributor'] as const;
 const STATUSES = ['applied', 'review', 'duplicate', 'excluded', 'superseded'] as const;
 const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -194,12 +194,13 @@ export const TOOLS = [
     },
   }),
   tool({
-    name: 'propose_follow_up', description: 'Propose a next step for one open issue, for a human to approve or reject. Approval does not change stock. Cite the evidence that motivates it.',
+    name: 'propose_follow_up', description: 'Propose a next step for one open issue, for a human to approve or reject. Approval does not change stock. Cite the evidence (E#, X# or issue IDs) that motivates it.',
     schema: z.object({ purpose, issue_id: z.string().min(1).max(200), action: z.string().min(10).max(300), owner_role: z.enum(OWNER_ROLES), evidence_requested: z.string().min(5).max(300), citations: z.array(z.string().max(20)).max(10) }),
     run: (a, ctx) => {
       if (!ctx.r.issues.some(i => i.id === a.issue_id)) return { ok: false, record_ids: [], error: `Issue ${a.issue_id} is not an open issue in the current reconciliation.`, summary: `Rejected: unknown issue ${a.issue_id}.` };
       if (!ctx.issueIds.has(a.issue_id)) return { ok: false, record_ids: [], error: `Retrieve issue ${a.issue_id} (run_reconciliation or get_shipment_ledger) before proposing for it.`, summary: `Rejected: issue ${a.issue_id} not retrieved.` };
-      const bad = a.citations.filter(h => !ctx.handles.has(h) && !ctx.externalRows.has(h));
+      // Same citation rules as submit_findings: record handles, connected-source handles or retrieved issue IDs.
+      const bad = a.citations.filter(h => !ctx.handles.has(h) && !ctx.externalRows.has(h) && !ctx.issueIds.has(h.replace(/^issue:/, '')));
       if (bad.length) return { ok: false, record_ids: [], error: `Citations not retrieved in this run: ${bad.join(', ')}.`, summary: 'Rejected: invalid citations.' };
       if (ctx.proposals.length >= 6) return { ok: false, record_ids: [], error: 'At most 6 proposals per run.', summary: 'Rejected: proposal limit.' };
       const draft = { ref: `P${ctx.proposals.length + 1}`, issue_id: a.issue_id, action: a.action, owner_role: a.owner_role, evidence_requested: a.evidence_requested, citations: a.citations };

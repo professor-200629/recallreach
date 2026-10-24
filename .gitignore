@@ -46,3 +46,4 @@ yarn-error.log*
 
 # Local scratch scripts
 *.tmp.ts
+!.dev.vars.example

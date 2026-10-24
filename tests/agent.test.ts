@@ -144,3 +144,32 @@ test('rules mode finds the different gaps in the second scenario', async () => {
   assert.equal(r.answer!.findings.some(f => /ambiguous|timezone/.test(f.claim)), true, 'explains the 12 pens held back by an ambiguous timestamp');
   assert.equal(c.proposals.length >= 3, true);
 });
+
+test('rate-limited attempts do not use up the model-call budget', async () => {
+  let n = 0;
+  const result = await run(setup(), [() => { if (n++ < 3) throw new ProviderError('rate_limit', 'try again in 0.01s', true, 10); return submit([]); }], { maxModelCalls: 2 });
+  assert.equal(result.status, 'completed'); assert.equal(result.usage.model_calls, 1);
+});
+
+test('when the budget runs low the agent is asked, and forced, to submit findings', async () => {
+  const forcedFlags: (string | undefined)[] = [];
+  const provider = new ScriptedProvider([m => (m.at(-1)?.role === 'user' && /budget is nearly used/.test(String(m.at(-1)!.content)))
+    ? submit([{ claim: 'Shipment RR-104 has 40 bottles awaiting containment.', citations: ['stock:RR-104'], basis: 'engine_calculated' }])
+    : turn([['run_reconciliation', { purpose: 'again' }]])]);
+  const original = provider.complete.bind(provider);
+  provider.complete = (req: Parameters<typeof original>[0] & { forceTool?: string }) => { forcedFlags.push(req.forceTool); return original(req); };
+  const result = await investigate({ question: 'Why?', ctx: setup(), provider, actor: 'T', limits: { maxModelCalls: 4 }, sleep: async () => {} });
+  assert.equal(result.status, 'completed'); assert.equal(result.answer!.findings[0].verification, 'verified');
+  assert.deepEqual(forcedFlags, [undefined, undefined, undefined, 'submit_findings']);
+});
+
+test('follow-up proposals accept the same citations as findings, including retrieved issue IDs', async () => {
+  const ctx = setup();
+  const result = await run(ctx, [
+    () => turn([['run_reconciliation', {}]]),
+    () => turn([['propose_follow_up', { issue_id: 'stock:RR-104', action: 'Ask the distributor for proof of delivery.', owner_role: 'distributor', evidence_requested: 'Proof of delivery', citations: ['stock:RR-104'] }], ['propose_follow_up', { issue_id: 'stock:RR-104', action: 'Ask the distributor for proof of delivery.', owner_role: 'distributor', evidence_requested: 'Proof of delivery', citations: ['stock:RR-999'] }]]),
+    () => submit([]),
+  ]);
+  assert.deepEqual(result.steps.filter(s => s.tool === 'propose_follow_up').map(s => s.ok), [true, false]);
+  assert.deepEqual(result.answer!.follow_ups[0].citations, ['stock:RR-104']);
+});

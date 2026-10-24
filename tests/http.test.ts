@@ -23,7 +23,9 @@ function app(file = ':memory:', external?: (onEvent: Parameters<Deps['external']
     provider: () => ({ provider: null, settings: { provider: 'none', model: '', configured: false, reason: 'test' } }),
     external: external ?? (onEvent => ({ source: new MockZetarisSource(onEvent), mode: 'mock', detail: 'MOCK for tests' })),
   });
-  const call = async (method: string, path: string, opts: { user?: string; body?: unknown; headers?: Record<string, string> } = {}) => {
+  // Response bodies are asserted field by field, so they are typed loosely here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const call = async (method: string, path: string, opts: { user?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<{ status: number; headers: Headers; data: any }> => {
     const headers: Record<string, string> = { ...(opts.user ? { 'x-test-user': opts.user } : {}), ...(opts.body !== undefined ? { 'content-type': 'application/json' } : {}), ...opts.headers };
     const req = new Request(`http://recallreach.test${path}`, { method, headers, body: opts.body === undefined ? undefined : typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body) });
     const [, , seg, id, sub] = path.split('?')[0].split('/');

@@ -1,0 +1,29 @@
+# Copy to .dev.vars for local development (`npm run dev`). .dev.vars is gitignored.
+# Never put real values in this example file. All of these are read on the server only.
+
+# --- Investigation agent (optional) ---------------------------------------------
+# Without a provider the agent runs in rules mode (no language model).
+# Groq free tier was used for the recorded live runs; it has per-minute token limits.
+AGENT_PROVIDER=groq
+AGENT_MODEL=openai/gpt-oss-120b
+GROQ_API_KEY=
+# Other OpenAI-compatible providers: AGENT_PROVIDER=openai|openrouter|nvidia plus
+# OPENAI_API_KEY / OPENROUTER_API_KEY / NVIDIA_API_KEY and an explicit AGENT_MODEL.
+# Or AGENT_PROVIDER=custom with AGENT_BASE_URL (https) and AGENT_API_KEY.
+# Optional cost estimate, in USD per million tokens, if you know your provider's prices:
+# AGENT_PRICE_INPUT_PER_MTOK=
+# AGENT_PRICE_OUTPUT_PER_MTOK=
+
+# --- Zetaris (connected sources) ------------------------------------------------
+# Direct REST API base of your own Zetaris instance (local Docker default shown).
+# Create the API key in the Zetaris UI: Management -> API Tokens. Org ID: Management -> Organisation.
+ZETARIS_REST_URL=http://localhost:8888/api/v1.0
+ZETARIS_ORG_ID=
+ZETARIS_API_KEY=
+# Optional JSON map of RecallReach sources to Zetaris tables (defaults shown):
+# ZETARIS_TABLES={"distributor_dispatches":"recall_distributor.dispatches","pharmacy_stock_events":"recall_pharmacy.stock_events","return_records":"recall_returns.return_notes"}
+
+# --- Local demo only --------------------------------------------------------------
+# Serves the fictional fixtures through the connected-source interface, labelled MOCK.
+# Ignored when the three ZETARIS_* settings above are present.
+RECALLREACH_MOCK_SOURCES=1

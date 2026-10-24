@@ -1,0 +1,19 @@
+# Fictional source systems for the RecallReach + Zetaris demo.
+# One PostgreSQL server holding three separately owned databases:
+#   recall_distributor.dispatches, recall_pharmacy.stock_events, recall_returns.return_notes
+# Zetaris (running in its own Docker Compose project) reaches it at host.docker.internal:5433.
+# Start:   docker compose -f integrations/zetaris/docker-compose.yml up -d
+# Remove:  docker compose -f integrations/zetaris/docker-compose.yml down -v
+services:
+  sources:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: recallreach-local-admin
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - ./fixtures/01-sources.sql:/docker-entrypoint-initdb.d/01-sources.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
