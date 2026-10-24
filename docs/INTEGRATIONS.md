@@ -140,7 +140,7 @@ Limits: upstream calls this a reference implementation, "not a production librar
 | `AGENT_BASE_URL` | https base URL for `custom` |
 | `AGENT_PRICE_INPUT_PER_MTOK`, `AGENT_PRICE_OUTPUT_PER_MTOK` | Optional; enables a cost estimate. No prices are assumed. |
 
-**Cost observed:** all live runs so far used Groq's free tier: $0 charged. Groq's free tier limits each model to **8,000 tokens per minute** (read from response headers on 24 Oct 2026). A live run uses about 25–30k input tokens, so it spends most of its 1–3 minutes waiting. The runner honours Groq's "try again in N s", does not count those waits against the model-call budget, and records the waiting time in the run.
+**Cost observed:** all live runs so far used Groq's free tier: $0 charged. Groq's free tier limits each model to **8,000 tokens per minute** (read from response headers on 24 Oct 2026). A live run uses about 25–30k input tokens, so it spends most of its time (up to about 4 minutes) waiting. The runner honours Groq's "try again in N s", does not count those waits against the model-call budget, and records the waiting time in the run.
 
 Bounds per run (`DEFAULT_LIMITS` in `runner.ts`): 10 model calls, 16 tool calls, 30 s per call, 240 s in total, 1 retry for transient errors, 6 rate-limit retries of up to 30 s, 1,600 output tokens per call. When a budget runs low the model is told to finish, and the last call is forced to `submit_findings`.
 

@@ -5,7 +5,7 @@ Rule 6.1 asks the video to show the main workflow, how the agent solves the chal
 **Before recording**
 
 - `npm run dev`, sign in, open **New case → The missing 40 bottles** so the case is fresh.
-- Live model runs take 1–3 minutes on Groq's free tier. Start the live run, then **cut or speed up** the waiting in editing and say so on screen ("sped up ×8"). Never imply it took seconds.
+- Live model runs take up to about 4 minutes on Groq's free tier. Start the live run, then **cut or speed up** the waiting in editing and say so on screen ("sped up ×8"). Never imply it took seconds.
 - If Zetaris is connected, show **Integrations → Run connection check** passing. If it is not, show the screen honestly: "Zetaris adapter ready; connected here to a labelled mock". **Do not show the mock as Zetaris.**
 - Everything shown is fictional: say it once at the start.
 

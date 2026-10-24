@@ -15,7 +15,7 @@ When a batch of medicine is recalled, the distributor's dispatch log, each pharm
 For one manufacturer + product + batch, counted in one unit:
 
 1. **Reconciles** imported records into mutually exclusive states (available, quarantined, returned, dispensed) with a deterministic engine. It catches duplicates, conflicting versions, reused references, double openings, wrong units, ambiguous or future timestamps, movements before shipment, location mismatches and overspends. Uncertain records stay visible with the reason they were not counted. Near-miss batch numbers are flagged, never counted.
-2. **Investigates** with a bounded, tool-using agent. Ask *"Why are 40 bottles still unresolved, and what evidence would resolve this?"* and the agent chooses among 10 read-only tools: reconciliation, shipment ledger, original source row, reference trace, review queue, memory, change comparison, and connected sources through Zetaris. It submits findings that cite the records it actually retrieved. RecallReach checks every citation and every quantity; anything unsupported is labelled **unverified**.
+2. **Investigates** with a bounded, tool-using agent. Ask *"Why are 40 bottles still unresolved, and what evidence would resolve this?"* and the agent chooses among 10 read-only tools: reconciliation, shipment ledger, original source row, reference trace, review queue, memory, change comparison, and connected sources through Zetaris. It submits findings that cite the records it actually retrieved. RecallReach checks every citation, every quantity stated with a unit, and present-tense "still unresolved" claims against the engine; anything unsupported is labelled **unverified**.
 3. **Proposes follow-up** (who should do what, and which evidence would resolve it) for a person to approve or reject. Approval never changes stock.
 4. **Reassesses** when evidence changes. Evidence snapshots mark earlier conclusions stale, and investigation memory (Meterless H-MEM) supersedes them with recheck notes instead of reusing them.
 5. **Keeps an accountable trail:** operator corrections that preserve the original record, a hash-chained activity log, and Markdown/CSV/JSON exports.
@@ -65,7 +65,7 @@ Unknown does not mean safe. A record outside the alert is not a safety clearance
 
 - **Fictional data only.** There has been no real-user pilot and no feedback from coordinators or pharmacists yet.
 - **Zetaris has not been queried for real.** It needs your own instance; see INTEGRATIONS.md.
-- **Live model runs use Groq's free tier** (8,000 tokens per minute), so a live investigation takes 1–3 minutes. Live runs have been recorded on the drill; their quality varies from run to run, and the citation verifier is what keeps that visible.
+- **Live model runs use Groq's free tier** (8,000 tokens per minute), so a live investigation can take up to about 4 minutes. Live quality varies from run to run (some runs use only 2–3 tools). The verifier's checks are deterministic but heuristic: in one recorded run a wrong, memory-based claim passed before a fix was added. Read the cited evidence, not just the summary.
 - **Not deployed.** Hosting is planned through OpenAI Sites (the existing project identity). Header-based sign-in is only safe behind the Sites dispatcher.
 - One batch and one unit per case; no transfers between locations; no team sharing; no automated alert ingestion.
 - The audit hash chain checks internal consistency only; it is not tamper-proof storage.

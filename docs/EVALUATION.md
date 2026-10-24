@@ -104,4 +104,4 @@ Not done: screen-reader testing, automated contrast audit, and testing on a real
 
 ## 6. Token use and cost
 
-All live calls used Groq's free tier: about 195k input and 21k output tokens in total across the four in-app runs, the two evaluation runs, two terminal smoke runs and three tiny header checks. **$0 charged.** Free-tier limit: 8,000 tokens per minute per model, so live runs take 1–3 minutes.
+All live calls used Groq's free tier: about 195k input and 21k output tokens in total across the four in-app runs, the two evaluation runs, two terminal smoke runs and three tiny header checks. **$0 charged.** Free-tier limit: 8,000 tokens per minute per model, so live runs take up to about 4 minutes.
