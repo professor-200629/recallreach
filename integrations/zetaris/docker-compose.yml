@@ -1,12 +1,19 @@
 # Fictional source systems for the RecallReach + Zetaris demo.
 # One PostgreSQL server holding three separately owned databases:
 #   recall_distributor.dispatches, recall_pharmacy.stock_events, recall_returns.return_notes
-# Zetaris (running in its own Docker Compose project) reaches it at host.docker.internal:5433.
+#
 # Start:   docker compose -f integrations/zetaris/docker-compose.yml up -d
+# Then attach it to the Zetaris network so the Zetaris engine can reach it by name
+# (see docs/INTEGRATIONS.md):
+#   docker network connect --alias recallreach-sources <zetaris network> recallreach-sources
 # Remove:  docker compose -f integrations/zetaris/docker-compose.yml down -v
+#
+# The published port is bound to this machine only (127.0.0.1), for inspection with psql.
+name: recallreach-sources
 services:
   sources:
     image: postgres:16-alpine
+    container_name: recallreach-sources
     environment:
       POSTGRES_PASSWORD: recallreach-local-admin
     ports:

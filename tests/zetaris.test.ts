@@ -64,3 +64,14 @@ test('configuration requires all three settings and validates them', () => {
   assert.throws(() => zetarisConfigFromEnv({ ZETARIS_REST_URL: 'localhost:8888', ZETARIS_API_KEY: 'k', ZETARIS_ORG_ID: '1' }), /http/);
   assert.equal(zetarisConfigFromEnv({ ZETARIS_REST_URL: 'http://localhost:8888/api/v1.0/', ZETARIS_API_KEY: 'k', ZETARIS_ORG_ID: '1', ZETARIS_TABLES: '{"return_records":"x.y"}' })!.tables.return_records, 'x.y');
 });
+
+test('diagnostic probes allow only single read-only statements', async () => {
+  const { fetcher, seen } = fake(() => Response.json({ data: [['recall_distributor'], ['recall_pharmacy']] }));
+  const z = new ZetarisSource(config, () => {}, fetcher);
+  const ok = await z.probe('SHOW DATASOURCES');
+  assert.equal(ok.ok, true); if (ok.ok) assert.equal(ok.rows.length, 2);
+  for (const bad of ['CREATE DATASOURCE x OPTIONS ()', 'DROP TABLE a.b', 'SELECT 1; DROP TABLE a.b', 'INSERT INTO a.b VALUES (1)']) {
+    const res = await z.probe(bad); assert.equal(res.ok, false, bad);
+  }
+  assert.equal(seen.length, 1, 'rejected statements are never sent');
+});

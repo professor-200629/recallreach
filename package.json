@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit -p .",
     "eval": "node --experimental-transform-types --no-warnings scripts/evaluate.ts",
     "db:migrate:local": "node scripts/migrate-local.mjs",
-    "zetaris:fixtures": "node --experimental-transform-types --no-warnings scripts/zetaris-fixtures.ts"
+    "zetaris:fixtures": "node --experimental-transform-types --no-warnings scripts/zetaris-fixtures.ts",
+    "zetaris:check": "node --experimental-transform-types --no-warnings scripts/zetaris-check.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

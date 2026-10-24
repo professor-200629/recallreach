@@ -31,6 +31,6 @@ writeFileSync('integrations/zetaris/fixtures/01-sources.sql', out.join('\n'));
 const f = MISSING_40.followup!.rows[0];
 writeFileSync('integrations/zetaris/fixtures/02-followup-quarantine.sql', [
   '-- Run during the demo to simulate the pharmacy system recording new, fictional evidence:',
-  '--   docker compose -f integrations/zetaris/docker-compose.yml exec -T sources psql -U postgres -d recall_pharmacy < integrations/zetaris/fixtures/02-followup-quarantine.sql',
+  '--   docker exec -i recallreach-sources psql -U postgres -d recall_pharmacy < integrations/zetaris/fixtures/02-followup-quarantine.sql',
   `INSERT INTO stock_events (${SYSTEMS.pharmacy_stock_events.columns.join(', ')}) VALUES (${SYSTEMS.pharmacy_stock_events.pick(f).map(q).join(', ')});`, ''].join('\n'));
 console.log('Wrote integrations/zetaris/fixtures/01-sources.sql and 02-followup-quarantine.sql');

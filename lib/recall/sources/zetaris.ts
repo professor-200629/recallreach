@@ -58,6 +58,14 @@ export class ZetarisSource implements ExternalSource {
     return data as unknown[][];
   }
 
+  /** One read-only diagnostic statement (SELECT, SHOW or DESCRIBE), used by scripts/zetaris-check.ts. */
+  async probe(sql: string, limit = 50): Promise<{ ok: true; rows: unknown[][]; latency_ms: number } | { ok: false; failure: ExternalFailure; message: string; latency_ms: number }> {
+    if (!/^\s*(SELECT|SHOW|DESCRIBE)\b/i.test(sql) || sql.includes(';')) return { ok: false, failure: 'invalid_filter', message: 'Only a single SELECT, SHOW or DESCRIBE statement is allowed.', latency_ms: 0 };
+    const start = Date.now();
+    try { return { ok: true, rows: await this.run(sql, limit, crypto.randomUUID()), latency_ms: Date.now() - start }; }
+    catch (error) { return { ok: false, failure: error instanceof ZetarisRequestError ? error.failure : 'invalid_response', message: (error as Error).message, latency_ms: Date.now() - start }; }
+  }
+
   async health(): Promise<HealthResult> {
     const start = Date.now();
     try {

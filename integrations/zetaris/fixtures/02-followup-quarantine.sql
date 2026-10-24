@@ -1,3 +1,3 @@
 -- Run during the demo to simulate the pharmacy system recording new, fictional evidence:
---   docker compose -f integrations/zetaris/docker-compose.yml exec -T sources psql -U postgres -d recall_pharmacy < integrations/zetaris/fixtures/02-followup-quarantine.sql
+--   docker exec -i recallreach-sources psql -U postgres -d recall_pharmacy < integrations/zetaris/fixtures/02-followup-quarantine.sql
 INSERT INTO stock_events (txn_id, consignment_ref, product_name, manufacturer_name, batch_no, from_status, to_status, qty, qty_unit, pharmacy_name, doc_ref, recorded_at) VALUES ('Q-D', 'RR-104', 'Nivara oral solution', 'Example Pharma (fictional)', 'DEMO-042', 'available', 'quarantined', '40', 'bottles', 'Destination pending confirmation', 'DRILL-HOLD-104', '2026-10-04T12:00:00Z');
