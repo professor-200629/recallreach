@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-24T14:50:25.959Z",
+  "generated_at": "2026-10-24T15:01:10.631Z",
   "note": "Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.",
   "scenarios": {
     "missing-40": {
@@ -117,7 +117,7 @@
         "model": "rules-v2",
         "status": "completed",
         "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
-        "duration_ms": 16,
+        "duration_ms": 20,
         "tool_calls": 13,
         "rejected_tool_calls": 0,
         "model_calls": 0,
@@ -136,20 +136,20 @@
         "provider": "groq",
         "model": "openai/gpt-oss-120b",
         "status": "completed",
-        "status_detail": "2 tool calls, 3 model calls.",
-        "duration_ms": 4407,
-        "tool_calls": 2,
+        "status_detail": "3 tool calls, 4 model calls.",
+        "duration_ms": 6457,
+        "tool_calls": 3,
         "rejected_tool_calls": 0,
-        "model_calls": 3,
-        "input_tokens": 7196,
-        "output_tokens": 1067,
+        "model_calls": 4,
+        "input_tokens": 10344,
+        "output_tokens": 1410,
         "estimated_cost_usd": null,
-        "findings": 1,
+        "findings": 2,
         "verified_findings": 1,
         "citations_valid": 3,
         "citations_rejected": 0,
         "unresolved_shipments_correctly_stated": "1/1",
-        "follow_ups_proposed": 0
+        "follow_ups_proposed": 1
       }
     },
     "velora-pens": {
@@ -217,7 +217,7 @@
         "model": "rules-v2",
         "status": "completed",
         "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
-        "duration_ms": 2,
+        "duration_ms": 8,
         "tool_calls": 18,
         "rejected_tool_calls": 0,
         "model_calls": 0,
@@ -236,20 +236,20 @@
         "provider": "groq",
         "model": "openai/gpt-oss-120b",
         "status": "completed",
-        "status_detail": "5 tool calls, 6 model calls. Waited 137 s for provider rate limits.",
-        "duration_ms": 153549,
-        "tool_calls": 5,
+        "status_detail": "9 tool calls, 10 model calls. Waited 198 s for provider rate limits.",
+        "duration_ms": 221245,
+        "tool_calls": 9,
         "rejected_tool_calls": 0,
-        "model_calls": 6,
-        "input_tokens": 23006,
-        "output_tokens": 3090,
+        "model_calls": 10,
+        "input_tokens": 41069,
+        "output_tokens": 4005,
         "estimated_cost_usd": null,
         "findings": 3,
         "verified_findings": 3,
-        "citations_valid": 10,
+        "citations_valid": 12,
         "citations_rejected": 0,
         "unresolved_shipments_correctly_stated": "3/3",
-        "follow_ups_proposed": 0
+        "follow_ups_proposed": 1
       }
     }
   }

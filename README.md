@@ -43,7 +43,7 @@ npm run dev
 Open `http://localhost:5173/signin-with-chatgpt?return_to=/` (local test sign-in), then **Explore a mock recall**. Full instructions: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ```bash
-npm test          # 61 automated tests
+npm test          # 65 automated tests
 npm run eval      # fixture comparison with a batch-lookup baseline
 ```
 
