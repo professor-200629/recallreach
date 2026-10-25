@@ -58,7 +58,9 @@ AI assistance: code was generated with AI coding assistants (the earlier session
 | Product & UX (10) | Evidence library, tool activity, verified/unverified labels, approvals, corrections; phone layout | `components/recall/*`; browser checks in EVALUATION.md |
 | Sponsor tech (10) | Zetaris federation of separate systems, connected and verified on a local instance; Meterless memory with invalidation | INTEGRATIONS.md (Verification record); `eval/zetaris-check-2026-10-25.txt`; Integrations screen; `vendor/meterless-hmem/VENDORED.md` |
 
-## Slide deck outline (required by 6.2; not produced yet)
+## Slide deck (required by 6.2)
+
+Drafted on 25 Oct 2026 as a 13-slide deck: <https://claude.ai/artifact/VdBTDtBgDbuTBWydusFJvf> (private until you share it; download it as PowerPoint or PDF from the deck's Share › Export for the submission). It follows the outline below, adds a cover and splits product visuals over two slides of real screenshots from the running app. Every slide has speaker notes you can read from for the video. Phone views are not included because they were not checked on a phone.
 
 1. Problem and users: recall coordinator, pharmacy staff, supervising pharmacist; why fragmented records delay containment.
 2. Solution in one picture: sources → Zetaris → engine → agent → human decision → memory.
@@ -76,6 +78,7 @@ AI assistance: code was generated with AI coding assistants (the earlier session
 
 - [x] Connect Zetaris and record a passing check (25 Oct 2026, local instance; INTEGRATIONS.md, Verification record).
 - [ ] Decide repository visibility so judges can open it.
-- [ ] Record the video (1–4 minutes) and make the deck.
+- [x] Draft the slide deck (25 Oct 2026; link above). Review it, then export it as PowerPoint or PDF.
+- [ ] Record the video (1–4 minutes).
 - [ ] Declare pre-existing components as listed above.
 - [ ] Recheck the event page and Discord for any rule change.
