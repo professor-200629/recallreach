@@ -17,6 +17,9 @@ GROQ_API_KEY=
 # Optional time limit for one live run, in seconds (60–900). Default 480 for Groq,
 # whose free tier makes runs wait on rate limits; 240 for other providers.
 # AGENT_TIME_LIMIT_S=
+# Optional ceiling for one request (prompt plus max_tokens): a whole number of tokens from 7000 to
+# 2000000, or none. Default 8000 for Groq (its free tier refuses larger requests); none otherwise.
+# AGENT_MAX_REQUEST_TOKENS=
 
 # --- Zetaris (connected sources) ------------------------------------------------
 # Direct REST API base of your own Zetaris instance (local Docker default shown).

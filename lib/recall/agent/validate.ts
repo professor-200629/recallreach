@@ -1,5 +1,5 @@
 import type { EvidenceRequest, Interpretation, ProposedFollowUp, VerifiedAnswer } from '../types.ts';
-import { citesDelivered, TOOLS, type FinalArgs, type ToolContext } from './tools.ts';
+import { citesDelivered, citesIn, notDeliveredReason, TOOLS, type FinalArgs, type ToolContext } from './tools.ts';
 import { validateFact, validatedSummary } from './facts.ts';
 
 const TOOL_NAMES = new Set<string>([...TOOLS.map(t => t.name), 'submit_findings']);
@@ -51,14 +51,14 @@ export function verifyAnswer(args: FinalArgs, ctx: ToolContext): VerifiedAnswer 
       if (ctx.memoryIds.has(t)) { related.push(`memory:${t}`); if (ctx.disputedMemoryIds.has(t)) problems.push(`Points to ${t}, which an operator marked wrong.`); continue; }
       if (citesDelivered(t, ctx)) { related.push(resolveCitation(t, ctx)!); continue; }
       rejected.push(t);
-      problems.push(TOOL_NAMES.has(t) ? `Pointed to the tool name “${t}” instead of an identifier it returned.` : `“${t}” was not returned with its contents in this run.`);
+      problems.push(TOOL_NAMES.has(t) ? `Pointed to the tool name “${t}” instead of an identifier it returned.` : `“${t}” is not evidence the agent had read: ${notDeliveredReason(t, ctx)}.`);
     }
     return { text: i.text, related: [...new Set(related)], problems };
   });
   const evidence_requests: EvidenceRequest[] = args.evidence_requests.map(e => {
     const id = e.issue_id.trim().replace(/^issue:/, ''), exists = ctx.r.issues.some(i => i.id === id), linked = exists && ctx.delivered.issues.has(id);
     return { issue_id: id, description: e.description, would_change: e.would_change, linked,
-      problems: [...(linked ? [] : [exists ? `Issue ${id} was not returned to the agent in this run.` : `${id} is not an open issue in the current reconciliation.`]), ...overreach(`${e.description} ${e.would_change}`)] };
+      problems: [...(linked ? [] : [exists ? `Issue ${id} is not evidence the agent had read: ${citesIn(id, ctx, ctx.pending) || citesIn(id, ctx, ctx.summarised) ? notDeliveredReason(id, ctx) : 'it was not returned to the agent in this run'}.` : `${id} is not an open issue in the current reconciliation.`]), ...overreach(`${e.description} ${e.would_change}`)] };
   });
   const follow_ups: ProposedFollowUp[] = ctx.proposals.map(p => ({
     issue_id: p.issue_id, action: p.action, owner_role: p.owner_role, evidence_requested: p.evidence_requested,

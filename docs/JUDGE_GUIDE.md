@@ -58,7 +58,7 @@ Open `http://localhost:5173/signin-with-chatgpt?return_to=/` (a local test sign-
 
 ## 5. Optional: a live model
 
-Put your own `GROQ_API_KEY` in `.dev.vars`. Groq's free tier was used: it allows 8,000 tokens per minute and 200,000 per day, so a run spends most of its time waiting and can use up to its 8-minute limit (`AGENT_TIME_LIMIT_S` changes it), and a few runs use up a day's allowance. Then choose **Live model** in the app, or:
+Put your own `GROQ_API_KEY` in `.dev.vars`. Groq's free tier was used: it allows 8,000 tokens per minute and 200,000 per day, so a run spends most of its time waiting and can use up to its 8-minute limit (`AGENT_TIME_LIMIT_S` changes it), each request is kept under 8,000 tokens (`AGENT_MAX_REQUEST_TOKENS`), and a few runs use up a day's allowance. Then choose **Live model** in the app, or:
 
 ```bash
 node --env-file=.dev.vars --experimental-transform-types --no-warnings scripts/evaluate.ts --live --runs 1 --only corvel-vials --tag my-run

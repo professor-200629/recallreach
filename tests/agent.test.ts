@@ -256,7 +256,7 @@ test('the provider maps HTTP errors, including Groq rate-limit waits and malform
   await assert.rejects(call(new Response('{"error":{"message":"Rate limit reached. Please try again in 7.5s."}}', { status: 429 })), (e: ProviderError) => e.kind === 'rate_limit' && e.retryAfterMs === 7500);
   await assert.rejects(call(new Response('{"error":{"code":"tool_use_failed","message":"bad"}}', { status: 400 })), (e: ProviderError) => e.kind === 'malformed' && e.retryable);
   await assert.rejects(call(new Response('nope', { status: 401 })), (e: ProviderError) => e.kind === 'auth' && !e.retryable);
-  await assert.rejects(call(new Response('not json', { status: 200 })), (e: ProviderError) => e.kind === 'malformed');
+  await assert.rejects(call(new Response('not json', { status: 200 })), (e: ProviderError) => e.kind === 'invalid_response', 'a broken reply is the provider\'s fault, not a malformed tool call');
   const ok = await call(Response.json({ choices: [{ message: { content: null, tool_calls: [{ id: 'a', function: { name: 'run_reconciliation', arguments: '{}' } }] }, finish_reason: 'tool_calls' }], usage: { prompt_tokens: 5, completion_tokens: 2 } }));
   assert.deepEqual([ok.tool_calls[0].name, ok.usage.input_tokens], ['run_reconciliation', 5]);
 });

@@ -101,7 +101,7 @@ function scoreRun(s: Scenario, run: AgentRun, rubric?: typeof CORVEL_RUBRIC) {
   return {
     mode: run.mode, provider: run.provider, model: run.model, status: run.status, status_detail: run.status_detail,
     limits: run.limits ?? null, duration_ms: run.duration_ms, tool_calls: run.steps.filter(x => x.tool !== 'submit_findings').length, rejected_tool_calls: run.steps.filter(x => !x.ok).length,
-    model_calls: run.usage.model_calls, input_tokens: run.usage.input_tokens, output_tokens: run.usage.output_tokens, estimated_cost_usd: run.usage.estimated_cost_usd,
+    model_calls: run.usage.model_calls, malformed_calls: run.usage.malformed_calls ?? 0, oversize_retries: run.usage.oversize_retries ?? 0, shortened_requests: run.usage.shortened_requests ?? 0, input_tokens: run.usage.input_tokens, output_tokens: run.usage.output_tokens, estimated_cost_usd: run.usage.estimated_cost_usd,
     facts_submitted: facts.length, facts_validated: ok.length, facts_rejected: facts.length - ok.length,
     rejected_fact_reasons: facts.filter(f => f.status === 'rejected').map(f => f.problems[0]),
     key_facts_correct: `${keyFacts.filter(k => k.found).length}/${keyFacts.length}`, key_facts: keyFacts,
@@ -119,7 +119,7 @@ async function agentRun(s: Scenario, live: boolean, rubric?: typeof CORVEL_RUBRI
   if (live && !provider) return { skipped: 'No provider configured (AGENT_PROVIDER and its API key).' };
   const before = JSON.stringify(reconcileCase(c));
   // Live runs use the same time limit as the app (the provider's default, or AGENT_TIME_LIMIT_S).
-  const limits = provider && settings ? { totalTimeoutMs: settings.time_limit_s * 1000 } : undefined;
+  const limits = provider && settings ? { totalTimeoutMs: settings.time_limit_s * 1000, maxRequestTokens: settings.request_token_limit } : undefined;
   const { run } = await runCaseInvestigation({ c, memoryState: null, provider, external: null, question: s.question, actor: 'evaluation', limits });
   return { ...scoreRun(s, run, rubric), stock_unchanged_by_run: JSON.stringify(reconcileCase(c)) === before };
 }

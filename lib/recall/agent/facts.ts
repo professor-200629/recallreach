@@ -45,6 +45,11 @@ const movementWords = (from: string, to: string) => from === '' || from === 'non
 type Check = Omit<ValidatedFact, 'type' | 'claimed' | 'status' | 'note' | 'snapshot'>;
 const reject = (base: Partial<Check>, problems: string[]): Check => ({ statement: null, basis: 'engine_calculated', entity: { kind: 'case', id: 'case' }, predicate: '', quantity: null, unit: null, scope: '', evidence: [], dependencies: [], ...base, problems });
 
+/** Why evidence that a tool did return was still not delivered: returned in the same turn as the answer, or only ever sent as a summary. */
+const SAME_TURN = ' It was returned only in the same turn as the answer, so the agent had not read it.';
+const SUMMARY_ONLY = ' It reached the agent only as a shortened summary, so it had not read the details.';
+const why = (pending: boolean, summarised: boolean) => pending ? SAME_TURN : summarised ? SUMMARY_ONLY : '';
+
 export function validateFact(input: FactInput, ctx: ToolContext): ValidatedFact {
   const caseUnit = ctx.c.alert.unit, snap = ctx.current.fingerprint;
   const claimed = { ...input } as Record<string, unknown>; delete claimed.note;
@@ -63,7 +68,7 @@ function run(f: FactInput, ctx: ToolContext, caseUnit: string): Check {
       const base: Partial<Check> = { entity: { kind: 'shipment', id: f.shipment_id }, predicate: `balance.${f.state}`, quantity: f.quantity, unit: f.unit, scope: `engine:shipment:${f.shipment_id}`, dependencies: [{ kind: 'shipment', shipment_id: b?.shipment_id ?? f.shipment_id }] };
       if (!b) return reject(base, [`The engine has no accepted opening record for shipment ${f.shipment_id}, so it has no balance.`]);
       const problems: string[] = [];
-      if (!d.shipments.has(b.shipment_id)) problems.push(`The balance of ${b.shipment_id} was not returned to the agent in this run (use run_reconciliation or get_shipment_ledger).`);
+      if (!d.shipments.has(b.shipment_id)) problems.push(`The balance of ${b.shipment_id} was not returned to the agent in this run (use run_reconciliation or get_shipment_ledger).${why(ctx.pending.shipments.has(b.shipment_id), ctx.summarised.shipments.has(b.shipment_id))}`);
       if (!sameUnit(f.unit, caseUnit)) problems.push(`Unit “${f.unit}” is not the case unit “${caseUnit}”. Balances are only kept in the case unit.`);
       if (b[f.state] !== f.quantity) problems.push(`The engine reports ${b.shipment_id} ${f.state} = ${fmt(b[f.state])} ${caseUnit}, not ${fmt(f.quantity)}.`);
       if (problems.length) return reject(base, problems);
@@ -74,7 +79,7 @@ function run(f: FactInput, ctx: ToolContext, caseUnit: string): Check {
       const value = f.measure === 'accepted' ? r.shipped : f.measure === 'contained' ? r.contained : r[f.measure];
       const base: Partial<Check> = { entity: { kind: 'case', id: 'case' }, predicate: `total.${f.measure}`, quantity: f.quantity, unit: f.unit, scope: 'engine:totals', dependencies: [{ kind: 'case' }] };
       const problems: string[] = [];
-      if (!d.totals) problems.push('Case totals were not returned to the agent in this run (use run_reconciliation).');
+      if (!d.totals) problems.push(`Case totals were not returned to the agent in this run (use run_reconciliation).${why(ctx.pending.totals, ctx.summarised.totals)}`);
       if (!sameUnit(f.unit, caseUnit)) problems.push(`Unit “${f.unit}” is not the case unit “${caseUnit}”.`);
       if (value !== f.quantity) problems.push(`The engine reports ${f.measure} = ${fmt(value)} ${caseUnit} for the case, not ${fmt(f.quantity)}.`);
       if (problems.length) return reject(base, problems);
@@ -85,7 +90,7 @@ function run(f: FactInput, ctx: ToolContext, caseUnit: string): Check {
       const id = ctx.handles.get(f.record), row = id ? ctx.c.records.find(x => x.id === id) : undefined;
       const base: Partial<Check> = { entity: { kind: 'record', id: id ?? f.record }, predicate: f.type === 'record_report' ? 'record.reports' : 'record.status', scope: `record:${id ?? f.record}`, dependencies: id ? [{ kind: 'record', record_id: id }] : [], basis: f.type === 'record_report' ? 'source_reported' : 'engine_calculated' };
       if (!row) return reject(base, [`${f.record} is not a record handle returned in this run.`]);
-      if (!d.records.has(row.id)) return reject(base, [`${f.record} was only referenced, not returned with its contents in this run (for example by a memory or an issue list). Retrieve it with get_source_row, search_records or get_shipment_ledger first.`]);
+      if (!d.records.has(row.id)) return reject(base, [ctx.pending.records.has(row.id) ? `${f.record} was returned only in the same turn as the answer, so the agent had not read it.` : ctx.summarised.records.has(row.id) ? `${f.record} reached the agent only as a shortened summary, so it had not read the record. Retrieve it again before stating what it says.` : `${f.record} was only referenced, not returned with its contents in this run (for example by a memory or an issue list). Retrieve it with get_source_row, search_records or get_shipment_ledger first.`]);
       const source = ctx.c.sources.find(s => s.id === row.source_id), where = `${source?.name ?? 'unknown source'}, row ${row.source_row}`;
       const status = r.record_status[row.id];
       if (f.type === 'record_status') {
@@ -102,14 +107,15 @@ function run(f: FactInput, ctx: ToolContext, caseUnit: string): Check {
       const issue = r.issues.find(i => i.id === f.issue_id.replace(/^issue:/, ''));
       const base: Partial<Check> = { entity: { kind: 'issue', id: f.issue_id }, predicate: 'issue.open', scope: `issue:${f.issue_id}` };
       if (!issue) return reject(base, [`${f.issue_id} is not an open issue in the current reconciliation.`]);
-      if (!d.issues.has(issue.id)) return reject(base, [`Issue ${issue.id} was not returned to the agent in this run.`]);
+      if (!d.issues.has(issue.id)) return reject(base, [`Issue ${issue.id} was not returned to the agent in this run.${why(ctx.pending.issues.has(issue.id), ctx.summarised.issues.has(issue.id))}`]);
       const deps: FactDependency[] = issue.shipment_id ? [{ kind: 'shipment', shipment_id: issue.shipment_id }] : [{ kind: 'case' }];
       return { ...base, basis: 'engine_calculated', quantity: issue.quantity ?? null, unit: issue.quantity !== undefined ? caseUnit : null, evidence: [issue.id, ...issue.evidence_ids], dependencies: deps, problems: [], statement: `Open issue, ${issue.kind}: ${issue.title}. ${issue.explanation}` } as Check;
     }
     case 'change_since_previous': {
       const diff = ctx.diffData.get(f.comparison), scopeId = f.shipment_id ? `shipment ${f.shipment_id}` : 'the case';
       const base: Partial<Check> = { entity: { kind: 'comparison', id: f.comparison }, predicate: `change.${f.field}`, quantity: f.after, unit: caseUnit, scope: `diff:${ctx.diffs.get(f.comparison) ?? f.comparison}`, dependencies: f.shipment_id ? [{ kind: 'shipment', shipment_id: f.shipment_id }] : [{ kind: 'case' }] };
-      if (!diff || !d.diffs.has(f.comparison)) return reject(base, [`${f.comparison} is not a comparison returned in this run.`]);
+      if (!diff) return reject(base, [`${f.comparison} is not a comparison returned in this run.`]);
+      if (!d.diffs.has(f.comparison)) return reject(base, [`${f.comparison} was not delivered to the agent in this run.${why(ctx.pending.diffs.has(f.comparison), ctx.summarised.diffs.has(f.comparison))}`]);
       if (!diff.previous) return reject(base, ['There is no previous run to compare with.']);
       let before: number | undefined, after: number | undefined;
       if (f.shipment_id) {
@@ -128,7 +134,7 @@ function run(f: FactInput, ctx: ToolContext, caseUnit: string): Check {
       const x = ctx.externalRows.get(f.row);
       const base: Partial<Check> = { entity: { kind: 'external_row', id: f.row }, predicate: 'source_row.reports', basis: 'source_reported', scope: x ? `zetaris:${x.instance}:${x.table}:${x.row_key}` : `zetaris:${f.row}` };
       if (!x) return reject(base, [`${f.row} is not a connected-source row returned in this run.`]);
-      if (!d.externals.has(f.row)) return reject(base, [`${f.row} was not delivered to the agent in this run.`]);
+      if (!d.externals.has(f.row)) return reject(base, [`${f.row} was not delivered to the agent in this run.${why(ctx.pending.externals.has(f.row), ctx.summarised.externals.has(f.row))}`]);
       const v = x.values, problems = recordMismatch(f, { shipment_id: v.shipment_id, from_state: v.from_state, to_state: v.to_state, quantity: Number(v.quantity), unit: v.unit }, f.row);
       const deps: FactDependency[] = [{ kind: 'external', instance: x.instance, table: x.table, row_key: x.row_key, content_hash: x.hash, captured_at: x.captured_at, query_scope: x.query_scope }];
       if (problems.length) return reject({ ...base, dependencies: deps }, problems);

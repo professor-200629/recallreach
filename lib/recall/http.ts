@@ -143,7 +143,7 @@ export function createHandlers(deps: Deps) {
         const { provider, settings } = live ?? { provider: null, settings: null };
         const ext = deps.external(rec.onEvent);
         // A live run gets the provider's time limit (longer for Groq's free tier); explicit server limits win.
-        const limits = provider && settings ? { totalTimeoutMs: settings.time_limit_s * 1000, ...deps.limits } : deps.limits;
+        const limits = provider && settings ? { totalTimeoutMs: settings.time_limit_s * 1000, maxRequestTokens: settings.request_token_limit, ...deps.limits } : deps.limits;
         const out = await runCaseInvestigation({ c, memoryState, provider, external: ext.source, question: input.question, actor: identity.displayName, limits });
         memoryState = out.memoryState; extras = { run_id: out.run.id };
       } else if (input.action === 'external_import') {

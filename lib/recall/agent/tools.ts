@@ -27,6 +27,10 @@ export type ToolContext = {
   diffs: Map<string, string>; diffData: Map<string, SnapshotDiff>;
   proposals: ProposalDraft[]; memoryRecalled: number;
   delivered: Delivered; referenced: Set<string>;
+  /** Returned by a tool in the current turn and not yet sent to the model (live mode). Used to explain rejections. */
+  pending: Delivered;
+  /** Returned earlier but only ever sent to the model as a shortened summary. Used to explain rejections. */
+  summarised: Delivered;
   now: () => number;
   /** Epoch ms after which no further tool may start, and the signal that cancels work in flight. */
   deadline: number; signal?: AbortSignal;
@@ -34,12 +38,15 @@ export type ToolContext = {
 export type ToolResult = { ok: boolean; data?: unknown; error?: string; summary: string; record_ids: string[] };
 type ToolDef<S extends z.ZodType> = { name: string; description: string; schema: S; run: (args: z.infer<S>, ctx: ToolContext) => Promise<ToolResult> | ToolResult };
 
+export const emptyDelivered = (): Delivered => ({ records: new Set(), externals: new Set(), issues: new Set(), shipments: new Set(), totals: false, diffs: new Set() });
+
 export function createContext(base: Pick<ToolContext, 'c' | 'r' | 'memory' | 'external' | 'previous' | 'current'> & Partial<Pick<ToolContext, 'now' | 'deadline' | 'signal'>>): ToolContext {
   return {
     now: Date.now, deadline: Number.POSITIVE_INFINITY, ...base,
     handles: new Map(), byRecord: new Map(), externalRows: new Map(), issueIds: new Set(), memoryIds: new Set(), disputedMemoryIds: new Set(), toolsUsed: new Set(),
     diffs: new Map(), diffData: new Map(), proposals: [], memoryRecalled: 0,
     delivered: { records: new Set(), externals: new Set(), issues: new Set(), shipments: new Set(), totals: false, diffs: new Set() }, referenced: new Set(),
+    pending: emptyDelivered(), summarised: emptyDelivered(),
   };
 }
 
@@ -215,9 +222,10 @@ export const TOOLS = [
     schema: z.object({ purpose, issue_id: z.string().min(1).max(200), action: z.string().min(10).max(300), owner_role: z.enum(OWNER_ROLES), evidence_requested: z.string().min(5).max(300), citations: z.array(z.string().max(200)).max(10) }),
     run: (a, ctx) => {
       if (!ctx.r.issues.some(i => i.id === a.issue_id)) return { ok: false, record_ids: [], error: `Issue ${a.issue_id} is not an open issue in the current reconciliation.`, summary: `Rejected: unknown issue ${a.issue_id}.` };
-      if (!ctx.delivered.issues.has(a.issue_id)) return { ok: false, record_ids: [], error: `Retrieve issue ${a.issue_id} (run_reconciliation or get_shipment_ledger) before proposing for it.`, summary: `Rejected: issue ${a.issue_id} not retrieved.` };
+      if (!ctx.delivered.issues.has(a.issue_id)) return { ok: false, record_ids: [], error: ctx.pending.issues.has(a.issue_id) ? `Issue ${a.issue_id} was returned in this same turn and you have not read it yet. Propose for it in your next turn.`
+        : ctx.summarised.issues.has(a.issue_id) ? `Issue ${a.issue_id} reached you only as a shortened summary. Retrieve it again (run_reconciliation or get_shipment_ledger) before proposing for it.` : `Retrieve issue ${a.issue_id} (run_reconciliation or get_shipment_ledger) before proposing for it.`, summary: `Rejected: issue ${a.issue_id} not retrieved.` };
       const bad = a.citations.filter(h => !citesDelivered(h, ctx));
-      if (bad.length) return { ok: false, record_ids: [], error: `Citations not returned to you in this run: ${bad.join(', ')}. Memory IDs and referenced-only handles are not evidence.`, summary: 'Rejected: invalid citations.' };
+      if (bad.length) return { ok: false, record_ids: [], error: `These citations are not evidence you have read: ${bad.map(h => `${h} (${notDeliveredReason(h, ctx)})`).join('; ')}. Memory IDs and referenced-only handles are never evidence.`, summary: 'Rejected: invalid citations.' };
       if (ctx.proposals.length >= 6) return { ok: false, record_ids: [], error: 'At most 6 proposals per run.', summary: 'Rejected: proposal limit.' };
       const draft = { ref: `P${ctx.proposals.length + 1}`, issue_id: a.issue_id, action: a.action, owner_role: a.owner_role, evidence_requested: a.evidence_requested, citations: a.citations };
       ctx.proposals.push(draft);
@@ -233,6 +241,22 @@ export function citesDelivered(token: string, ctx: ToolContext): boolean {
   if (ctx.externalRows.has(t)) return ctx.delivered.externals.has(t);
   if (ctx.diffs.has(t)) return ctx.delivered.diffs.has(t);
   return ctx.delivered.issues.has(t.replace(/^issue:/, ''));
+}
+
+/** Whether a citation names evidence in a given set (ctx.pending: returned this turn, not yet read; ctx.summarised: only ever sent as a summary). */
+export function citesIn(token: string, ctx: ToolContext, set: Delivered): boolean {
+  const t = token.trim(), id = ctx.handles.get(t);
+  if (id) return set.records.has(id);
+  if (ctx.externalRows.has(t)) return set.externals.has(t);
+  if (ctx.diffs.has(t)) return set.diffs.has(t);
+  return set.issues.has(t.replace(/^issue:/, ''));
+}
+export const citesPending = (token: string, ctx: ToolContext) => citesIn(token, ctx, ctx.pending);
+/** Why a citation is not delivered evidence, in words the model and the operator can act on. */
+export function notDeliveredReason(token: string, ctx: ToolContext): string {
+  if (citesIn(token, ctx, ctx.pending)) return 'returned in this same turn, not yet read';
+  if (citesIn(token, ctx, ctx.summarised)) return 'reached you only as a shortened summary; retrieve it again (a narrower filter or offset) to read it in full';
+  return 'not returned with its contents in this run';
 }
 
 /** Records what a connected source returned, so memory can later tell captured evidence from current evidence. */
@@ -269,15 +293,15 @@ export const MAX_TOOL_OUTPUT = 7000;
  * complete, valid JSON; the delivered evidence is collected from it afterwards, so items dropped
  * here are never treated as delivered.
  */
-export function serializeForModel(result: ToolResult): string {
+export function serializeForModel(result: ToolResult, maxChars = MAX_TOOL_OUTPUT): string {
   const body = result.ok ? { ok: true, data: result.data } : { ok: false, error: result.error };
   let text = JSON.stringify(body);
-  if (text.length <= MAX_TOOL_OUTPUT) return text;
+  if (text.length <= maxChars) return text;
   let data = structuredClone(result.data) as unknown;
   for (const [keep, maxString] of [[12, 2000], [6, 600], [3, 300], [1, 120], [0, 80]] as const) {
     data = shrink(data, keep, maxString);
     text = JSON.stringify({ ok: true, data, truncated: true, note: 'Shortened to fit. Items omitted here were not delivered; use offset or a narrower filter to retrieve them.' });
-    if (text.length <= MAX_TOOL_OUTPUT) return text;
+    if (text.length <= maxChars) return text;
   }
   return JSON.stringify({ ok: result.ok, truncated: true, summary: result.summary.slice(0, 300), note: 'The result was too large to deliver. Use a narrower filter or offset.' });
 }
@@ -299,12 +323,12 @@ function shrink(value: unknown, keep: number, maxString: number): unknown {
   return value;
 }
 
-/** Marks the evidence the agent actually received, by reading the serialized output of one tool call. */
-export function collectDelivered(toolName: string, text: string, ctx: ToolContext) {
+/** Marks the evidence in the serialized output of one tool call: as delivered (sent to the model), or into another set such as ctx.pending. */
+export function collectDelivered(toolName: string, text: string, ctx: ToolContext, into: Delivered = ctx.delivered) {
   let parsed: { ok?: boolean; data?: Record<string, unknown> };
   try { parsed = JSON.parse(text); } catch { return; }
   if (!parsed.ok || !parsed.data) return;
-  const data = parsed.data, d = ctx.delivered;
+  const data = parsed.data, d = into;
   const recordList = (list: unknown) => { if (Array.isArray(list)) for (const r of list) if (r && typeof r === 'object' && 'event_id' in r && typeof (r as { cite?: unknown }).cite === 'string') { const id = ctx.handles.get((r as { cite: string }).cite); if (id) d.records.add(id); } };
   const issueList = (list: unknown) => { if (Array.isArray(list)) for (const i of list) if (i && typeof i === 'object' && typeof (i as { issue_id?: unknown }).issue_id === 'string' && 'title' in i) d.issues.add((i as { issue_id: string }).issue_id); };
   const balance = (b: unknown) => { if (b && typeof b === 'object' && typeof (b as { shipment_id?: unknown }).shipment_id === 'string' && ['available', 'quarantined', 'returned', 'dispensed'].every(k => typeof (b as Record<string, unknown>)[k] === 'number')) d.shipments.add((b as { shipment_id: string }).shipment_id); };

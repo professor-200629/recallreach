@@ -20,7 +20,7 @@ function app() {
   const db = sqliteD1(), repo = new CaseRepository(db);
   const h = createHandlers({
     repo, identify: async req => req.headers.get('x-test-user') === 'alice' ? { userId: 'u-alice', displayName: 'Alice' } : null,
-    provider: () => ({ provider: null, settings: { provider: 'none', model: '', configured: false, reason: 'test', time_limit_s: 240 } }),
+    provider: () => ({ provider: null, settings: { provider: 'none', model: '', configured: false, reason: 'test', time_limit_s: 240, request_token_limit: null } }),
     external: onEvent => ({ source: new MockZetarisSource(onEvent), mode: 'mock', detail: 'MOCK for tests' }),
   });
   const post = async (path: string, body: unknown) => {
@@ -175,12 +175,12 @@ test('run time limit: Groq defaults to 480 s for free-tier waits, others to 240 
 
 test('every run records the limits it ran under; a live run in the app gets the provider time limit', async () => {
   const rules = await investigate({ question: 'Why are 40 bottles unresolved?', ctx: ctxFor(), actor: 'T', provider: null });
-  assert.deepEqual(rules.limits, { total_timeout_ms: 240_000, max_model_calls: 0, max_tool_calls: 40 });
+  assert.deepEqual(rules.limits, { total_timeout_ms: 240_000, max_model_calls: 0, max_tool_calls: 40, max_request_tokens: null });
   const submit = () => turn([['submit_findings', { summary: 'Scripted summary text.', facts: [], interpretations: [], evidence_requests: [] }]]);
   const live = (limits?: Record<string, number>) => {
     const db = sqliteD1(), repo = new CaseRepository(db);
     const h = createHandlers({ repo, identify: async () => ({ userId: 'u', displayName: 'U' }), limits,
-      provider: () => ({ provider: new ScriptedProvider([submit]), settings: { provider: 'scripted', model: 'm', configured: true, reason: 'test', time_limit_s: 480 } }),
+      provider: () => ({ provider: new ScriptedProvider([submit]), settings: { provider: 'scripted', model: 'm', configured: true, reason: 'test', time_limit_s: 480, request_token_limit: null } }),
       external: () => ({ source: null, mode: 'none', detail: 'none' }) });
     const req = (body: unknown, id?: string) => new Request(`http://recallreach.test/api/cases${id ? `/${id}` : ''}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     return { h, req };
@@ -200,7 +200,7 @@ test('a live run answers at once and keeps the connection alive, then sends the 
   const submit = () => turn([['submit_findings', { summary: 'Scripted summary text.', facts: [], interpretations: [], evidence_requests: [] }]]);
   const db = sqliteD1(), repo = new CaseRepository(db);
   const h = createHandlers({ repo, identify: async () => ({ userId: 'u', displayName: 'U' }), heartbeatMs: 5,
-    provider: () => ({ provider: new ScriptedProvider([async () => { await gate; return submit(); }]), settings: { provider: 'scripted', model: 'm', configured: true, reason: 'test', time_limit_s: 480 } }),
+    provider: () => ({ provider: new ScriptedProvider([async () => { await gate; return submit(); }]), settings: { provider: 'scripted', model: 'm', configured: true, reason: 'test', time_limit_s: 480, request_token_limit: null } }),
     external: () => ({ source: null, mode: 'none', detail: 'none' }) });
   const req = (body: unknown, id?: string) => new Request(`http://recallreach.test/api/cases${id ? `/${id}` : ''}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const created = await (await h.createCase(req({ action: 'sample' }))).json() as { case: { id: string } };

@@ -104,10 +104,16 @@ export type AgentRun = {
   started_at: string; finished_at: string; duration_ms: number;
   status: 'completed' | 'failed' | 'limit_reached' | 'provider_error';
   status_detail: string; steps: ToolActivity[]; answer: VerifiedAnswer | null;
-  usage: { model_calls: number; input_tokens: number; output_tokens: number; estimated_cost_usd: number | null };
+  usage: { model_calls: number; input_tokens: number; output_tokens: number; estimated_cost_usd: number | null;
+    /** Calls that came back as a malformed tool call. The first few per run are retried without using the model-call budget. */
+    malformed_calls?: number;
+    /** Requests resent smaller after the provider refused them as too large; they do not use the model-call budget. */
+    oversize_retries?: number;
+    /** Requests sent shorter than the default context (older tool results as summaries, smaller output allowance) to stay under the ceiling. */
+    shortened_requests?: number };
   evidence_fingerprint: string; memory: { recalled: number; stored: number; invalidated: number };
   /** The bounds this run ran under. Absent on runs recorded before they were stored. */
-  limits?: { total_timeout_ms: number; max_model_calls: number; max_tool_calls: number };
+  limits?: { total_timeout_ms: number; max_model_calls: number; max_tool_calls: number; max_request_tokens?: number | null };
 };
 /** The last time a connected-source row was seen, with a hash of its content. Keyed by instance|table|row key. */
 export type SourceObservation = { hash: string; seen_at: string };

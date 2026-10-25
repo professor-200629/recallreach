@@ -22,7 +22,7 @@ function app(file = ':memory:', external?: (onEvent: Parameters<Deps['external']
   const db = sqliteD1(file), repo = new CaseRepository(db);
   const h = createHandlers({
     repo, identify: async req => USERS[req.headers.get('x-test-user') ?? ''] ?? null,
-    provider: () => ({ provider: null, settings: { provider: 'none', model: '', configured: false, reason: 'test', time_limit_s: 240 } }),
+    provider: () => ({ provider: null, settings: { provider: 'none', model: '', configured: false, reason: 'test', time_limit_s: 240, request_token_limit: null } }),
     external: external ?? (onEvent => ({ source: new MockZetarisSource(onEvent), mode: 'mock', detail: 'MOCK for tests' })),
   });
   // Response bodies are asserted field by field, so they are typed loosely here.

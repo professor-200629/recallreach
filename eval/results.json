@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-25T17:31:39.911Z",
+  "generated_at": "2026-10-25T19:06:36.967Z",
   "note": "Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.",
   "held_out_key_commit": "1313452",
   "scenarios": {
@@ -122,12 +122,16 @@
         "limits": {
           "total_timeout_ms": 240000,
           "max_model_calls": 0,
-          "max_tool_calls": 40
+          "max_tool_calls": 40,
+          "max_request_tokens": null
         },
-        "duration_ms": 21,
+        "duration_ms": 24,
         "tool_calls": 13,
         "rejected_tool_calls": 0,
         "model_calls": 0,
+        "malformed_calls": 0,
+        "oversize_retries": 0,
+        "shortened_requests": 0,
         "input_tokens": 0,
         "output_tokens": 0,
         "estimated_cost_usd": null,
@@ -226,12 +230,16 @@
         "limits": {
           "total_timeout_ms": 240000,
           "max_model_calls": 0,
-          "max_tool_calls": 40
+          "max_tool_calls": 40,
+          "max_request_tokens": null
         },
         "duration_ms": 3,
         "tool_calls": 18,
         "rejected_tool_calls": 0,
         "model_calls": 0,
+        "malformed_calls": 0,
+        "oversize_retries": 0,
+        "shortened_requests": 0,
         "input_tokens": 0,
         "output_tokens": 0,
         "estimated_cost_usd": null,
@@ -338,12 +346,16 @@
         "limits": {
           "total_timeout_ms": 240000,
           "max_model_calls": 0,
-          "max_tool_calls": 40
+          "max_tool_calls": 40,
+          "max_request_tokens": null
         },
         "duration_ms": 2,
         "tool_calls": 21,
         "rejected_tool_calls": 0,
         "model_calls": 0,
+        "malformed_calls": 0,
+        "oversize_retries": 0,
+        "shortened_requests": 0,
         "input_tokens": 0,
         "output_tokens": 0,
         "estimated_cost_usd": null,

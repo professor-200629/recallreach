@@ -1,7 +1,8 @@
 import type { AgentRun, ToolActivity } from '../types.ts';
 import { ProviderError, type ChatMessage, type ChatProvider, type ToolCall } from './provider.ts';
-import { collectDelivered, executeTool, FINAL_TOOL, serializeForModel, toolSpecs, type FinalArgs, type ToolContext } from './tools.ts';
+import { collectDelivered, emptyDelivered, executeTool, FINAL_TOOL, MAX_TOOL_OUTPUT, serializeForModel, toolSpecs, type FinalArgs, type ToolContext } from './tools.ts';
 import { verifyAnswer } from './validate.ts';
+import { estimatePromptTokens, fitRequest, messageLengths, SAFETY, type Calibration, type Fit, type ViewSpec } from './budget.ts';
 import { rulesInvestigation } from './rules.ts';
 
 export type Limits = {
@@ -9,13 +10,23 @@ export type Limits = {
   rateLimitRetries: number; maxRateLimitWaitMs: number; maxOutputTokens: number; maxInvalidStreak: number; fullToolResults: number;
   /** Rules mode runs a fixed procedure that needs more (cheap) tool calls; it shares the time limit. */
   rulesMaxToolCalls: number;
+  /** Ceiling for one request (prompt plus max_tokens), from the provider; null means none. */
+  maxRequestTokens: number | null;
+  /** The smallest output allowance a request may be cut to in order to fit the ceiling. */
+  minOutputTokens: number;
+  /** Malformed tool calls per run retried without using the model-call budget; later ones each use a model call. */
+  maxMalformedRetries: number;
+  /** Requests refused as too large that are resent smaller, per run. */
+  maxOversizeRetries: number;
 };
 // totalTimeoutMs is one deadline for the whole run: model calls, retries, rate-limit waits and
 // tools. fullToolResults is how many recent tool results stay verbatim in the context before
 // older ones are replaced by their summaries. Groq's free tier allows 8,000 tokens per minute, so
 // a thorough live run spends most of its time waiting; rate-limited attempts are retried and do
 // not use the model-call budget.
-export const DEFAULT_LIMITS: Limits = { maxModelCalls: 10, maxToolCalls: 16, callTimeoutMs: 30_000, totalTimeoutMs: 240_000, maxRetries: 1, rateLimitRetries: 6, maxRateLimitWaitMs: 30_000, maxOutputTokens: 1600, maxInvalidStreak: 3, fullToolResults: 3, rulesMaxToolCalls: 40 };
+export const DEFAULT_LIMITS: Limits = { maxModelCalls: 10, maxToolCalls: 16, callTimeoutMs: 30_000, totalTimeoutMs: 240_000, maxRetries: 1, rateLimitRetries: 6, maxRateLimitWaitMs: 30_000, maxOutputTokens: 1600, maxInvalidStreak: 3, fullToolResults: 3, rulesMaxToolCalls: 40, maxRequestTokens: null, minOutputTokens: 900, maxMalformedRetries: 3, maxOversizeRetries: 3 };
+/** Temperature for a retry after a malformed tool call, so the model does not repeat the same output. */
+const RETRY_TEMPERATURE = 0.6;
 
 export const SYSTEM_PROMPT = `You are RecallReach's investigation agent for ONE medicine recall case. You help a recall coordinator understand what the imported evidence shows, what it does not show, and what a person should check next.
 
@@ -62,7 +73,7 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
     status: 'completed', status_detail: '', steps: [], answer: null,
     usage: { model_calls: 0, input_tokens: 0, output_tokens: 0, estimated_cost_usd: null },
     evidence_fingerprint: input.ctx.current.fingerprint, memory: { recalled: 0, stored: 0, invalidated: 0 },
-    limits: { total_timeout_ms: limits.totalTimeoutMs, max_model_calls: input.provider ? limits.maxModelCalls : 0, max_tool_calls: input.provider ? limits.maxToolCalls : limits.rulesMaxToolCalls },
+    limits: { total_timeout_ms: limits.totalTimeoutMs, max_model_calls: input.provider ? limits.maxModelCalls : 0, max_tool_calls: input.provider ? limits.maxToolCalls : limits.rulesMaxToolCalls, max_request_tokens: input.provider ? limits.maxRequestTokens : null },
   };
   const limitDetail = () => `Stopped at the ${limits.totalTimeoutMs / 1000} s time limit.`;
   const finish = (status: AgentRun['status'], detail: string) => {
@@ -75,12 +86,17 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
     if (p) run.usage.estimated_cost_usd = Number(((run.usage.input_tokens * p.input_per_mtok + run.usage.output_tokens * p.output_per_mtok) / 1e6).toFixed(6));
     return run;
   };
-  const record = async (call: { name: string; args: unknown }): Promise<{ text: string; compact: string; ok: boolean; invalid: boolean }> => {
+  // Evidence counts as delivered only once its text has gone to the model. Rules mode reads results
+  // directly; in live mode a result is delivered when a request that carries it verbatim is answered.
+  const toolText = new Map<string, { name: string; text: string }>();
+  // Live mode under a ceiling: each result is serialized no larger than what can fit in one request.
+  let outputCap = MAX_TOOL_OUTPUT;
+  const record = async (call: { id?: string; name: string; args: unknown }): Promise<{ text: string; compact: string; ok: boolean; invalid: boolean }> => {
     const t0 = now(), { result, args, purpose } = await executeTool(call.name, call.args, input.ctx);
     run.steps.push({ seq: run.steps.length + 1, tool: call.name, purpose, args, ok: result.ok, error: result.error, summary: result.summary, record_ids: result.record_ids, duration_ms: now() - t0 } satisfies ToolActivity);
-    const text = serializeForModel(result);
-    // Evidence counts as delivered only if it is in the text the model actually receives.
-    collectDelivered(call.name, text, input.ctx);
+    const text = serializeForModel(result, call.id ? outputCap : MAX_TOOL_OUTPUT);
+    if (call.id) { toolText.set(call.id, { name: call.name, text }); collectDelivered(call.name, text, input.ctx, input.ctx.pending); }
+    else collectDelivered(call.name, text, input.ctx);
     const cites = result.record_ids.map(id => input.ctx.byRecord.get(id)).filter(Boolean);
     return { text, compact: JSON.stringify({ ok: result.ok, shortened: true, summary: result.summary, ...(result.error ? { error: result.error } : {}), cites }), ok: result.ok, invalid: !result.ok && /^(Invalid arguments|Unknown tool)/.test(result.error ?? '') };
   };
@@ -104,42 +120,108 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
 
   const provider = input.provider, sleep = input.sleep ?? ((ms: number) => new Promise(r => setTimeout(r, ms)));
   const messages: ChatMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: `${header(input.ctx)}\n\nQuestion: ${input.question}` }];
-  const tools = toolSpecs();
+  const tools = toolSpecs(), toolsChars = JSON.stringify(tools).length;
   const compacted = new Map<string, string>(), toolOrder: string[] = [];
   let toolCalls = 0, invalidStreak = 0, nudged = false, waitedMs = 0, forced = false, askedForProposal = false;
-  // Older tool results are sent as their summary and handles to keep each request within token limits.
-  const contextView = (): ChatMessage[] => {
-    const keep = new Set(toolOrder.slice(-limits.fullToolResults));
-    return messages.map(m => m.role === 'tool' && !keep.has(m.tool_call_id) && compacted.has(m.tool_call_id) ? { ...m, content: compacted.get(m.tool_call_id)! } : m);
+  let cal: Calibration = null, tightness = 0, ceiling = limits.maxRequestTokens, askedToRead = false;
+  // Where the ceiling came from: configured, stated by the provider, or inferred from its refusals.
+  let ceilingSource: 'configured' | 'stated' | 'inferred' = 'configured';
+  const ceilingText = () => ceilingSource === 'inferred' ? `the limit of about ${ceiling} tokens per request inferred from ${provider.name}'s refusals` : `${provider.name}'s limit of ${ceiling} tokens per request`;
+  // Malformed tool calls seen and retried free; oversized requests refused and resent smaller.
+  let malformed = 0, malformedFree = 0, refused = 0, resent = 0, refusedShape = '';
+  const shape = (f: Fit) => JSON.stringify([f.maxTokens, messageLengths(f.view)]);
+  // Tool results the model has received in full in an answered request (delivered), and results it
+  // received only as a summary (retired: they stay summaries; the model must fetch them again).
+  const deliveredIds = new Set<string>(), retiredIds = new Set<string>();
+  const markDelivered = (view: ChatMessage[]) => {
+    for (const m of view) if (m.role === 'tool') {
+      const t = toolText.get(m.tool_call_id);
+      if (!t || deliveredIds.has(m.tool_call_id)) continue;
+      if (m.content === t.text) { deliveredIds.add(m.tool_call_id); retiredIds.delete(m.tool_call_id); collectDelivered(t.name, t.text, input.ctx); }
+      else if (!retiredIds.has(m.tool_call_id)) { retiredIds.add(m.tool_call_id); collectDelivered(t.name, t.text, input.ctx, input.ctx.summarised); }
+    }
+  };
+  const resultIds = () => ({ delivered: toolOrder.filter(id => deliveredIds.has(id)), undelivered: toolOrder.filter(id => !deliveredIds.has(id) && !retiredIds.has(id)) });
+  const seenCallIds = new Set<string>();
+  // Results the model has not yet received stay verbatim; of those it has, the newest few stay verbatim
+  // and older ones go as their summary and handles. With trim, older assistant text is dropped too
+  // (tool calls stay). Each message keeps its index, which the token estimate relies on.
+  const contextView = (spec: ViewSpec): ChatMessage[] => {
+    const ids = resultIds(), keep = new Set([...(spec.delivered > 0 ? ids.delivered.slice(-spec.delivered) : []), ...(spec.undelivered > 0 ? ids.undelivered.slice(-spec.undelivered) : [])]);
+    const lastAssistant = messages.map(m => m.role).lastIndexOf('assistant');
+    return messages.map((m, i) => m.role === 'tool' && !keep.has(m.tool_call_id) && compacted.has(m.tool_call_id) ? { ...m, content: compacted.get(m.tool_call_id)! }
+      : spec.trim && m.role === 'assistant' && i < lastAssistant && m.content ? { ...m, content: '' } : m);
   };
   const waited = () => waitedMs ? ` Waited ${Math.round(waitedMs / 1000)} s for provider rate limits.` : '';
+  const retried = () => [malformed ? ` ${malformed} malformed tool call${malformed === 1 ? '' : 's'} (${malformedFree} retried without using the model-call budget).` : '', resent ? ` ${resent} oversized request${resent === 1 ? '' : 's'} resent smaller.` : ''].join('');
 
   while (true) {
-    if (expired()) return finish('limit_reached', `${limitDetail()}${waited()}`);
-    // Near the end of any budget, ask for the final answer and force the submit_findings tool.
-    const lowBudget = run.usage.model_calls >= limits.maxModelCalls - 1 ? 'model-call' : toolCalls >= limits.maxToolCalls ? 'tool-call' : now() - started > limits.totalTimeoutMs * 0.7 ? 'time' : '';
-    if (lowBudget && !forced) {
-      forced = true;
-      messages.push({ role: 'user', content: `The ${lowBudget} budget is nearly used. Call submit_findings now with the evidence already retrieved; put anything you cannot state as a typed fact in interpretations.` });
-    } else if (forced && run.usage.model_calls >= limits.maxModelCalls) return finish('limit_reached', `Stopped after ${limits.maxModelCalls} model calls without submitted findings.${waited()}`);
-    let result;
-    for (let attempt = 0, rateLimited = 0; ; attempt++) {
+    if (expired()) return finish('limit_reached', `${limitDetail()}${waited()}${retried()}`);
+    let result, fit: Fit | null = null;
+    for (let otherErrors = 0, rateLimited = 0, temperature: number | undefined, freeRetry = false; ;) {
       const remaining = deadline - now();
-      if (remaining <= 0 || controller.signal.aborted) return finish('limit_reached', `${limitDetail()}${waited()}`);
+      if (remaining <= 0 || controller.signal.aborted) return finish('limit_reached', `${limitDetail()}${waited()}${retried()}`);
+      // Before every attempt: near the end of any budget, ask for the final answer and force submit_findings;
+      // never send more than the model-call budget allows.
+      const lowBudget = run.usage.model_calls >= limits.maxModelCalls - 1 ? 'model-call' : toolCalls >= limits.maxToolCalls ? 'tool-call' : now() - started > limits.totalTimeoutMs * 0.7 ? 'time' : '';
+      if (lowBudget && !forced) {
+        forced = true;
+        messages.push({ role: 'user', content: `The ${lowBudget} budget is nearly used. Call submit_findings now with the evidence already retrieved; put anything you cannot state as a typed fact in interpretations.` });
+      } else if (forced && run.usage.model_calls >= limits.maxModelCalls) return finish('limit_reached', `Stopped after ${limits.maxModelCalls} model calls without submitted findings.${waited()}${retried()}`);
+      // Fit the request under the provider's per-request ceiling before sending it.
+      const ids = resultIds();
+      fit = fitRequest({ build: contextView, deliveredMax: Math.min(limits.fullToolResults, ids.delivered.length), undeliveredCount: ids.undelivered.length, maxOutput: limits.maxOutputTokens, minOutput: limits.minOutputTokens, limit: ceiling, toolsChars, cal, tightness });
+      if (!fit) return finish('provider_error', toolOrder.length
+        ? `The conversation no longer fits ${ceilingText()}, even with older tool results shortened.${waited()}${retried()}`
+        : `${ceilingText()[0].toUpperCase()}${ceilingText().slice(1)} is too small for RecallReach's fixed instructions, tool definitions and question plus an answer.${waited()}${retried()}`);
+      // After a refusal, only a request that actually changed is worth sending.
+      if (refusedShape) { if (shape(fit) === refusedShape) return finish('provider_error', `${provider.name} refused a request as too large and it could not be made smaller.${waited()}${retried()}`); resent++; run.usage.oversize_retries = resent; refusedShape = ''; }
       try {
-        result = await provider.complete({ messages: contextView(), tools, maxTokens: limits.maxOutputTokens, signal: AbortSignal.any([AbortSignal.timeout(Math.min(limits.callTimeoutMs, remaining)), controller.signal]), ...(forced ? { forceTool: FINAL_TOOL.name } : {}) });
+        if (freeRetry) { malformedFree++; freeRetry = false; }
+        result = await provider.complete({ messages: fit.view, tools, maxTokens: fit.maxTokens, signal: AbortSignal.any([AbortSignal.timeout(Math.min(limits.callTimeoutMs, remaining)), controller.signal]), ...(forced ? { forceTool: FINAL_TOOL.name } : {}), ...(temperature !== undefined ? { temperature } : {}) });
         run.usage.model_calls++;
+        if (fit.shortened) run.usage.shortened_requests = (run.usage.shortened_requests ?? 0) + 1;
+        // The provider's count for exactly these messages is the baseline for the next estimate.
+        if (result.usage.input_tokens > 0) cal = { promptTokens: result.usage.input_tokens, lengths: messageLengths(fit.view) };
+        markDelivered(fit.view);
+        tightness = 0;
         break;
       } catch (error) {
-        if (controller.signal.aborted) return finish('limit_reached', `${limitDetail()}${waited()}`);
+        if (controller.signal.aborted) return finish('limit_reached', `${limitDetail()}${waited()}${retried()}`);
         const e = error instanceof ProviderError ? error : new ProviderError('network', (error as Error)?.message ?? 'Unknown provider failure', false);
+        if (e.kind === 'quota') return finish('provider_error', `quota: ${e.message}${waited()}${retried()}`);
+        // A malformed tool call is retried with more variety. The first few in a run do not use the
+        // model-call budget; after that they are ordinary counted retries, so the budget (and the forced
+        // final submit_findings call) still decides how the run ends.
+        if (e.kind === 'malformed') {
+          malformed++; run.usage.malformed_calls = malformed; temperature = RETRY_TEMPERATURE;
+          if (malformedFree < limits.maxMalformedRetries) { freeRetry = true; continue; }
+          // Past the free retries each one uses a model call; the budget checks above decide when to force the final answer or stop.
+          run.usage.model_calls++;
+          continue;
+        }
+        // A refused oversized request is resent smaller, recalibrated to what the provider counted and
+        // capped at the limit it stated. With no ceiling known it cannot be made smaller, so the run ends.
+        if (e.kind === 'too_large') {
+          refused++;
+          // What the refusal teaches lasts for the rest of the run: a stated limit becomes the ceiling; a stated
+          // count means the real limit is below it; with neither, the refused request's size is taken as the ceiling.
+          const learned = e.limitTokens ?? (e.requestedTokens ? e.requestedTokens - 1 : fit.estimate);
+          if (learned < (ceiling ?? Number.POSITIVE_INFINITY)) { ceiling = learned; ceilingSource = e.limitTokens ? 'stated' : 'inferred'; if (run.limits) run.limits.max_request_tokens = ceiling; }
+          if (!ceiling || refused > limits.maxOversizeRetries) return finish('provider_error', `too_large: ${e.message}${waited()}${retried()}`);
+          // Recalibrate to what the provider counted; without a count, treat the refused request as just over the
+          // ceiling. A refusal never lowers the estimate of the request it refused.
+          const before = fit.estimate - fit.maxTokens;
+          cal = { promptTokens: Math.max(before, e.requestedTokens && e.requestedTokens > fit.maxTokens ? e.requestedTokens - fit.maxTokens : ceiling - fit.maxTokens + 1), lengths: messageLengths(fit.view) };
+          tightness++; refusedShape = shape(fit);
+          continue;
+        }
         const isRate = e.kind === 'rate_limit', wait = isRate ? Math.min(e.retryAfterMs ?? 5000, limits.maxRateLimitWaitMs) + 250 : 1500;
-        const allowed = isRate ? rateLimited < limits.rateLimitRetries : attempt - rateLimited < limits.maxRetries;
+        const allowed = isRate ? rateLimited < limits.rateLimitRetries : otherErrors < limits.maxRetries;
         if (!isRate) run.usage.model_calls++;
-        if (e.retryable && allowed && wait >= deadline - now()) return finish('limit_reached', `${limitDetail()} The provider asked to wait ${Math.round(wait / 1000)} s (${e.kind}), which would pass the deadline.${waited()}`);
-        if (!e.retryable || !allowed || run.usage.model_calls >= limits.maxModelCalls) return finish('provider_error', `${e.kind}: ${e.message}${waited()}`);
-        if (isRate) rateLimited++;
-        waitedMs += wait;
+        if (e.retryable && allowed && wait >= deadline - now()) return finish('limit_reached', `${limitDetail()} ${isRate ? `The provider asked to wait ${Math.round(wait / 1000)} s` : `A retry after ${e.kind}`}, which would pass the deadline.${waited()}${retried()}`);
+        if (!e.retryable || !allowed || run.usage.model_calls >= limits.maxModelCalls) return finish('provider_error', `${e.kind}: ${e.message}${waited()}${retried()}`);
+        if (isRate) { rateLimited++; waitedMs += wait; } else otherErrors++;
         await sleep(wait);
       }
     }
@@ -151,9 +233,22 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
       messages.push({ role: 'assistant', content: result.content ?? '' }, { role: 'user', content: 'Respond only by calling tools. When you have enough evidence, call submit_findings with typed facts.' });
       continue;
     }
+    // Delivery is tracked per tool-call ID, so IDs must be unique within the run (some providers repeat them).
+    const calls = result.tool_calls.map(c => { let id = c.id; for (let k = 2; seenCallIds.has(id); k++) id = `${c.id}~${k}`; seenCallIds.add(id); return id === c.id ? c : { ...c, id }; });
+    result = { ...result, tool_calls: calls };
     messages.push({ role: 'assistant', content: result.content, tool_calls: result.tool_calls });
+    // Only this turn's results count as "returned in this same turn".
+    input.ctx.pending = emptyDelivered();
+    // Under a ceiling, cap each of this turn's results so that together they fit one request with the
+    // smallest answer allowance, beside the conversation with every older result as a summary.
+    const toolsThisTurn = result.tool_calls.filter(c => c.name !== FINAL_TOOL.name).length;
+    if (ceiling && toolsThisTurn) {
+      const base = estimatePromptTokens(contextView({ delivered: 0, undelivered: 0, trim: false }), toolsChars, cal);
+      outputCap = Math.max(1500, Math.min(MAX_TOOL_OUTPUT, Math.floor((Math.floor(ceiling * SAFETY) - base - limits.minOutputTokens - 8 * toolsThisTurn) * 3.6 / toolsThisTurn)));
+    } else outputCap = MAX_TOOL_OUTPUT;
     let final: FinalArgs | null = null, turnInvalid = 0, turnValid = 0, cutOff = false;
-    // Investigation tools run first so a final answer in the same turn can cite their results.
+    // Investigation tools run first and are recorded, but a final answer in the same turn cannot rely on
+    // their results: the model has not seen them, so they are not yet delivered evidence.
     const ordered = [...result.tool_calls.filter(c => c.name !== FINAL_TOOL.name), ...result.tool_calls.filter(c => c.name === FINAL_TOOL.name)];
     for (const call of ordered) {
       const reply = (content: string) => messages.push({ role: 'tool', tool_call_id: call.id, content });
@@ -173,6 +268,14 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
         }
         // Checklist: an investigation that looked at an open follow-up issue should propose a next step.
         // Asked once, and never when the budget is low (the forced final call is always accepted).
+        // Results returned in this same turn have not been read; ask once to read them before finishing.
+        const unread = ordered.some(c => c.name !== FINAL_TOOL.name && toolText.has(c.id) && !deliveredIds.has(c.id));
+        if (unread && !askedToRead && !forced) {
+          askedToRead = true;
+          run.steps.push(rejectedStep(run, call, 'Submitted in the same turn as new tool results the model had not read yet.'));
+          reply(JSON.stringify({ ok: false, error: 'Results returned in this turn have not been read yet. Read them, propose follow-ups if needed, then call submit_findings again.' }));
+          continue;
+        }
         const openSeen = input.ctx.r.issues.filter(i => i.severity !== 'info' && i.kind !== 'Record review' && input.ctx.delivered.issues.has(i.id));
         if (!input.ctx.proposals.length && openSeen.length && !askedForProposal && !forced) {
           askedForProposal = true;
@@ -190,13 +293,13 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
         reply(JSON.stringify({ ok: false, error: `Tool limit of ${limits.maxToolCalls} reached. Call submit_findings now with what you have.` })); continue;
       }
       toolCalls++;
-      const out = await record({ name: call.name, args });
+      const out = await record({ id: call.id, name: call.name, args });
       if (out.invalid) turnInvalid++; else turnValid++;
       compacted.set(call.id, out.compact); toolOrder.push(call.id);
       reply(out.text);
     }
     if (cutOff) { if (final) run.answer = verifyAnswer(final, input.ctx); return finish('limit_reached', `${limitDetail()} Tool calls after the limit were not run.${waited()}`); }
-    if (final) { run.answer = verifyAnswer(final, input.ctx); return finish('completed', `${toolCalls} tool calls, ${run.usage.model_calls} model calls.${waited()}`); }
+    if (final) { run.answer = verifyAnswer(final, input.ctx); return finish('completed', `${toolCalls} tool calls, ${run.usage.model_calls} model calls.${waited()}${retried()}`); }
     // A turn counts as invalid only if none of its calls was usable.
     invalidStreak = turnValid ? 0 : invalidStreak + (turnInvalid ? 1 : 0);
     if (invalidStreak >= limits.maxInvalidStreak) return finish('failed', `Stopped after ${invalidStreak} consecutive turns of invalid tool calls.`);

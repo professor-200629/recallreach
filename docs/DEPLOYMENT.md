@@ -22,7 +22,7 @@ Open `http://localhost:5173/signin-with-chatgpt?return_to=/`. In development thi
 Checks:
 
 ```bash
-npm test            # 119 tests (node:test, Node's built-in SQLite for server tests)
+npm test            # 140 tests (node:test, Node's built-in SQLite for server tests)
 npm run typecheck   # tsc --noEmit
 npm run eval        # baseline vs engine vs rules mode, incl. the held-out case -> eval/results.json
 ```

@@ -52,7 +52,7 @@ AI assistance: code was generated with AI coding assistants (the earlier session
 | Criterion (points) | What to show | Evidence in the repo |
 | --- | --- | --- |
 | Impact (30) | A real coordinator problem; who is helped; honest limits | README "The problem"; PILOT_PLAN.md; principles enforced in `engine.ts` and `validate.ts` |
-| Technical (20) | Deterministic engine plus a bounded agent; atomic persistence; one deadline; complete, versioned imports; tests | ARCHITECTURE.md; 119 automated tests (`npm test`); EVALUATION.md; JUDGE_GUIDE.md |
+| Technical (20) | Deterministic engine plus a bounded agent; atomic persistence; one deadline; complete, versioned imports; tests | ARCHITECTURE.md; 140 automated tests (`npm test`); EVALUATION.md; JUDGE_GUIDE.md |
 | Innovation (15) | Typed facts validated against the engine and delivered evidence; Evidence Challenge ("Why this finding?"); dependency-tracked memory with an honest *unknown* | `agent/facts.ts`, `explain.ts`, `memory/hmem.ts`; tests in `facts.test.ts`, `trust.test.ts`, `explain.test.ts` |
 | Demo (15) | Seven beats in about 3.5 minutes, speed-ups and rules mode labelled | DEMO_SCRIPT.md |
 | Product & UX (10) | Evidence library, tool activity, checked summary, validated/rejected facts, *Why this finding?*, approvals, corrections; phone layout | `components/recall/*`; browser checks in EVALUATION.md; OPERATOR_TEST.md |

@@ -74,7 +74,8 @@ function RunView({ run, data, open, onQueue }: { run: AgentRun; data: Payload; o
   const { case: c, result: r, staleness } = data, a = run.answer;
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const facts = a?.facts ?? [], validated = facts.filter(f => f.status === 'validated');
-  const usage = run.mode === 'live' ? `${run.usage.model_calls} model calls · ${number(run.usage.input_tokens)} in / ${number(run.usage.output_tokens)} out tokens · ${run.usage.estimated_cost_usd === null ? 'no cost estimate (provider pricing not configured)' : `≈ $${run.usage.estimated_cost_usd.toFixed(4)}`}` : 'No model calls · no cost';
+  const retries = [run.usage.malformed_calls ? `${run.usage.malformed_calls} malformed tool call${run.usage.malformed_calls === 1 ? '' : 's'}` : '', run.usage.oversize_retries ? `${run.usage.oversize_retries} oversized request${run.usage.oversize_retries === 1 ? '' : 's'} resent smaller` : '', run.usage.shortened_requests && run.limits?.max_request_tokens ? `${run.usage.shortened_requests} request${run.usage.shortened_requests === 1 ? '' : 's'} shortened to stay under ${number(run.limits.max_request_tokens)} tokens` : ''].filter(Boolean).map(t => ` · ${t}`).join('');
+  const usage = run.mode === 'live' ? `${run.usage.model_calls} model calls · ${number(run.usage.input_tokens)} in / ${number(run.usage.output_tokens)} out tokens${retries} · ${run.usage.estimated_cost_usd === null ? 'no cost estimate (provider pricing not configured)' : `≈ $${run.usage.estimated_cost_usd.toFixed(4)}`}` : 'No model calls · no cost';
   const why = (f: ValidatedFact) => setChallenge(challengeFact(f, { c, r, current: staleness.current_fingerprint, validatedAt: run.started_at }));
   return <>
     <section className="panel run-panel">
