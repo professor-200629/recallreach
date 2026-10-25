@@ -27,7 +27,7 @@ Checked against the official event page on **24 Oct 2026** (https://hackathon.ge
 
 ## How Zetaris and Meterless are integrated (for 6.4)
 
-- **Zetaris:** RecallReach treats the distributor ERP, pharmacy stock systems and returns desk as separate datasources federated by Zetaris. It queries them through the Zetaris REST SQL endpoint with code-owned, read-only, bounded SELECTs that map each system's native columns. Every row keeps its table, row key and query ID, and every check records latency and outcome. **State honestly in the submission whether a real Zetaris query succeeded** (Integrations screen). As of 24 Oct, it had not: the adapter is contract-tested against the documented API and a labelled mock serves the same fixtures. Setup: `docs/INTEGRATIONS.md`.
+- **Zetaris:** RecallReach treats the distributor ERP, pharmacy stock systems and returns desk as separate datasources federated by Zetaris. It queries them through the Zetaris REST SQL endpoint with code-owned, read-only, bounded SELECTs that map each system's native columns. Every row keeps its table, row key and query ID; re-importing adds only rows not already in the case, and every check records latency and outcome. **Verified on 25 Oct 2026 against a local Zetaris 2.4.3 instance** (the hackathon's local download) with three fictional source databases registered as datasources. Verified: `verify.sh` 9/9; the in-app connection check passed (198 ms); a case was built entirely from Zetaris imports and matched the answer key; a live agent run queried Zetaris itself; a new quarantine record in the pharmacy source, re-imported through Zetaris, moved the case from 900 to 940 contained. Say "local instance, fictional data" in the submission; it was not tested against a hosted Zetaris cluster. Setup and the full record: `docs/INTEGRATIONS.md`.
 - **Meterless:** the H-MEM reference engine (unmodified, Apache-2.0, conformance 13/13) is RecallReach's investigation memory. Verified findings, open questions and operator decisions are stored with provenance and evidence fingerprints. Retrieval uses H-MEM ranking. When evidence changes, H-MEM supersession lineage marks old conclusions for recheck. Conflict detection surfaces contradictions without auto-resolving them. Operator "mark as wrong" feedback uses H-MEM's feedback deltas and trust ledger.
 - **What is unique:** memory and federation are subordinate to evidence. Neither can change a stock number; both are cited, checked and labelled, and a stale memory is shown as stale.
 - **Cursor:** not used. **NVIDIA:** not used. An `nvidia` provider preset exists but has never been run; don't claim NVIDIA use.
@@ -52,11 +52,11 @@ AI assistance: code was generated with AI coding assistants (the earlier session
 | Criterion (points) | What to show | Evidence in the repo |
 | --- | --- | --- |
 | Impact (30) | A real coordinator problem; who is helped; honest limits | README "The problem"; PILOT_PLAN.md; principles enforced in `engine.ts` and `validate.ts` |
-| Technical (20) | Deterministic engine plus a bounded agent; tests | ARCHITECTURE.md; 65 automated tests (`npm test`); EVALUATION.md; live run records in `eval/` |
+| Technical (20) | Deterministic engine plus a bounded agent; tests | ARCHITECTURE.md; 69 automated tests (`npm test`); EVALUATION.md; live run records in `eval/` |
 | Innovation (15) | Citation and quantity verification against what the agent actually retrieved; evidence-fingerprinted memory that supersedes itself | `agent/validate.ts`, `memory/hmem.ts`, tests in `agent.test.ts` and `memory.test.ts` |
 | Demo (15) | The 10-step drill story in under 4 minutes | DEMO_SCRIPT.md |
 | Product & UX (10) | Evidence library, tool activity, verified/unverified labels, approvals, corrections; phone layout | `components/recall/*`; browser checks in EVALUATION.md |
-| Sponsor tech (10) | Zetaris federation of separate systems; Meterless memory with invalidation | INTEGRATIONS.md; Integrations screen; `vendor/meterless-hmem/VENDORED.md` |
+| Sponsor tech (10) | Zetaris federation of separate systems, connected and verified on a local instance; Meterless memory with invalidation | INTEGRATIONS.md (Verification record); `eval/zetaris-check-2026-10-25.txt`; Integrations screen; `vendor/meterless-hmem/VENDORED.md` |
 
 ## Slide deck outline (required by 6.2; not produced yet)
 
@@ -64,7 +64,7 @@ AI assistance: code was generated with AI coding assistants (the earlier session
 2. Solution in one picture: sources → Zetaris → engine → agent → human decision → memory.
 3. Agent workflow: question, tools, verified citations, proposal, approval, new evidence, reassessment.
 4. Stock model and principles: "unknown is not safe", "approval is not completion".
-5. Zetaris use: three source systems, read-only mapped queries, latency and failures shown. Use the status you actually achieved.
+5. Zetaris use: three source systems, read-only mapped queries, latency and failures shown. Connected on a local instance: show the passing check and the 900 → 940 follow-up arriving through Zetaris.
 6. Meterless use: H-MEM memory, supersession on evidence change, contradiction detection, operator feedback.
 7. What was unique: verifier against retrieved evidence; memory that cannot override records.
 8. Evaluation: fixture comparison with the batch-lookup baseline, live-run records, limits (fixtures written by the builder; n=1 live runs).
@@ -74,7 +74,7 @@ AI assistance: code was generated with AI coding assistants (the earlier session
 
 ## Before you submit
 
-- [ ] Connect Zetaris and record a passing check, or describe the integration as "built, not yet connected".
+- [x] Connect Zetaris and record a passing check (25 Oct 2026, local instance; INTEGRATIONS.md, Verification record).
 - [ ] Decide repository visibility so judges can open it.
 - [ ] Record the video (1–4 minutes) and make the deck.
 - [ ] Declare pre-existing components as listed above.

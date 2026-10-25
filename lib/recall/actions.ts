@@ -113,13 +113,21 @@ export async function applyChange(c: RecallCase, body: ChangeBody, actor: string
   return fail('This change needs a server connection.', 500);
 }
 
-/** Imports rows fetched from a connected source as a new, provenance-labelled evidence source. */
+/** Imports rows fetched from a connected source as a new, provenance-labelled evidence source.
+ * Rows already imported from the same table (same source row key) are skipped, so re-importing
+ * after a source system records new evidence adds only the new rows. */
 export async function importExternal(c: RecallCase, res: Extract<ExternalQueryResult, { ok: true }>, actor: string, now: string) {
   if (!res.rows.length) fail(`${EXTERNAL_SOURCES[res.source].label} returned no rows for batch ${c.alert.batch}.`);
-  const content = toLedgerCsv(res.rows.map(row => CSV_COLUMNS.map(col => row.values[col] ?? '')));
+  const seen = new Set(c.sources.filter(s => s.origin?.table === res.table && s.origin.mode === res.mode).flatMap(s => s.origin?.row_keys ?? []));
+  const fresh = res.rows.filter(row => !row.row_key || !seen.has(row.row_key)), skipped = res.rows.length - fresh.length;
   const label = `${EXTERNAL_SOURCES[res.source].label} via Zetaris${res.mode === 'mock' ? ' (MOCK fixture)' : ''} ${now.slice(0, 16).replace('T', ' ')}`;
-  const records = addSource(c, label, res.mode === 'mock' ? 'zetaris-mock' : 'zetaris', content, now, { system: 'zetaris', mode: res.mode, table: res.table, query_id: res.query_id, fetched_at: now, latency_ms: res.latency_ms, sql: res.sql });
+  if (!fresh.length) {
+    await appendAudit(c, actor, res.mode === 'mock' ? 'Mock source checked' : 'Zetaris source checked', `${label}: all ${res.rows.length} rows from ${res.table} are already in this case; nothing imported (query ${res.query_id}, ${res.latency_ms} ms).`);
+    return { imported: 0, skipped };
+  }
+  const content = toLedgerCsv(fresh.map(row => CSV_COLUMNS.map(col => row.values[col] ?? '')));
+  const records = addSource(c, label, res.mode === 'mock' ? 'zetaris-mock' : 'zetaris', content, now, { system: 'zetaris', mode: res.mode, table: res.table, query_id: res.query_id, fetched_at: now, latency_ms: res.latency_ms, sql: res.sql, row_keys: fresh.map(row => row.row_key) });
   c.investigated_at = null;
-  await appendAudit(c, actor, res.mode === 'mock' ? 'Mock source imported' : 'Zetaris source imported', `${label}: ${records.length} rows from ${res.table} (query ${res.query_id}, ${res.latency_ms} ms). Mapping: ${EXTERNAL_SOURCES[res.source].assumption}`);
-  return records.length;
+  await appendAudit(c, actor, res.mode === 'mock' ? 'Mock source imported' : 'Zetaris source imported', `${label}: ${records.length} new rows from ${res.table}${skipped ? `; ${skipped} already in this case skipped` : ''} (query ${res.query_id}, ${res.latency_ms} ms). Mapping: ${EXTERNAL_SOURCES[res.source].assumption}`);
+  return { imported: records.length, skipped };
 }

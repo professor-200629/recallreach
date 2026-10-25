@@ -22,7 +22,9 @@ export type LedgerRecord = {
 export type RecallAlert = { product: string; manufacturer: string; batch: string; unit: string; source_url: string; description: string };
 export type SourceKind = 'csv' | 'manual' | 'sample' | 'correction' | 'zetaris' | 'zetaris-mock';
 /** Where an external source came from. Only set for records fetched through an integration. */
-export type SourceOrigin = { system: 'zetaris'; mode: 'live' | 'mock'; table: string; query_id: string; fetched_at: string; latency_ms: number; sql: string };
+export type SourceOrigin = { system: 'zetaris'; mode: 'live' | 'mock'; table: string; query_id: string; fetched_at: string; latency_ms: number; sql: string;
+  /** The source system's row key for each imported row, in row order. Used to skip rows already imported. */
+  row_keys?: string[] };
 export type Source = { id: string; name: string; kind: SourceKind; content: string; added_at: string; row_count: number; origin?: SourceOrigin };
 export type AuditEntry = { id: string; at: string; actor: string; action: string; detail: string; previous_hash: string; hash: string };
 export type Decision = { id: string; issue_id: string; at: string; actor: string; status: 'approved' | 'acknowledged' | 'rejected'; note: string; evidence_ids: string[]; proposal_id?: string };

@@ -33,6 +33,7 @@ test('queries use the documented endpoint, headers and body, and map positional 
 test('auth failures, bad responses, wrong shapes, network errors and timeouts are classified', async () => {
   const cases: [() => Response | Promise<Response>, string][] = [
     [() => new Response('nope', { status: 401 }), 'auth_failed'],
+    [() => new Response('{"msg":"Not Allowed"}', { status: 400 }), 'auth_failed'],
     [() => new Response('<html>', { status: 200, headers: { 'content-type': 'text/html' } }), 'invalid_response'],
     [() => Response.json({ data: [['too', 'short']] }), 'invalid_response'],
     [() => new Response('{"error":"Table not found"}', { status: 400 }), 'query_failed'],
@@ -83,6 +84,7 @@ test('setup SQL parses into create, register and check steps with no secrets', a
   const steps = parseSetupSql(text);
   assert.deepEqual(steps.map(s => `${s.kind}:${s.datasource ?? '-'}`), ['create:recall_distributor', 'register:recall_distributor', 'create:recall_pharmacy', 'register:recall_pharmacy', 'create:recall_returns', 'register:recall_returns', 'check:-']);
   assert.equal(/password/i.test(steps.map(s => s.sql).join(' ')), false, 'no password in datasource definitions');
+  for (const s of steps.filter(s => s.kind === 'create')) assert.match(s.sql, /DESCRIBE BY "[A-Za-z0-9_.,-]+" OPTIONS/, 'Zetaris rejects descriptions with spaces or brackets');
   assert.throws(() => parseSetupSql('DROP TABLE x'), /Unexpected statement/);
 });
 

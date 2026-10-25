@@ -1,20 +1,20 @@
 # Evaluation
 
-Everything here is **automated testing on fictional fixtures** or **observed live runs** recorded on 24 Oct 2026. There has been **no evaluation with real users or real recall data**, and nothing here measures time saved or real-world outcomes.
+Everything here is **automated testing on fictional fixtures** or **observed live runs** recorded on 24–25 Oct 2026. There has been **no evaluation with real users or real recall data**, and nothing here measures time saved or real-world outcomes.
 
 Important caveat: the same developer wrote the engine, the fixtures and the answer keys. Fixture scores show that RecallReach behaves as designed on cases built to exercise those rules; they are not independent accuracy measurements.
 
-## 1. Automated tests: 65 passing
+## 1. Automated tests: 69 passing
 
-`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 24 Oct 2026: **65 tests, 65 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
+`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 25 Oct 2026: **69 tests, 69 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
 
 | Suite | Tests | Covers |
 | --- | --- | --- |
 | `tests/recall.test.ts` | 24 | Stock conservation (total and per shipment), quarantine→return without double counting, duplicates, conflicting versions, reused references, double openings, overspend, release/reversal attempts, identity matching, near-miss batches, units, fractional/negative/zero/implausible quantities, chronology, location, future and timezone-less timestamps, the correction workflow, CSV parsing, original-row retrieval, formula neutralisation, audit tamper detection, evidence snapshots and staleness |
 | `tests/agent.test.ts` | 20 | Tool schemas; a scripted investigation; fabricated citations and unsupported quantities; invalid arguments; malformed JSON; missing structured answer; timeout; rate-limit and auth handling; tool-call limit; prompt injection in source text; rules mode on both scenarios; unavailable connected source; budget handling and forced final submission; citable comparisons and memories; memory-only and contradicting claims; provider error mapping; follow-up checklist |
 | `tests/memory.test.ts` | 5 | Vendored H-MEM files match upstream hashes; save/reload round trip including the trust ledger; invalidation after new evidence (superseded, not deleted); operator decisions as long-term memory; contradictions kept and reported |
-| `tests/http.test.ts` | 11 | Unauthenticated access; owner-only reads and writes (SQL-level too); cross-site/non-JSON/oversized writes; concurrent updates (409, nothing lost); the full demo flow over HTTP; corrections; export downloads and content; persistence after reopening the database; mock source labelling; unreachable Zetaris; memory feedback |
-| `tests/zetaris.test.ts` | 5 | The documented REST request shape, row mapping and exponent numbers; failure classification; health check; SQL-injection resistance; configuration validation |
+| `tests/http.test.ts` | 12 | Unauthenticated access; owner-only reads and writes (SQL-level too); cross-site/non-JSON/oversized writes; concurrent updates (409, nothing lost); the full demo flow over HTTP; corrections; export downloads and content; persistence after reopening the database; mock source labelling; re-imports that add only rows not already in the case; unreachable Zetaris; memory feedback |
+| `tests/zetaris.test.ts` | 8 | The documented REST request shape, row mapping and exponent numbers; failure classification, including Zetaris 2.4's HTTP 400 "Not Allowed" for a wrong key; health check; SQL-injection resistance; configuration validation; read-only diagnostic probes; the datasource setup SQL (no secrets, allowed description characters) and the setup runner (skips what exists, dry run, stops at the first failure) |
 
 The required verification list maps to these as follows:
 
@@ -88,20 +88,32 @@ These runs found real defects, which were fixed and covered by tests:
 
 Live run quality varies from run to run: some runs are thorough, others stop after 2–3 tools, and before the checklist was added none proposed follow-ups. The verifier labels what is supported; it does not make a weak run thorough.
 
-## 5. Browser checks (local dev server, Chrome-based pane)
+## 5. Through a real Zetaris instance (25 Oct 2026)
+
+A local Zetaris 2.4.3 instance (the hackathon's local download) federated three fictional PostgreSQL source databases. The full record is in [INTEGRATIONS.md](INTEGRATIONS.md#verification-record-25-oct-2026); `eval/zetaris-check-2026-10-25.txt` is the saved command-line check.
+
+| Step | Observed |
+| --- | --- |
+| Case built only from Zetaris imports (DEMO-042) | 1,000 accepted / 900 contained / 40 awaiting containment / 60 dispensed; 4 records to review; 1 duplicate. Same as the answer key; the CSV drill's one out-of-scope record (DEMO-043) is not fetched, because the query filters by batch at the source |
+| Live-model investigation | Completed, 140.1 s, 9 tool steps, 9 model calls, 28.1k in / 2.3k out tokens; one `query_connected_source` step against Zetaris (1 row, 401 ms); 2 of 2 findings verified; RR-104's 40 bottles stated correctly; 1 follow-up proposed |
+| New evidence in the pharmacy source, re-imported through Zetaris | 1 new row added, 6 skipped; 940 contained (94%), 0 awaiting containment; review and duplicate counts unchanged |
+
+An earlier run of the same flow, before the re-import fix, showed why it was needed: the second pharmacy import added its 6 existing rows again. Totals stayed correct, because the engine counts exact duplicates once, but the evidence health panel overstated duplicates (5) and records to review (6).
+
+## 6. Browser checks (local dev server, Chrome-based pane)
 
 Done by hand on 24 Oct 2026 against `npm run dev`:
 
 - Drill end to end: 1,000 accepted / 900 contained (90%) / 40 / 60 → live agent investigation → proposal approved, **still 40** → fictional follow-up evidence → **940 contained (94%), 0 available, 60 dispensed**. Dispensed and unconfirmed-destination follow-ups stayed open. The staleness banner appeared, and 3 memory notes were marked for recheck.
 - Second scenario: an instruction hidden in E-14's reference is found by the *Instruction-like text* filter. Correcting E-10's timezone-less timestamp via **Correct this record** superseded the original and recalculated: available 47 → 35, quarantined 280 → 292.
 - Exports fetched from the browser: Markdown, CSV and JSON returned HTTP 200 with `attachment` filenames and readable content (the files were not saved to disk).
-- Integrations screen: Zetaris showed `MOCK · NOT ZETARIS`, every check was labelled mock, and **Run connection check** recorded a mock health entry.
+- Integrations screen: on 24 Oct, without Zetaris, it showed `MOCK · NOT ZETARIS`, every check was labelled mock, and **Run connection check** recorded a mock health entry. On 25 Oct, configured for the local instance, it showed `CONFIGURED · NOT YET VERIFIED` until the check passed, then `CONNECTED · LAST CHECK PASSED` with a `LIVE` entry (198 ms); the earlier mock entries stayed labelled mock.
 - Dialogs: focus moves into the dialog on open; Escape closes it.
 - Phone width: at 375 px no element was wider than the viewport, and navigation shows 5 short labels. The pane's device emulation kept reverting to 590 px, so dialog layout was checked at 590 px (17 px gutters). **Not tested on a physical phone.**
 - Production build: `npm run build` succeeds, and the built Worker boots under Wrangler/workerd (`/api/integrations` returns 401 without sign-in). The same check confirmed that **forged identity headers are accepted when the Worker runs without the Sites dispatcher**; see DEPLOYMENT.md.
 
 Not done: screen-reader testing, automated contrast audit, and testing on a real phone or tablet.
 
-## 6. Token use and cost
+## 7. Token use and cost
 
-All live calls used Groq's free tier: about 195k input and 21k output tokens in total across the four in-app runs, the two evaluation runs, two terminal smoke runs and three tiny header checks. **$0 charged.** Free-tier limit: 8,000 tokens per minute per model, so live runs take up to about 4 minutes.
+All live calls used Groq's free tier: about 223k input and 23k output tokens in total across the five in-app runs (one through Zetaris), the two evaluation runs, two terminal smoke runs and three tiny header checks. **$0 charged.** Free-tier limit: 8,000 tokens per minute per model, so live runs take up to about 4 minutes.

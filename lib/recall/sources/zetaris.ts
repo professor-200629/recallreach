@@ -48,9 +48,11 @@ export class ZetarisSource implements ExternalSource {
       if (name === 'TimeoutError' || name === 'AbortError') throw new ZetarisRequestError('timeout', `Zetaris did not respond within ${(this.config.timeoutMs ?? 20_000) / 1000} s.`);
       throw new ZetarisRequestError('unreachable', `Cannot reach Zetaris at ${new URL(this.config.restUrl).host}.`);
     }
-    if (response.status === 401 || response.status === 403) throw new ZetarisRequestError('auth_failed', `Zetaris rejected the API key or organisation ID (HTTP ${response.status}).`);
+    const errorText = response.ok ? '' : await response.text();
+    // Zetaris 2.4 answers a wrong API key or organisation ID with HTTP 400 {"msg":"Not Allowed"}, not 401.
+    if (response.status === 401 || response.status === 403 || (response.status === 400 && /"msg"\s*:\s*"Not Allowed"/.test(errorText))) throw new ZetarisRequestError('auth_failed', `Zetaris rejected the API key or organisation ID (HTTP ${response.status}).`);
     // The response body may echo SQL or internal detail; keep only a short, single-line excerpt.
-    if (!response.ok) throw new ZetarisRequestError('query_failed', `Zetaris query failed (HTTP ${response.status}): ${(await response.text()).replace(/\s+/g, ' ').slice(0, 200)}`);
+    if (!response.ok) throw new ZetarisRequestError('query_failed', `Zetaris query failed (HTTP ${response.status}): ${errorText.replace(/\s+/g, ' ').slice(0, 200)}`);
     let body: unknown;
     try { body = await response.json(); } catch { throw new ZetarisRequestError('invalid_response', 'Zetaris returned a response that is not JSON.'); }
     const data = (body as { data?: unknown })?.data;

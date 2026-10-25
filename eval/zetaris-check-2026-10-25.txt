@@ -1,0 +1,12 @@
+Zetaris REST localhost:8888, organisation 1, API key set (not shown)
+
+ok   SELECT 1: 282 ms
+ok   SHOW DATASOURCES: 3 rows in 98 ms: recall_distributor, recall_pharmacy, recall_returns
+ok   Distributor dispatches (recall_distributor.dispatches): 12 rows in 240 ms
+ok     mapped query, batch DEMO-042: 4 rows in 244 ms; events S-A, S-B, S-C, S-D
+ok   Pharmacy stock events (recall_pharmacy.stock_events): 18 rows in 194 ms
+ok     mapped query, batch DEMO-042: 6 rows in 219 ms; events Q-A, Q-B, Q-C, D-C, Q-C2, Q-E
+ok   Returns register (recall_returns.return_notes): 6 rows in 197 ms
+ok     mapped query, batch DEMO-042: 4 rows in 286 ms; events R-A, R-A, R-B, R-B
+
+All checks passed against the live Zetaris instance.

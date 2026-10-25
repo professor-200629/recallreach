@@ -119,7 +119,7 @@ export function createHandlers(deps: Deps) {
         const res = await ext.source.query(input.source, { batch: c.alert.batch }, 500);
         await rec.flush();
         if (!res.ok) throw new ActionError(`Zetaris${res.mode === 'mock' ? ' (mock)' : ''} query failed (${res.failure}): ${res.message}`, 502);
-        extras = { imported: await importExternal(c, res, identity.displayName, now) };
+        extras = { ...await importExternal(c, res, identity.displayName, now) };
         const re = revalidateMemory(c, memoryState, identity.displayName, 'connected-source evidence imported'); memoryState = re.state; extras.memory_invalidated = re.invalidated;
       } else if (input.action === 'memory_feedback') {
         if (!memoryState) throw new ActionError('This case has no investigation memory yet.', 404);

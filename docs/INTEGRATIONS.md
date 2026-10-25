@@ -2,9 +2,9 @@
 
 RecallReach uses three external pieces. Each one is optional at runtime, and the app says plainly when one is missing, mocked or failing.
 
-| Piece | Role | Status on 24 Oct 2026 |
+| Piece | Role | Status on 25 Oct 2026 |
 | --- | --- | --- |
-| Zetaris | Federated, read-only access to separately owned source systems | Adapter built and contract-tested; local platform downloaded and staged, fixture sources running. **Not connected**: install blocked on the registry login, so no real query has run yet. |
+| Zetaris | Federated, read-only access to separately owned source systems | **Connected to a local instance** (the hackathon's local download, Zetaris 2.4.3, on this laptop) and verified with real queries on 25 Oct 2026; see [Verification record](#verification-record-25-oct-2026). The three source systems behind it hold fictional fixture data. |
 | Meterless H-MEM | Investigation memory across runs | **In use**: vendored, unmodified reference engine; upstream conformance suite 13/13. |
 | Language model (Groq, OpenAI-compatible) | Chooses tools and explains evidence | **Working** with Groq free tier, `openai/gpt-oss-120b`. Rules mode works with no model. |
 
@@ -21,7 +21,7 @@ A recall investigation needs records from systems that are owned by different or
 - Only `SELECT` statements written in code. The model and the operator supply filter values only (batch, shipment ID). Values are restricted to `[A-Za-z0-9 ._()/-]` and quote-escaped; table names come from server configuration and must be plain identifiers.
 - Every query is bounded (`LIMIT` ≤ 500) and times out after 20 s.
 - Each source keeps its native column names. The mapping to RecallReach's ledger columns, and the assumption it makes, is stated per source and shown to the agent and in the audit trail. For example, a return note is mapped to quarantined → returned, because the register does not record the prior state.
-- Imported rows become a new evidence source with system, mode, table, query ID, fetch time, latency and SQL attached. Re-imported identical rows are counted once.
+- Imported rows become a new evidence source with system, mode, table, query ID, fetch time, latency, SQL and each row's source row key attached. Importing a source again adds only rows whose key is not already in the case, and the import message says how many were skipped.
 - Every health check and query is recorded (owner, mode, operation, result, latency, short detail) and shown on **Integrations**. Zetaris is shown as **connected only after a live `SELECT 1` succeeds**.
 
 Request contract (from `zetaris/getting-started`, `docs/connections/client-setup.md` and `scripts/zetaris_sql.py`):
@@ -35,13 +35,13 @@ X-Request-ID: <uuid>
 → {"data": [["value", ...], ...]}
 ```
 
-`tests/zetaris.test.ts` checks this request shape, positional row mapping, exponent-format numbers (`4.0E1` → 40), failure classes (auth, timeout, unreachable, bad shape) and SQL-injection resistance with a fake `fetch`. It does not prove compatibility with a real instance.
+`tests/zetaris.test.ts` checks this request shape, positional row mapping, exponent-format numbers (`4.0E1` → 40), failure classes (auth, timeout, unreachable, bad shape) and SQL-injection resistance with a fake `fetch`. Compatibility with a real instance was checked separately (Verification record below). One difference from the documented contract was found there: Zetaris 2.4.3 answers a wrong API key or organisation ID with HTTP 400 `{"msg":"Not Allowed"}`, not 401. The adapter reports that as `auth_failed`.
 
 ### Setting up a local instance
 
 Sources: the *Run the platform locally* page in Zetaris Cloud (<https://cloud.enterprise.zetaris.com/dashboard/download>, read 24 Oct 2026) and the bundle's own `README.md`. They match the getting-started guide (upstream commit `6a2fbaa`) except in one respect: the current bundle ships with a filled-in `.env` and a **default administrator account** (documented in the bundle README), whose password you change after first sign-in. No `.env` editing is needed.
 
-**State of this laptop (end of 24 Oct 2026, IST):**
+**State of this laptop (25 Oct 2026, IST):**
 
 | Step | State |
 | --- | --- |
@@ -49,12 +49,12 @@ Sources: the *Run the platform locally* page in Zetaris Cloud (<https://cloud.en
 | `zetaris-platform.zip` (26.7 MB) downloaded and unpacked to `~/zetaris/zetaris-platform` in Ubuntu | Done |
 | `.env`: `UI_PORT=127.0.0.1:3000` so the UI is reachable from this machine only (original kept as `.env.original`) | Done |
 | Docker Desktop 4.64 running, WSL integration for Ubuntu on | Done (see troubleshooting) |
-| `./preflight.sh` | 6 PASS, 1 WARN (memory 7 GB of 8 recommended — the official install test passed with the same), **1 FAIL: not signed in to `zetarishackathon.azurecr.io`** |
-| Registry login | **Missing.** A read-only manifest lookup was refused with `authentication required` from both Ubuntu and Windows Docker |
-| Images pulled, Zetaris started, `verify.sh` | Not yet — blocked on the registry login |
-| Fictional source database (`recallreach-sources`) | Running and checked: reader reads without a password, writes refused, superuser refused without a password, DEMO-042 rows 4/6/4 |
-| Datasources registered in Zetaris | Not yet |
-| RecallReach configured (`.dev.vars`) | `ZETARIS_REST_URL` set; `ZETARIS_ORG_ID` and `ZETARIS_API_KEY` empty |
+| Registry login (in Ubuntu) | Done |
+| `./preflight.sh` | 6 PASS, 1 WARN (memory available to Docker 7 GB of 8 recommended); "the stack will run" |
+| Images pulled, Zetaris started, `verify.sh` | Done: four images (about 10 GB unpacked); all containers healthy; one-time bootstrap exited 0; **`verify.sh` 9 of 9 PASS**, including a query through ui → api → driver → Spark |
+| Fictional source database (`recallreach-sources`) | Running and attached to `zetaris_default` as `recallreach-sources`; 12 dispatch rows readable from the Zetaris network |
+| Datasources registered in Zetaris | Done: `recall_distributor`, `recall_pharmacy`, `recall_returns` (`npm run zetaris:setup`, 7 statements) |
+| RecallReach configured (`.dev.vars`) | Done: REST URL, organisation `1`, API key saved with `set-zetaris-key.ps1` (never displayed) |
 
 ### Finish the connection (in this order)
 
@@ -64,8 +64,12 @@ Sources: the *Run the platform locally* page in Zetaris Cloud (<https://cloud.en
    bash /mnt/c/Users/Balu/Documents/Codex/2026-10-23/new-chat-4/recallreach/integrations/zetaris/bring-up.sh
    ```
    It runs `preflight.sh`, `docker compose pull`, `docker compose up -d`, waits for the one-time bootstrap, runs `verify.sh` (expect 9 of 9 PASS), starts the fixture database, attaches it to the Zetaris network as `recallreach-sources`, and checks that Zetaris's network can read it. It stops at the first failure and is safe to rerun.
-3. **Sign in and change the password.** Open <http://localhost:3000>, sign in with the default administrator account from the *Run locally* page (step 7), then change the password from the user menu (top right).
-4. **Organisation ID and API key.** Management → Organisation: copy the numeric **ID** into `ZETARIS_ORG_ID` in `.dev.vars`. Management → API Tokens → **+**: copy the key (shown once) into `ZETARIS_API_KEY` in `.dev.vars` yourself. The key carries the rights of the user who created it; RecallReach only sends fixed, read-only SELECTs. For anything beyond a local demo, create the key as a non-administrator user with SELECT on the three datasources only.
+3. **Sign in and change the password.** Open <http://localhost:3000>, sign in with the default administrator account from the *Run locally* page (step 7), then change the password from the user menu (top right). Type the password carefully: **three wrong attempts lock the account**, and the login then says "Not Allowed" even with the right password (see troubleshooting).
+4. **Organisation ID and API key.** Management → Organisation shows the numeric **ID** (`1` on a fresh local install). Management → API Tokens → **+** creates a key; it is shown once. Then, in PowerShell:
+   ```bash
+   powershell -ExecutionPolicy Bypass -File scripts\windows\set-zetaris-key.ps1
+   ```
+   It asks for the key with hidden input, saves `ZETARIS_ORG_ID` and `ZETARIS_API_KEY` to `.dev.vars`, and tests them with one `SELECT 1` ("Test passed"). Editing `.dev.vars` by hand also works, but an unsaved editor is easy to miss. The key carries the rights of the user who created it; RecallReach only sends fixed, read-only SELECTs. For anything beyond a local demo, create the key as a non-administrator user with SELECT on the three datasources only.
 5. **Register the three source systems** (administrator key needed for this one step):
    ```bash
    npm run zetaris:setup -- --dry-run
@@ -89,7 +93,7 @@ This starts PostgreSQL as container `recallreach-sources`, with three databases 
 | `recall_pharmacy.stock_events` | Pharmacy stock systems | txn_id, consignment_ref, from_status, to_status, qty, pharmacy_name, doc_ref, recorded_at |
 | `recall_returns.return_notes` | Distributor returns desk | rma_id, consignment_ref, qty, returned_from, rma_ref, received_at |
 
-If a query says *table not found*, run `SHOW DATASOURCE TABLES recall_distributor` in the SQL Editor and put the qualified names it shows into `ZETARIS_TABLES` in `.dev.vars`. The `<datasource>.<table>` names follow the Zetaris command reference but have not yet been checked against a running instance.
+The qualified `<datasource>.<table>` names above work on Zetaris 2.4.3 (checked 25 Oct 2026). If a query on another version says *table not found*, run `SHOW DATASOURCE TABLES recall_distributor` in the SQL Editor and put the names it shows into `ZETARIS_TABLES` in `.dev.vars`.
 
 ### Configure RecallReach
 
@@ -111,7 +115,24 @@ When all three `ZETARIS_*` values are present the mock is disabled automatically
 2. **Integrations → Run connection check.** Expect `CONNECTED · LAST CHECK PASSED` and a latency in the history table. Failures show their class (auth, unreachable, timeout, query failed, invalid response), and nothing is reported as connected.
 3. Create a case with the scope `Example Pharma (fictional)` / `Nivara oral solution` / `DEMO-042` / `bottles`. Use **Import records → From a connected source** for all three sources. Expect 1,000 accepted, 40 awaiting containment, and each source tagged `ZETARIS` with its table and query ID.
 4. Run the agent. Its `query_connected_source` steps show the table, row count and latency, without a `MOCK` label.
-5. New evidence through Zetaris: `docker exec -i recallreach-sources psql -U postgres -d recall_pharmacy < integrations/zetaris/fixtures/02-followup-quarantine.sql` (run this in Ubuntu or Git Bash; PowerShell has no `<` redirection), then import *Pharmacy stock events* again. Existing rows count once as duplicates; the new 40-bottle quarantine moves the case to 940 contained.
+5. New evidence through Zetaris: `docker exec -i recallreach-sources psql -U postgres -d recall_pharmacy < integrations/zetaris/fixtures/02-followup-quarantine.sql` (run this in Ubuntu or Git Bash; PowerShell has no `<` redirection), then import *Pharmacy stock events* again. Rows already in the case are skipped; the new 40-bottle quarantine moves the case to 940 contained. To rehearse again, run `fixtures/03-reset-followup.sql` the same way and start a new case.
+
+### Verification record (25 Oct 2026)
+
+All against the local Zetaris 2.4.3 instance on this laptop, with the fictional fixture data. Nothing here involves real recall data.
+
+| Check | Result |
+| --- | --- |
+| `verify.sh` (Zetaris's own) | 9 of 9 PASS |
+| `npm run zetaris:setup` | 3 datasources created and their tables registered (7 statements). The check query through Zetaris returned DEMO-042 4, DEMO-043 1, VL-2207 5, VL-2207A 1, VL2207 1, as expected |
+| `npm run zetaris:check` | All passed: `SELECT 1` in 272–282 ms; `SHOW DATASOURCES` lists the three; 12 / 18 / 6 rows in the three tables; the mapped DEMO-042 queries return 4 / 6 / 4 rows. Saved output: [`eval/zetaris-check-2026-10-25.txt`](../eval/zetaris-check-2026-10-25.txt) |
+| Integrations → Run connection check | `CONNECTED · LAST CHECK PASSED`, live `SELECT 1` in 198 ms |
+| New case, all three sources imported through Zetaris | 4 + 6 + 4 rows; 1,000 accepted; 900 contained (800 quarantined, 100 returned); 60 dispensed; **40 awaiting containment (RR-104)**; 4 records to review; 1 duplicate counted once. Matches the scenario's answer key |
+| Live-model investigation (Groq, `openai/gpt-oss-120b`) on the imported case | Completed in 140 s: 9 tool steps, including `query_connected_source` against `recall_distributor.dispatches` (1 row, 401 ms); 2 of 2 findings verified; 1 follow-up proposed for approval; 3 memories stored |
+| Re-import with no new evidence | "no new rows. All 6 rows from Zetaris are already in this case"; nothing changed |
+| Follow-up quarantine added to the pharmacy source, then re-imported | "1 new row imported from Zetaris; 6 already in this case skipped"; **940 contained (94%)**, 0 awaiting containment, 840 quarantined; review and duplicate counts unchanged (4 and 1); earlier memory notes marked for recheck |
+
+Found and fixed during this verification: the HTTP 400 "Not Allowed" answer to a wrong key (was reported as a failed query), datasource descriptions with spaces (Zetaris rejects them), and re-imports that added rows already in the case again (they inflated the review and duplicate counts but not the totals).
 
 ### Troubleshooting on this laptop (Windows 11 26H2, build 26300)
 
@@ -119,6 +140,11 @@ When all three `ZETARIS_*` values are present the mock is disabled automatically
 - **WSL integration for Ubuntu** was off; it was enabled in Docker Desktop's `settings-store.json` (backup `settings-store.json.bak-2026-10-24`). Inside Ubuntu, `command -v docker` should print `/usr/bin/docker`.
 - **`Wsl/Service/E_UNEXPECTED`** right after Docker applied the integration: `wsl --terminate Ubuntu` fixed it.
 - **`preflight.sh` says not signed in** although you saw `Login Succeeded`: the login was run somewhere else (another terminal or account). Run it inside Ubuntu as yourself, without `sudo`.
+- **"Unauthorized" on the Zetaris Cloud *Run locally* page** when you click *Get the platform*: your website session has expired, but the page doesn't send you back to the sign-in screen. Reload (F5), sign in again, and click it again.
+- **The local Zetaris login says "Not Allowed"** although the password is right: three failed sign-ins (`LOGIN_ATTEMPTS_LIMIT` 3) lock the account, and the API log then says `User does not exist`. On a local instance you can clear the counter, which is what Zetaris itself does after a successful sign-in: `docker exec zetaris-postgres-1 psql -U zetaris -d metastore -c "DELETE FROM failed_login_attempt WHERE user_email = 'ADMIN@ZETARIS.COM'"`.
+- **A wrong API key or organisation ID** gets HTTP 400 `{"msg":"Not Allowed"}` from the REST API. RecallReach shows it as an authentication failure; `set-zetaris-key.ps1` says "Test failed".
+- **`CREATE DATASOURCE` fails with "Description is invalid"**: descriptions may contain only letters, digits and `_ . - ,` (no spaces).
+- **After a restart:** start Docker with the helper script above, then run `bring-up.sh` again in Ubuntu. With the images already downloaded it takes a couple of minutes, re-runs `verify.sh` and re-attaches the fixture database.
 
 ### Mock mode
 

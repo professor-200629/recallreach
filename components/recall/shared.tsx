@@ -12,7 +12,7 @@ export type Payload = {
   staleness: { stale: boolean; last_run_at: string | null; last_trigger: string | null; current_fingerprint: string };
   memory: MemoryView;
   capabilities: { agent: ProviderSettings; external: { mode: 'live' | 'mock' | 'none'; detail: string } };
-  memory_invalidated?: number; memory_saved?: boolean; run_id?: string; imported?: number;
+  memory_invalidated?: number; memory_saved?: boolean; run_id?: string; imported?: number; skipped?: number;
 };
 
 export const number = (v: number) => v.toLocaleString('en-IN');

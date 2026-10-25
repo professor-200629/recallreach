@@ -26,7 +26,7 @@ Without model credentials, **rules mode** runs a fixed procedure with the same t
 
 | | How it is used | Status |
 | --- | --- | --- |
-| **Zetaris** | Read-only federated queries across three separately owned source systems (distributor ERP, pharmacy stock, returns desk), each with native columns mapped by code-owned SQL. Every query's latency and result is recorded. | Adapter built and contract-tested; **not yet connected to a running Zetaris instance**. A labelled mock serves the same fixtures meanwhile. |
+| **Zetaris** | Read-only federated queries across three separately owned source systems (distributor ERP, pharmacy stock, returns desk), each with native columns mapped by code-owned SQL. Every query's latency and result is recorded. | **Connected** to a local Zetaris 2.4.3 instance (the hackathon's local download) and verified with real queries on 25 Oct 2026: imports, a live agent run and a follow-up update all went through Zetaris. The source systems hold fictional data. A labelled mock remains for machines without Zetaris. |
 | **Meterless H-MEM** | Investigation memory across runs: verified findings, open questions and operator decisions, with provenance, trust ledger, supersession and contradiction detection. | **In use.** Unmodified reference engine (Apache-2.0); upstream conformance suite 13/13. |
 
 Details and setup: [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
@@ -43,7 +43,7 @@ npm run dev
 Open `http://localhost:5173/signin-with-chatgpt?return_to=/` (local test sign-in), then **Explore a mock recall**. Full instructions: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ```bash
-npm test          # 65 automated tests
+npm test          # 69 automated tests
 npm run eval      # fixture comparison with a batch-lookup baseline
 ```
 
@@ -64,7 +64,7 @@ Unknown does not mean safe. A record outside the alert is not a safety clearance
 ## Known limitations
 
 - **Fictional data only.** There has been no real-user pilot and no feedback from coordinators or pharmacists yet.
-- **Zetaris has not been queried for real.** It needs your own instance; see INTEGRATIONS.md.
+- **Zetaris was verified on one local instance only**, with fictional source databases. It has not been tested against a hosted Zetaris cluster or real source systems, and a hosted RecallReach cannot reach a Zetaris running on a laptop (see DEPLOYMENT.md).
 - **Live model runs use Groq's free tier** (8,000 tokens per minute), so a live investigation can take up to about 4 minutes. Live quality varies from run to run (some runs use only 2–3 tools). The verifier's checks are deterministic but heuristic: in one recorded run a wrong, memory-based claim passed before a fix was added. Read the cited evidence, not just the summary.
 - **Not deployed.** Hosting is planned through OpenAI Sites (the existing project identity). Header-based sign-in is only safe behind the Sites dispatcher.
 - One batch and one unit per case; no transfers between locations; no team sharing; no automated alert ingestion.
