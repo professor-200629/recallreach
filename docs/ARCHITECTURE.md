@@ -72,7 +72,7 @@ sequenceDiagram
   participant V as Verifier
   O->>R: question
   R->>R: snapshot evidence, load H-MEM, revalidate memory
-  loop up to 10 model calls / 16 tool calls / 240 s
+  loop up to 10 model calls / 16 tool calls / one time limit (480 s for Groq, 240 s otherwise)
     R->>M: context (older tool results shortened)
     M->>R: tool calls with a short "purpose"
     R->>T: validate arguments (zod), execute
@@ -93,8 +93,10 @@ sequenceDiagram
 - **Tool output is always valid JSON.** Long results are shortened in passes (fewer items, shorter strings) with `<key>_omitted` counts and paging hints (`offset`, `next_offset`); items dropped are not delivered.
 - **Evidence requests** must link to an open issue the agent retrieved. **Follow-up proposals** must name a retrieved issue and cite delivered evidence.
 - **No hidden reasoning** is requested, stored or shown. The visible trace is the actual sequence of tool calls, each with the model's one-sentence stated purpose.
-- **Rules mode** runs a fixed procedure that branches on the question and on tool results. It submits typed facts through the same executor and validator, and is labelled "no language model". It has its own tool-call limit (40) and shares the time limit.
-- **One deadline** (240 s by default) covers model calls, retries, rate-limit waits and tools. One cancellation signal reaches every model request and connected-source query. No tool starts after the deadline, a rate-limit wait that would pass it ends the run, and a run is never reported *completed* after its deadline (tests use a fake clock).
+- **Rules mode** runs a fixed procedure that branches on the question and on tool results. It submits typed facts through the same executor and validator, and is labelled "no language model". It has its own tool-call limit (40) and the default 240 s time limit.
+- **One deadline** covers model calls, retries, rate-limit waits and tools: 480 s for Groq live runs (its free tier spends most of a run waiting on rate limits), 240 s for other providers and for rules mode, or `AGENT_TIME_LIMIT_S` (60–900 s). Each run records the limits it ran under. One cancellation signal reaches every model request and connected-source query. No tool starts after the deadline, a rate-limit wait that would pass it ends the run, and a run is never reported *completed* after its deadline (tests use a fake clock).
+
+- **A long run keeps its connection alive.** A live run's response starts at once and sends a space every 15 seconds (JSON allows leading whitespace); the saved result follows. Without this, a client that gives up when no response headers arrive within a few minutes (Firefox: 300 s over HTTP/1.1) would drop the request and the run would be lost. Because the status is then always 200, a failure is sent as `{ error, status }` in the body, which the client checks. A run is still lost if the tab is closed or the connection drops mid-run.
 
 ## Evidence Challenge ("Why this finding?")
 

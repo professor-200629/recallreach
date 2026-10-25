@@ -26,8 +26,9 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
   } catch {
     throw new Error('Could not reach RecallReach. Check your connection and try again.');
   }
-  const data = await response.json().catch(() => ({})) as T & { error?: string };
-  if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
+  const data = await response.json().catch(() => ({})) as T & { error?: string; status?: number };
+  // A streamed live run always answers 200 and reports a failure as { error, status } in the body.
+  if (!response.ok || data.error) throw new Error(data.error || `Request failed (${response.status}).`);
   return data;
 }
 

@@ -106,6 +106,8 @@ export type AgentRun = {
   status_detail: string; steps: ToolActivity[]; answer: VerifiedAnswer | null;
   usage: { model_calls: number; input_tokens: number; output_tokens: number; estimated_cost_usd: number | null };
   evidence_fingerprint: string; memory: { recalled: number; stored: number; invalidated: number };
+  /** The bounds this run ran under. Absent on runs recorded before they were stored. */
+  limits?: { total_timeout_ms: number; max_model_calls: number; max_tool_calls: number };
 };
 /** The last time a connected-source row was seen, with a hash of its content. Keyed by instance|table|row key. */
 export type SourceObservation = { hash: string; seen_at: string };

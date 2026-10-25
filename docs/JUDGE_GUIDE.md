@@ -58,13 +58,13 @@ Open `http://localhost:5173/signin-with-chatgpt?return_to=/` (a local test sign-
 
 ## 5. Optional: a live model
 
-Put your own `GROQ_API_KEY` in `.dev.vars` (Groq's free tier was used; a run takes 1–4 minutes because of its 8,000 tokens-per-minute limit). Then choose **Live model** in the app, or:
+Put your own `GROQ_API_KEY` in `.dev.vars`. Groq's free tier was used: it allows 8,000 tokens per minute and 200,000 per day, so a run spends most of its time waiting and can use up to its 8-minute limit (`AGENT_TIME_LIMIT_S` changes it), and a few runs use up a day's allowance. Then choose **Live model** in the app, or:
 
 ```bash
-node --env-file=.dev.vars --experimental-transform-types --no-warnings scripts/evaluate.ts --live --runs 1 --only corvel-vials
+node --env-file=.dev.vars --experimental-transform-types --no-warnings scripts/evaluate.ts --live --runs 1 --only corvel-vials --tag my-run
 ```
 
-Live results vary between runs; EVALUATION.md records every run made for the submission, including failures.
+Each live series is written to its own file (`eval/results-live-corvel-vials-my-run.json`); the script refuses to overwrite an existing live results file. Live results vary between runs; EVALUATION.md records every run made for the submission, including failures.
 
 ## 6. Optional: Zetaris
 

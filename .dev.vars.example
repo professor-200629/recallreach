@@ -14,6 +14,10 @@ GROQ_API_KEY=
 # AGENT_PRICE_INPUT_PER_MTOK=
 # AGENT_PRICE_OUTPUT_PER_MTOK=
 
+# Optional time limit for one live run, in seconds (60–900). Default 480 for Groq,
+# whose free tier makes runs wait on rate limits; 240 for other providers.
+# AGENT_TIME_LIMIT_S=
+
 # --- Zetaris (connected sources) ------------------------------------------------
 # Direct REST API base of your own Zetaris instance (local Docker default shown).
 # Create the API key in the Zetaris UI: Management -> API Tokens. Org ID: Management -> Organisation.

@@ -62,6 +62,7 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
     status: 'completed', status_detail: '', steps: [], answer: null,
     usage: { model_calls: 0, input_tokens: 0, output_tokens: 0, estimated_cost_usd: null },
     evidence_fingerprint: input.ctx.current.fingerprint, memory: { recalled: 0, stored: 0, invalidated: 0 },
+    limits: { total_timeout_ms: limits.totalTimeoutMs, max_model_calls: input.provider ? limits.maxModelCalls : 0, max_tool_calls: input.provider ? limits.maxToolCalls : limits.rulesMaxToolCalls },
   };
   const limitDetail = () => `Stopped at the ${limits.totalTimeoutMs / 1000} s time limit.`;
   const finish = (status: AgentRun['status'], detail: string) => {

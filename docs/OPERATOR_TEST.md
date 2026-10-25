@@ -11,7 +11,7 @@ Setup: `npm run dev`, sign in at `http://localhost:5173/signin-with-chatgpt?retu
 | 3 | Overview → *Locate and check 40 bottles* → **Why this finding?** | Calculation: opening +40, nothing moved; "None of the 4 records held for review … names RR-104"; what could change it; approval does not change stock; hypothetical preview: 40 → 0 available, *Confirm where shipment RR-104 went* stays open | |
 | 4 | Agent → keep the first question → **Rules mode** → Investigate | Status COMPLETED; label RULES MODE · NO LANGUAGE MODEL; a checked summary; every typed fact VALIDATED; RR-104 40 available and RR-103 60 dispensed among them | |
 | 5 | On a validated fact, **Why this finding?** | The same kind of explanation as step 3, with the fact's snapshot | |
-| 6 | (Optional, live) Same question → **Live model** | Completes or stops with an honest status within about 4 minutes; any rejected fact shows its reason; the model's summary is labelled interpretation | |
+| 6 | (Optional, live) Same question → **Live model** | Completes or stops with an honest status within the limit shown under the question (8 minutes for Groq by default); any rejected fact shows its reason; the model's summary is labelled interpretation | |
 | 7 | Follow-up queue → approve the RR-104 proposal with a note | Recorded; Overview still shows 40 awaiting containment | |
 | 8 | Evidence → *Add fictional follow-up evidence* | 940 contained (94%), 0 awaiting containment; staleness banner appears | |
 | 9 | Overview → *Confirm where shipment RR-104 went* → **Why this finding?** | Says the reported quarantine does not name a responsible recipient; lists the follow-up record under "Added since the previous run" | |

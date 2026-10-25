@@ -49,7 +49,8 @@ export class OpenAICompatibleProvider implements ChatProvider {
       throw new ProviderError('network', `Cannot reach ${this.name}.`, true);
     }
     if (!response.ok) {
-      const text = (await response.text().catch(() => '')).replace(/\s+/g, ' ');
+      // Provider error text can name the account (Groq: "organization `org_…`"); that is not kept.
+      const text = (await response.text().catch(() => '')).replace(/\s+/g, ' ').replace(/\borg_[A-Za-z0-9]+/g, 'org_[redacted]');
       let code = '', message = text.slice(0, 200);
       try { const e = JSON.parse(text).error; code = String(e?.code ?? e?.type ?? ''); message = String(e?.message ?? message).slice(0, 200); } catch { /* not JSON */ }
       if (response.status === 401 || response.status === 403) throw new ProviderError('auth', `${this.name} rejected the API key (HTTP ${response.status}).`, false);
@@ -77,27 +78,42 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
 // Only the Groq default model was checked against a live model list (2026-10-24). Other
 // presets need AGENT_MODEL set explicitly, so no model ID is assumed.
-const PRESETS: Record<string, { baseUrl: string; keyVar: string; model: string }> = {
-  groq: { baseUrl: 'https://api.groq.com/openai/v1', keyVar: 'GROQ_API_KEY', model: 'openai/gpt-oss-120b' },
-  openai: { baseUrl: 'https://api.openai.com/v1', keyVar: 'OPENAI_API_KEY', model: '' },
-  openrouter: { baseUrl: 'https://openrouter.ai/api/v1', keyVar: 'OPENROUTER_API_KEY', model: '' },
-  nvidia: { baseUrl: 'https://integrate.api.nvidia.com/v1', keyVar: 'NVIDIA_API_KEY', model: '' },
+// timeLimitS is the default time limit for one live run. Groq's free tier allows 8,000 tokens per
+// minute and a thorough run sends 30–45k input tokens, so most of a run is spent waiting; at 240 s,
+// two of three held-out runs stopped before answering (docs/EVALUATION.md), hence 480 s for Groq.
+const PRESETS: Record<string, { baseUrl: string; keyVar: string; model: string; timeLimitS: number }> = {
+  groq: { baseUrl: 'https://api.groq.com/openai/v1', keyVar: 'GROQ_API_KEY', model: 'openai/gpt-oss-120b', timeLimitS: 480 },
+  openai: { baseUrl: 'https://api.openai.com/v1', keyVar: 'OPENAI_API_KEY', model: '', timeLimitS: 240 },
+  openrouter: { baseUrl: 'https://openrouter.ai/api/v1', keyVar: 'OPENROUTER_API_KEY', model: '', timeLimitS: 240 },
+  nvidia: { baseUrl: 'https://integrate.api.nvidia.com/v1', keyVar: 'NVIDIA_API_KEY', model: '', timeLimitS: 240 },
 };
+export const DEFAULT_TIME_LIMIT_S = 240, MIN_TIME_LIMIT_S = 60, MAX_TIME_LIMIT_S = 900;
 
-export type ProviderSettings = { provider: string; model: string; configured: boolean; reason: string };
+/** time_limit_s: the deadline for one live run (model calls, retries, rate-limit waits and tools together). */
+export type ProviderSettings = { provider: string; model: string; configured: boolean; reason: string; time_limit_s: number };
+
+/** The run time limit: AGENT_TIME_LIMIT_S if it is a whole number of seconds in range, else the provider's default. */
+function timeLimit(env: Record<string, unknown>, fallback: number): { seconds: number; note: string } {
+  const raw = env.AGENT_TIME_LIMIT_S;
+  if (raw === undefined || String(raw).trim() === '') return { seconds: fallback, note: '' };
+  const n = Number(String(raw).trim());
+  if (Number.isInteger(n) && n >= MIN_TIME_LIMIT_S && n <= MAX_TIME_LIMIT_S) return { seconds: n, note: '' };
+  return { seconds: fallback, note: ` AGENT_TIME_LIMIT_S must be a whole number of seconds from ${MIN_TIME_LIMIT_S} to ${MAX_TIME_LIMIT_S}; using ${fallback} s.` };
+}
 
 /** Builds the live provider from server-side environment values, or explains why there is none. */
 export function providerFromEnv(env: Record<string, unknown>): { provider: ChatProvider | null; settings: ProviderSettings } {
   const name = String(env.AGENT_PROVIDER ?? '').trim().toLowerCase() || (env.GROQ_API_KEY ? 'groq' : 'none');
-  if (name === 'none') return { provider: null, settings: { provider: 'none', model: '', configured: false, reason: 'No model provider is configured. Investigations run in rules mode.' } };
-  const preset = PRESETS[name], baseUrl = String(env.AGENT_BASE_URL ?? preset?.baseUrl ?? '');
+  if (name === 'none') return { provider: null, settings: { provider: 'none', model: '', configured: false, reason: 'No model provider is configured. Investigations run in rules mode.', time_limit_s: DEFAULT_TIME_LIMIT_S } };
+  const preset = PRESETS[name], limit = timeLimit(env, preset?.timeLimitS ?? DEFAULT_TIME_LIMIT_S), time_limit_s = limit.seconds;
+  const baseUrl = String(env.AGENT_BASE_URL ?? preset?.baseUrl ?? '');
   const apiKey = String(env.AGENT_API_KEY ?? (preset ? env[preset.keyVar] : '') ?? '').trim();
   const model = String(env.AGENT_MODEL ?? preset?.model ?? '').trim();
-  if (!baseUrl || !/^https:\/\//.test(baseUrl)) return { provider: null, settings: { provider: name, model, configured: false, reason: `AGENT_BASE_URL must be an https URL for provider "${name}".` } };
-  if (!apiKey || !model) return { provider: null, settings: { provider: name, model, configured: false, reason: `Set ${preset?.keyVar ?? 'AGENT_API_KEY'} and AGENT_MODEL to enable live runs.` } };
+  if (!baseUrl || !/^https:\/\//.test(baseUrl)) return { provider: null, settings: { provider: name, model, configured: false, reason: `AGENT_BASE_URL must be an https URL for provider "${name}".`, time_limit_s } };
+  if (!apiKey || !model) return { provider: null, settings: { provider: name, model, configured: false, reason: `Set ${preset?.keyVar ?? 'AGENT_API_KEY'} and AGENT_MODEL to enable live runs.`, time_limit_s } };
   const pin = Number(env.AGENT_PRICE_INPUT_PER_MTOK), pout = Number(env.AGENT_PRICE_OUTPUT_PER_MTOK);
   const pricing = Number.isFinite(pin) && Number.isFinite(pout) && env.AGENT_PRICE_INPUT_PER_MTOK !== undefined ? { input_per_mtok: pin, output_per_mtok: pout } : null;
-  return { provider: new OpenAICompatibleProvider({ name, baseUrl, apiKey, model, pricing }), settings: { provider: name, model, configured: true, reason: 'Live model configured on the server.' } };
+  return { provider: new OpenAICompatibleProvider({ name, baseUrl, apiKey, model, pricing }), settings: { provider: name, model, configured: true, reason: `Live model configured on the server.${limit.note}`, time_limit_s } };
 }
 
 /** Test double that replays scripted turns. Each step may return a result, throw, or wait for abort. */

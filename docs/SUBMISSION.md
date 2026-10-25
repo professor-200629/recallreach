@@ -52,7 +52,7 @@ AI assistance: code was generated with AI coding assistants (the earlier session
 | Criterion (points) | What to show | Evidence in the repo |
 | --- | --- | --- |
 | Impact (30) | A real coordinator problem; who is helped; honest limits | README "The problem"; PILOT_PLAN.md; principles enforced in `engine.ts` and `validate.ts` |
-| Technical (20) | Deterministic engine plus a bounded agent; atomic persistence; one deadline; complete, versioned imports; tests | ARCHITECTURE.md; 115 automated tests (`npm test`); EVALUATION.md; JUDGE_GUIDE.md |
+| Technical (20) | Deterministic engine plus a bounded agent; atomic persistence; one deadline; complete, versioned imports; tests | ARCHITECTURE.md; 119 automated tests (`npm test`); EVALUATION.md; JUDGE_GUIDE.md |
 | Innovation (15) | Typed facts validated against the engine and delivered evidence; Evidence Challenge ("Why this finding?"); dependency-tracked memory with an honest *unknown* | `agent/facts.ts`, `explain.ts`, `memory/hmem.ts`; tests in `facts.test.ts`, `trust.test.ts`, `explain.test.ts` |
 | Demo (15) | Seven beats in about 3.5 minutes, speed-ups and rules mode labelled | DEMO_SCRIPT.md |
 | Product & UX (10) | Evidence library, tool activity, checked summary, validated/rejected facts, *Why this finding?*, approvals, corrections; phone layout | `components/recall/*`; browser checks in EVALUATION.md; OPERATOR_TEST.md |
@@ -69,7 +69,7 @@ Drafted on 25 Oct 2026 as a 13-slide deck: <https://claude.ai/artifact/VdBTDtBgD
 5. Zetaris use: three source systems, read-only mapped queries, latency and failures shown. Connected on a local instance: show the passing check and the 900 → 940 follow-up arriving through Zetaris.
 6. Meterless use: H-MEM memory, supersession on evidence change, contradiction detection, operator feedback.
 7. What was unique: verifier against retrieved evidence; memory that cannot override records.
-8. Evaluation: held-out case (key committed first): baseline 1/7, engine 7/7, rules mode 5/5 key facts; live model 0/5 in 3 runs (2 hit the time limit on Groq's free tier); 0 unsupported claims accepted. Limits: fixtures written by the builder.
+8. Evaluation: held-out case (key committed first): baseline 1/7, engine 7/7, rules mode 5/5 key facts; live model 0/5 in every run (three at 240 s, two hit the time limit; three more after raising it to 480 s ended on malformed tool calls and Groq's daily token cap; one unplanned run hit a request-size limit); 0 unsupported claims accepted. Limits: fixtures written by the builder.
 9. Product visuals: overview, agent run, follow-up queue, memory panel, phone view.
 10. Tech stack: Vinext/React, Cloudflare Worker + D1, Groq (OpenAI-compatible), H-MEM, Zetaris REST.
 11. Future work: real-format mapping, team roles, pilot with one distributor.

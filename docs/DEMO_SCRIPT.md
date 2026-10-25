@@ -5,7 +5,7 @@ Rule 6.1 asks the video to show the main workflow, how the agent solves the chal
 ## Recording rules (keep the video honest)
 
 - **No splicing.** Every run you show is one continuous run in one case. You may speed up waiting, but do not cut from one run's tool steps to another run's results, and do not re-record a single beat with a different outcome without saying so.
-- **Label speed-ups on screen** ("sped up ×8") whenever waiting is compressed. A live run on Groq's free tier takes 1–4 minutes; never imply it took seconds.
+- **Label speed-ups on screen** ("sped up ×8") whenever waiting is compressed. A live run on Groq's free tier can take up to its 8-minute limit, mostly waiting on rate limits; never imply it took seconds. The free tier also allows only 200,000 tokens a day (about three or four runs), so record the live beat early in the day and do not spend the allowance on rehearsals.
 - **Label rules mode on screen** ("RULES MODE · no language model") whenever a result comes from rules mode. The app shows the same label; keep it visible.
 - **Say "fictional data" once at the start**, and "local Zetaris instance" when Zetaris appears. If the connection check fails on the day, say so and do not show the labelled mock as Zetaris.
 - **Don't say:** "production-ready", "verified" for anything other than a validated fact, "complete", "first prize", "physically checked", "no patients were affected", "real-time", "independently evaluated".

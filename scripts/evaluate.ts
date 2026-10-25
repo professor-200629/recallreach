@@ -6,8 +6,9 @@
 // The held-out case (eval/heldout/corvel-vials.ts) and its rubric were committed before any run.
 // These are fixture results, not user research or evidence of real-world performance.
 // Run: npm run eval            (no network, no model)
-//      node --env-file=.dev.vars --experimental-transform-types scripts/evaluate.ts --live --runs 3 --only corvel-vials
-import { mkdirSync, writeFileSync } from 'node:fs';
+//      node --env-file=.dev.vars --experimental-transform-types scripts/evaluate.ts --live --runs 3 --only corvel-vials --tag <name>
+// Live results are never overwritten: each live series goes to its own file, named by --tag.
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { SCENARIOS, scenarioSources, toLedgerCsv, type Scenario } from '../lib/recall/sample.ts';
 import { parseLedgerCsv } from '../lib/recall/csv.ts';
 import { reconcileCase } from '../lib/recall/engine.ts';
@@ -99,7 +100,7 @@ function scoreRun(s: Scenario, run: AgentRun, rubric?: typeof CORVEL_RUBRIC) {
   });
   return {
     mode: run.mode, provider: run.provider, model: run.model, status: run.status, status_detail: run.status_detail,
-    duration_ms: run.duration_ms, tool_calls: run.steps.filter(x => x.tool !== 'submit_findings').length, rejected_tool_calls: run.steps.filter(x => !x.ok).length,
+    limits: run.limits ?? null, duration_ms: run.duration_ms, tool_calls: run.steps.filter(x => x.tool !== 'submit_findings').length, rejected_tool_calls: run.steps.filter(x => !x.ok).length,
     model_calls: run.usage.model_calls, input_tokens: run.usage.input_tokens, output_tokens: run.usage.output_tokens, estimated_cost_usd: run.usage.estimated_cost_usd,
     facts_submitted: facts.length, facts_validated: ok.length, facts_rejected: facts.length - ok.length,
     rejected_fact_reasons: facts.filter(f => f.status === 'rejected').map(f => f.problems[0]),
@@ -114,16 +115,25 @@ function scoreRun(s: Scenario, run: AgentRun, rubric?: typeof CORVEL_RUBRIC) {
 
 async function agentRun(s: Scenario, live: boolean, rubric?: typeof CORVEL_RUBRIC) {
   const c = caseFor(s, live ? '-live' : '-rules');
-  const { provider } = live ? providerFromEnv(process.env) : { provider: null };
+  const { provider, settings } = live ? providerFromEnv(process.env) : { provider: null, settings: null };
   if (live && !provider) return { skipped: 'No provider configured (AGENT_PROVIDER and its API key).' };
   const before = JSON.stringify(reconcileCase(c));
-  const { run } = await runCaseInvestigation({ c, memoryState: null, provider, external: null, question: s.question, actor: 'evaluation' });
+  // Live runs use the same time limit as the app (the provider's default, or AGENT_TIME_LIMIT_S).
+  const limits = provider && settings ? { totalTimeoutMs: settings.time_limit_s * 1000 } : undefined;
+  const { run } = await runCaseInvestigation({ c, memoryState: null, provider, external: null, question: s.question, actor: 'evaluation', limits });
   return { ...scoreRun(s, run, rubric), stock_unchanged_by_run: JSON.stringify(reconcileCase(c)) === before };
 }
 
 const args = process.argv.slice(2), live = args.includes('--live');
 const runs = Math.max(1, Math.min(5, Number(args[args.indexOf('--runs') + 1]) || 1)), only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
-const results: Record<string, unknown> = { generated_at: new Date().toISOString(), note: 'Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.', held_out_key_commit: '1313452', scenarios: {} };
+const tag = args.includes('--tag') ? args[args.indexOf('--tag') + 1] ?? '' : null;
+if (tag !== null && !/^[a-z0-9-]{1,40}$/.test(tag)) throw new Error('--tag must be 1 to 40 lowercase letters, digits or hyphens.');
+if (only !== null && !(only in ALL)) throw new Error(`--only must be one of: ${Object.keys(ALL).join(', ')}.`);
+if (!live && (tag || only)) throw new Error('--tag and --only are for live series; npm run eval with no flags regenerates the offline results.');
+const file = `eval/results${live ? '-live' : ''}${only ? `-${only}` : ''}${tag ? `-${tag}` : ''}.json`;
+// A recorded live series is evidence: never replace one. Only the offline file (eval/results.json) is regenerated.
+if (file !== 'eval/results.json' && existsSync(file)) throw new Error(`${file} already exists. Live results are never overwritten; pass a new --tag.`);
+const results: Record<string, unknown> = { generated_at: new Date().toISOString(), note: 'Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.', held_out_key_commit: '1313452', ...(tag ? { series: tag } : {}), scenarios: {} };
 for (const { scenario: s, held_out, rubric } of Object.values(ALL)) {
   if (only && s.id !== only) continue;
   const states: [string, RecallCase][] = [['initial', caseFor(s)]];
@@ -141,7 +151,7 @@ for (const { scenario: s, held_out, rubric } of Object.values(ALL)) {
   (results.scenarios as Record<string, unknown>)[s.id] = entry;
 }
 mkdirSync('eval', { recursive: true });
-const file = `eval/results${live ? '-live' : ''}${only ? `-${only}` : ''}.json`;
-writeFileSync(file, JSON.stringify(results, null, 2) + '\n');
+// 'wx' fails if the file appeared while the runs were in progress.
+writeFileSync(file, JSON.stringify(results, null, 2) + '\n', { flag: file === 'eval/results.json' ? 'w' : 'wx' });
 console.log(`Wrote ${file}`);
 console.log(JSON.stringify(results, null, 2));

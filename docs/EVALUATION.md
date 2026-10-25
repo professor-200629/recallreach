@@ -4,9 +4,9 @@ Everything here is **automated testing on fictional fixtures** or **observed liv
 
 **Caveat:** the same developer wrote the engine, the rules procedure, the fixtures and the answer keys, including the held-out case. The held-out key was committed before any run, so it was not tuned to results, but it was not written independently. Treat every score below as "behaves as designed on cases built to exercise it", not as independent accuracy.
 
-## 1. Automated tests: 115 passing
+## 1. Automated tests: 119 passing
 
-`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 25 Oct 2026: **115 tests, 115 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
+`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 25 Oct 2026: **119 tests, 119 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
 
 | Suite | Tests | Covers |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ Everything here is **automated testing on fictional fixtures** or **observed liv
 | `tests/facts.test.ts` | 12 | Typed-fact validator counterexamples: wrong shipment, state, unit, scope, stale snapshot, not delivered, mixed clauses and unsupported summaries, record facts, referenced-but-not-delivered handles, connected-source rows (MOCK label, external dependency), evidence-request linking, and valid facts with generated wording |
 | `tests/trust.test.ts` | 6 | Regressions from the external review: the false "RR-104 60 dispensed" claim, the memory-reference bypass, connected-source-only memory (unknown → current → stale), legacy memories with no dependencies, bounded retention with dropped counts, oversized tool output (valid JSON, omitted counts, not delivered) |
 | `tests/import.test.ts` | 11 | Connected-source import: keyset SQL and literal binding, 1,200 rows over 7 pages with shared timestamps, unchanged re-import, same-key correction (twice), operator-corrected conflict, page failure, count mismatch, repeated row, too large, zero rows vs failed query, equal keys from two instances, a disappeared row, legacy imports |
-| `tests/boundaries.test.ts` | 10 | Atomic case + memory save (memory write failure rolls back the case; memory-version and case-version conflicts), concurrent runs, identity headers, forged headers through the local dispatcher stand-in, deadline with a fake clock (no tool after the deadline, late answer not accepted, cancellation reaches an in-flight source query, rate-limit wait past the deadline), rules-mode limits |
+| `tests/boundaries.test.ts` | 14 | Atomic case + memory save (memory write failure rolls back the case; memory-version and case-version conflicts), concurrent runs, identity headers, forged headers through the local dispatcher stand-in, deadline with a fake clock (no tool after the deadline, late answer not accepted, cancellation reaches an in-flight source query, rate-limit wait past the deadline), rules-mode limits, per-provider time limits and `AGENT_TIME_LIMIT_S`, limits recorded on each run, the streamed live response (headers at once, keep-alive, saved result or `{ error, status }`), provider errors without account IDs |
 | `tests/explain.test.ts` | 6 | Evidence Challenge on the drill: why RR-104 is unresolved, why approval cannot change it, which new evidence changed the result and why a reported quarantine is not a confirmed destination, why 60 dispensed need follow-up, the hypothetical preview, no invented likelihoods |
 | `tests/memory.test.ts` | 5 | Vendored H-MEM hashes, save/reload round trip, invalidation after new evidence, operator decisions, contradiction detection |
 | `tests/http.test.ts` | 12 | Unauthenticated access, owner-only access, cross-site/non-JSON/oversized writes, concurrent updates, the demo flow over HTTP, corrections, exports, persistence after reopening, mock labelling, versioned re-import over HTTP (response read back from storage), unreachable Zetaris, memory feedback |
@@ -54,6 +54,22 @@ What this shows, plainly:
 - The **engine** answers all seven questions on a case it was not tuned to; the spreadsheet baseline gets one, because the boxes record, the reused reference and the duplicated return hide two of the three gaps.
 - **Rules mode** turns the engine's answer into validated facts and well-formed follow-ups. It is a fixed procedure written by the same developer, so its score mostly confirms that procedure works on this kind of case.
 - **The live model did poorly on the held-out case.** Two of three runs spent about 200 s waiting on Groq's free-tier limit (8,000 tokens per minute) and stopped at the 240 s deadline without submitting anything; the deadline handling reported them as *limit reached*, not as completed. The one completed run used only 3 tools and submitted 3 facts, all validated, but none of them was one of the 5 key facts. The validator accepted nothing false in any run. With this provider tier the live agent is not reliable enough to quote as a result; rules mode and the engine are what the numbers support.
+
+### 2b. Live model again, after raising the time limit to 480 s
+
+After the first series, the Groq run time limit was raised from 240 s to 480 s (its free tier spends most of a run waiting on rate limits). Nothing else changed: same code, prompt, rules, tools and answer key (`1313452`). The first series above stays as recorded; this second series is in its own file, `eval/results-live-corvel-vials-limit-480s.json`, and each run records the limits it ran under.
+
+| Run | Status | Time (waiting) | Tool / model calls | Tokens in / out | Key facts | Facts submitted |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | provider error: malformed tool call on the 10th model call | 221.6 s (203 s) | 8 / 10 | 45.3k / 2.7k | 0 / 5 | 0 |
+| 2 | provider error: malformed tool call on the 10th model call | 255.5 s (232 s) | 8 / 10 | 47.2k / 3.3k | 0 / 5 | 0 |
+| 3 | provider error: Groq's daily token cap (200,000 tokens per day) reached before the first call | 184.8 s (182 s) | 0 / 0 | 0 / 0 | 0 / 5 | 0 |
+
+**Raising the time limit did not help.** No run came near 480 s. Runs 1 and 2 used all 10 model calls (the budget also counts calls that return a malformed tool call) and ended on another malformed call; run 3 could not start because the day's free-tier allowance was used up. No run accepted a false fact or changed stock. On this provider tier the binding limits are the model-call budget with malformed tool calls, the 8,000-token per-request ceiling and the daily token cap, not time.
+
+**One unplanned run.** While the overwrite guard was being tested, a command ran the earlier evaluation script before the guard existed. It made one extra live run (240 s limit) and overwrote the first series' file; the file was restored from git and the extra run is kept in `eval/results-live-corvel-vials-unplanned-240s.json`. It ended as a provider error after 140.8 s (124 s waiting), 9 model calls and 8 tool calls, 40.9k / 2.3k tokens: Groq refused a request of 8,333 tokens as larger than the 8,000 tokens-per-minute limit (HTTP 413). 0 facts submitted.
+
+In total the live model has had seven runs on the held-out case (three at 240 s, three at 480 s, one unplanned at 240 s); none stated a key fact.
 
 ## 3. Development fixtures
 
@@ -115,10 +131,11 @@ These were recorded with the import code of the morning of 25 Oct. The import wa
 - Proposal approved: still 40. Fictional follow-up evidence: 940 contained, 0 available, 60 dispensed; 4 memory notes marked for recheck. *Why this finding?* on the destination issue explains that the reported quarantine does not name a responsible recipient and lists the follow-up record under "Added since the previous run".
 - Reassessment in rules mode: 5 of 5 facts validated, including "the case available changed from 40 to 0"; memory shows SUPERSEDED notes with recheck notes quoting them.
 - Live-model run in the app with the current code (Groq free tier, fresh drill case): completed in 213.7 s, of which 189 s waiting on rate limits; 7 tool calls, 10 model calls, 36.2k in / 3.1k out tokens; 6 of 6 typed facts validated (RR-104 40 available, the case total, the opening record's report and status, the stock and destination issues); 1 follow-up proposed. It is the run shown in the deck. It did not state the RR-103 dispensing fact.
+- Streamed live response with the 480 s limit (25 Oct 2026, after the second held-out series, while Groq's daily cap was nearly used up): response headers after 60 ms, 31 keep-alive spaces, then the saved result after 464 s; the run stopped as *limit reached* at the 480 s limit after 454 s of rate-limit waiting (2 model calls, 7.4k / 0.1k tokens). A check of the connection handling, not an evaluation run.
 - Older cases: runs made with the earlier validator render under "EARLIER RUN · FREE-TEXT FORMAT" with a note that their "verified" label only meant citations existed; their memories show CURRENT where dependencies can be checked and UNKNOWN where none were recorded.
 
 24 Oct 2026 checks (still valid for unchanged screens): exports download with readable content, dialogs take focus and close on Escape, no horizontal overflow at 375 px, the production build boots under Wrangler, and forged identity headers are accepted when the Worker runs **without** the Sites dispatcher (see DEPLOYMENT.md). Not done: screen-reader testing, an automated contrast audit, a physical phone.
 
 ## 7. Token use and cost
 
-All live calls used Groq's free tier, as in earlier sessions (no cost estimate is configured, and the account's billing page was not checked in this session). Totals so far: about 337k input and 33k output tokens (six in-app runs, the four earlier evaluation runs, the three held-out runs, and a few smoke checks). Free-tier limit: 8,000 tokens per minute per model, which is why live runs spend most of their time waiting.
+All live calls used Groq's free tier, as in earlier sessions (no cost estimate is configured, and the account's billing page was not checked in this session). Totals so far: about 478k input and 41k output tokens (seven in-app runs, the four earlier evaluation runs, the seven held-out runs, and a few smoke checks). Free-tier limits: 8,000 tokens per minute and 200,000 tokens per day per model; the daily cap was reached on 25 Oct 2026.

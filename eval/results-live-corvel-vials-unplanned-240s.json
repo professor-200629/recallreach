@@ -1,0 +1,226 @@
+{
+  "series": "unplanned-240s",
+  "series_note": "An unplanned live run, made by mistake on 25 Oct 2026 at about 17:12 UTC while testing the new overwrite guard: the earlier evaluate.ts (240 s limit, no guard) ran and overwrote the held-out series file, which was then restored from git (commit 962f15c). Kept here so every live run is on record. The Groq organization ID in the error text was redacted.",
+  "note": "Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.",
+  "generated_at": "2026-10-25T17:14:44.613Z",
+  "held_out_key_commit": "1313452",
+  "scenarios": {
+    "corvel-vials": {
+      "held_out": true,
+      "initial": {
+        "baseline": {
+          "unresolved_found": {
+            "CV-304": 60
+          },
+          "unresolved_correct": "1/3",
+          "unresolved_false_positives": 0,
+          "wrongly_counted_records": 4,
+          "totals": {
+            "shipped": 470,
+            "available": -240,
+            "quarantined": 380,
+            "returned": 300,
+            "dispensed": 30
+          },
+          "totals_correct": false,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": false,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": false,
+            "Which records need review?": false,
+            "Which near-miss batch records need checking?": false,
+            "Which records are duplicates?": false,
+            "Are the source-reported totals correct?": false
+          },
+          "questions_correct": 1,
+          "questions_total": 7
+        },
+        "engine": {
+          "unresolved_found": {
+            "CV-302": 20,
+            "CV-303": 30,
+            "CV-304": 60
+          },
+          "unresolved_correct": "3/3",
+          "unresolved_false_positives": 0,
+          "wrongly_counted_records": 0,
+          "totals": {
+            "shipped": 470,
+            "available": 110,
+            "quarantined": 180,
+            "returned": 150,
+            "dispensed": 30
+          },
+          "totals_correct": true,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": true,
+            "Which records need review?": true,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": true
+          },
+          "questions_correct": 7,
+          "questions_total": 7
+        }
+      },
+      "agent_rules_mode": {
+        "mode": "rules",
+        "provider": "none",
+        "model": "rules-v3",
+        "status": "completed",
+        "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
+        "duration_ms": 25,
+        "tool_calls": 21,
+        "rejected_tool_calls": 0,
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "estimated_cost_usd": null,
+        "facts_submitted": 12,
+        "facts_validated": 12,
+        "facts_rejected": 0,
+        "rejected_fact_reasons": [],
+        "key_facts_correct": "5/5",
+        "key_facts": [
+          {
+            "item": "CV-302 available 20",
+            "found": true
+          },
+          {
+            "item": "CV-303 available 30",
+            "found": true
+          },
+          {
+            "item": "CV-304 available 60",
+            "found": true
+          },
+          {
+            "item": "CV-301 dispensed 30",
+            "found": true
+          },
+          {
+            "item": "CV-304 destination unconfirmed",
+            "found": true
+          }
+        ],
+        "unsupported_claims_accepted": 0,
+        "overreach_flags": 0,
+        "missing_evidence_identified": "3/3",
+        "follow_ups_proposed": 4,
+        "follow_up_rubric": [
+          {
+            "issue_id": "stock:CV-302",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:CV-303",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:CV-304",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "dispensed:CV-301",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          }
+        ],
+        "follow_up_rubric_points": "12/12",
+        "stock_unchanged_by_run": true
+      },
+      "agent_live": [
+        {
+          "mode": "live",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "status": "provider_error",
+          "status_detail": "http: groq returned HTTP 413: Request too large for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Requested 8333, please reduce your m Waited 124 s for provider rate limits.",
+          "duration_ms": 140786,
+          "tool_calls": 8,
+          "rejected_tool_calls": 1,
+          "model_calls": 9,
+          "input_tokens": 40903,
+          "output_tokens": 2336,
+          "estimated_cost_usd": null,
+          "facts_submitted": 0,
+          "facts_validated": 0,
+          "facts_rejected": 0,
+          "rejected_fact_reasons": [],
+          "key_facts_correct": "0/5",
+          "key_facts": [
+            {
+              "item": "CV-302 available 20",
+              "found": false
+            },
+            {
+              "item": "CV-303 available 30",
+              "found": false
+            },
+            {
+              "item": "CV-304 available 60",
+              "found": false
+            },
+            {
+              "item": "CV-301 dispensed 30",
+              "found": false
+            },
+            {
+              "item": "CV-304 destination unconfirmed",
+              "found": false
+            }
+          ],
+          "unsupported_claims_accepted": 0,
+          "overreach_flags": 0,
+          "missing_evidence_identified": "0/3",
+          "follow_ups_proposed": 0,
+          "follow_up_rubric": [
+            {
+              "issue_id": "stock:CV-302",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:CV-303",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:CV-304",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "dispensed:CV-301",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            }
+          ],
+          "follow_up_rubric_points": "0/12",
+          "stock_unchanged_by_run": true
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-25T16:53:58.767Z",
+  "generated_at": "2026-10-25T17:31:39.911Z",
   "note": "Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.",
   "held_out_key_commit": "1313452",
   "scenarios": {
@@ -119,6 +119,11 @@
         "model": "rules-v3",
         "status": "completed",
         "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
+        "limits": {
+          "total_timeout_ms": 240000,
+          "max_model_calls": 0,
+          "max_tool_calls": 40
+        },
         "duration_ms": 21,
         "tool_calls": 13,
         "rejected_tool_calls": 0,
@@ -218,6 +223,11 @@
         "model": "rules-v3",
         "status": "completed",
         "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
+        "limits": {
+          "total_timeout_ms": 240000,
+          "max_model_calls": 0,
+          "max_tool_calls": 40
+        },
         "duration_ms": 3,
         "tool_calls": 18,
         "rejected_tool_calls": 0,
@@ -325,7 +335,12 @@
         "model": "rules-v3",
         "status": "completed",
         "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
-        "duration_ms": 1,
+        "limits": {
+          "total_timeout_ms": 240000,
+          "max_model_calls": 0,
+          "max_tool_calls": 40
+        },
+        "duration_ms": 2,
         "tool_calls": 21,
         "rejected_tool_calls": 0,
         "model_calls": 0,

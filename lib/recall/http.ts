@@ -19,20 +19,48 @@ export type Deps = {
   provider: () => { provider: ChatProvider | null; settings: ProviderSettings };
   external: (onEvent: (e: IntegrationEvent) => void) => ExternalSetup;
   limits?: Parameters<typeof runCaseInvestigation>[0]['limits'];
+  /** Interval between keep-alive spaces on a streamed live run (tests shorten it). */
+  heartbeatMs?: number;
 };
 
 const MAX_BODY = 900_000, MAX_CASE_BYTES = 1_700_000;
 export function json(data: unknown, status = 200) { return Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } }); }
 
+/** Maps an error to the status and message the client sees; internal details are only logged. */
+function errorBody(error: unknown): { status: number; error: string } {
+  if (error instanceof z.ZodError) return { status: 400, error: error.issues.map(i => `${i.path.length ? `${i.path.join('.')}: ` : ''}${i.message}`).join(' ') };
+  if (error instanceof ActionError) return { status: error.status, error: error.message };
+  if (error instanceof SyntaxError) return { status: 400, error: 'Request is not valid JSON.' };
+  console.error('RecallReach request failed', error instanceof Error ? error.message : 'unknown error');
+  return { status: 500, error: 'Could not save or load this case. Please try again.' };
+}
+
 export async function handle(work: () => Promise<Response>) {
   try { return await work(); }
-  catch (error) {
-    if (error instanceof z.ZodError) return json({ error: error.issues.map(i => `${i.path.length ? `${i.path.join('.')}: ` : ''}${i.message}`).join(' ') }, 400);
-    if (error instanceof ActionError) return json({ error: error.message }, error.status);
-    if (error instanceof SyntaxError) return json({ error: 'Request is not valid JSON.' }, 400);
-    console.error('RecallReach request failed', error instanceof Error ? error.message : 'unknown error');
-    return json({ error: 'Could not save or load this case. Please try again.' }, 500);
-  }
+  catch (error) { const { status, error: message } = errorBody(error); return json({ error: message }, status); }
+}
+
+export const HEARTBEAT_MS = 15_000;
+/**
+ * A long live run keeps one request open for minutes. Some clients give up when no response
+ * headers arrive within a few minutes (Firefox: 300 s over HTTP/1.1), which would lose the run.
+ * So the response starts at once and sends a space every HEARTBEAT_MS (JSON allows leading
+ * whitespace); the payload follows when the run is saved. The HTTP status is then always 200, so
+ * a failure is sent as { error, status } in the body.
+ */
+function streamJson(work: () => Promise<unknown>, heartbeatMs = HEARTBEAT_MS): Response {
+  const encoder = new TextEncoder();
+  let timer: ReturnType<typeof setInterval> | undefined;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(' '));
+      timer = setInterval(() => { try { controller.enqueue(encoder.encode(' ')); } catch { clearInterval(timer); } }, heartbeatMs);
+      void work().then(data => JSON.stringify(data), error => JSON.stringify(errorBody(error)))
+        .then(text => { clearInterval(timer); try { controller.enqueue(encoder.encode(text)); controller.close(); } catch { /* the client went away */ } });
+    },
+    cancel() { clearInterval(timer); },
+  });
+  return new Response(body, { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 }
 
 export function createHandlers(deps: Deps) {
@@ -107,12 +135,16 @@ export function createHandlers(deps: Deps) {
       const { row, c } = await load(id, identity.userId);
       if (row.version !== input.version) throw new ActionError('This case changed in another tab. Reload it before making another change.', 409);
       const now = new Date().toISOString(), mem = await loadMemory(id, identity.userId), rec = recorder(identity.userId);
+      const live = input.action === 'agent' && input.mode !== 'rules' ? deps.provider() : null;
+      const apply = async () => {
       let memoryState = mem.state, extras: Record<string, unknown> = {};
 
       if (input.action === 'agent') {
-        const { provider } = input.mode === 'rules' ? { provider: null } : deps.provider();
+        const { provider, settings } = live ?? { provider: null, settings: null };
         const ext = deps.external(rec.onEvent);
-        const out = await runCaseInvestigation({ c, memoryState, provider, external: ext.source, question: input.question, actor: identity.displayName, limits: deps.limits });
+        // A live run gets the provider's time limit (longer for Groq's free tier); explicit server limits win.
+        const limits = provider && settings ? { totalTimeoutMs: settings.time_limit_s * 1000, ...deps.limits } : deps.limits;
+        const out = await runCaseInvestigation({ c, memoryState, provider, external: ext.source, question: input.question, actor: identity.displayName, limits });
         memoryState = out.memoryState; extras = { run_id: out.run.id };
       } else if (input.action === 'external_import') {
         const ext = deps.external(rec.onEvent);
@@ -138,7 +170,9 @@ export function createHandlers(deps: Deps) {
       await rec.flush();
       // Respond with what was persisted, read back after the commit.
       const saved = await load(id, identity.userId), savedMemory = await loadMemory(id, identity.userId);
-      return json(view(saved.c, savedMemory.state, { ...extras, memory_saved: true }));
+      return view(saved.c, savedMemory.state, { ...extras, memory_saved: true });
+      };
+      return live?.provider ? streamJson(apply, deps.heartbeatMs) : json(await apply());
     },
     async exportCase(request: Request, id: string) {
       const identity = await user(request), { c } = await load(id, identity.userId), url = new URL(request.url);

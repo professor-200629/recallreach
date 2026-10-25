@@ -20,7 +20,7 @@ function app() {
   const db = sqliteD1(), repo = new CaseRepository(db);
   const h = createHandlers({
     repo, identify: async req => req.headers.get('x-test-user') === 'alice' ? { userId: 'u-alice', displayName: 'Alice' } : null,
-    provider: () => ({ provider: null, settings: { provider: 'none', model: '', configured: false, reason: 'test' } }),
+    provider: () => ({ provider: null, settings: { provider: 'none', model: '', configured: false, reason: 'test', time_limit_s: 240 } }),
     external: onEvent => ({ source: new MockZetarisSource(onEvent), mode: 'mock', detail: 'MOCK for tests' }),
   });
   const post = async (path: string, body: unknown) => {
@@ -157,4 +157,74 @@ test('rules mode stops at the deadline or its tool-call limit and composes no an
   assert.equal(timed.status, 'limit_reached'); assert.equal(timed.answer, null); assert.match(timed.status_detail, /No answer was composed/);
   const capped = await investigate({ question: 'Why are 40 bottles unresolved?', ctx: ctxFor(), actor: 'T', provider: null, limits: { rulesMaxToolCalls: 3 } });
   assert.equal(capped.status, 'limit_reached'); assert.match(capped.status_detail, /after 3 tool calls/); assert.equal(capped.steps.length, 3);
+});
+
+test('run time limit: Groq defaults to 480 s for free-tier waits, others to 240 s, and AGENT_TIME_LIMIT_S overrides within 60 to 900 s', async () => {
+  const { providerFromEnv } = await import('../lib/recall/agent/provider.ts');
+  const groq = (extra: Record<string, string> = {}) => providerFromEnv({ GROQ_API_KEY: 'test-key', ...extra }).settings;
+  assert.equal(groq().time_limit_s, 480);
+  assert.equal(groq({ AGENT_TIME_LIMIT_S: '300' }).time_limit_s, 300);
+  for (const bad of ['abc', '30', '1000', '300.5', '-5']) {
+    const s = groq({ AGENT_TIME_LIMIT_S: bad });
+    assert.equal(s.time_limit_s, 480, bad); assert.match(s.reason, /AGENT_TIME_LIMIT_S must be a whole number of seconds from 60 to 900; using 480 s/);
+  }
+  assert.equal(providerFromEnv({ AGENT_PROVIDER: 'openai', OPENAI_API_KEY: 'k', AGENT_MODEL: 'm' }).settings.time_limit_s, 240);
+  assert.equal(providerFromEnv({}).settings.time_limit_s, 240);
+  assert.equal(JSON.stringify(groq()).includes('test-key'), false, 'settings never carry the key');
+});
+
+test('every run records the limits it ran under; a live run in the app gets the provider time limit', async () => {
+  const rules = await investigate({ question: 'Why are 40 bottles unresolved?', ctx: ctxFor(), actor: 'T', provider: null });
+  assert.deepEqual(rules.limits, { total_timeout_ms: 240_000, max_model_calls: 0, max_tool_calls: 40 });
+  const submit = () => turn([['submit_findings', { summary: 'Scripted summary text.', facts: [], interpretations: [], evidence_requests: [] }]]);
+  const live = (limits?: Record<string, number>) => {
+    const db = sqliteD1(), repo = new CaseRepository(db);
+    const h = createHandlers({ repo, identify: async () => ({ userId: 'u', displayName: 'U' }), limits,
+      provider: () => ({ provider: new ScriptedProvider([submit]), settings: { provider: 'scripted', model: 'm', configured: true, reason: 'test', time_limit_s: 480 } }),
+      external: () => ({ source: null, mode: 'none', detail: 'none' }) });
+    const req = (body: unknown, id?: string) => new Request(`http://recallreach.test/api/cases${id ? `/${id}` : ''}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    return { h, req };
+  };
+  for (const [limits, expected] of [[undefined, 480_000], [{ totalTimeoutMs: 90_000 }, 90_000]] as const) {
+    const { h, req } = live(limits as Record<string, number> | undefined);
+    const created = await (await h.createCase(req({ action: 'sample' }))).json() as { case: { id: string } };
+    const res = await (await h.changeCase(req({ version: 1, action: 'agent', mode: 'auto', question: 'Why are 40 bottles unresolved?' }), created.case.id)).json() as { case: { agent_runs: { mode: string; limits: { total_timeout_ms: number; max_model_calls: number } }[] } };
+    const run = res.case.agent_runs.at(-1)!;
+    assert.equal(run.mode, 'live'); assert.equal(run.limits.total_timeout_ms, expected); assert.equal(run.limits.max_model_calls, 10);
+  }
+});
+
+test('a live run answers at once and keeps the connection alive, then sends the saved result; failures arrive in the body', async () => {
+  let release: () => void = () => {};
+  const gate = new Promise<void>(r => { release = r; });
+  const submit = () => turn([['submit_findings', { summary: 'Scripted summary text.', facts: [], interpretations: [], evidence_requests: [] }]]);
+  const db = sqliteD1(), repo = new CaseRepository(db);
+  const h = createHandlers({ repo, identify: async () => ({ userId: 'u', displayName: 'U' }), heartbeatMs: 5,
+    provider: () => ({ provider: new ScriptedProvider([async () => { await gate; return submit(); }]), settings: { provider: 'scripted', model: 'm', configured: true, reason: 'test', time_limit_s: 480 } }),
+    external: () => ({ source: null, mode: 'none', detail: 'none' }) });
+  const req = (body: unknown, id?: string) => new Request(`http://recallreach.test/api/cases${id ? `/${id}` : ''}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const created = await (await h.createCase(req({ action: 'sample' }))).json() as { case: { id: string } };
+  const ask = { action: 'agent', mode: 'auto', question: 'Why are 40 bottles unresolved?' };
+  // Two runs on the same version: both start streaming before either model call returns.
+  const [a, b] = await Promise.all([h.changeCase(req({ version: 1, ...ask }), created.case.id), h.changeCase(req({ version: 1, ...ask }), created.case.id)]);
+  assert.deepEqual([a.status, b.status], [200, 200], 'headers are sent before the run finishes');
+  await new Promise(r => setTimeout(r, 30));
+  release();
+  const [ta, tb] = await Promise.all([a.text(), b.text()]);
+  assert.match(ta + tb, /^ {2,}/m, 'keep-alive spaces precede the payload');
+  const bodies = [JSON.parse(ta), JSON.parse(tb)] as { error?: string; status?: number; case?: { version: number } }[];
+  assert.equal(bodies.filter(x => x.case?.version === 2).length, 1, 'one run is saved');
+  const failed = bodies.find(x => x.error)!;
+  assert.equal(failed.status, 409); assert.match(failed.error!, /concurrent update/);
+  // A rules-mode run is quick and keeps an ordinary JSON response with a real status code.
+  const rules = await handle(() => h.changeCase(req({ version: 1, action: 'agent', mode: 'rules', question: 'Why are 40 bottles unresolved?' }), created.case.id));
+  assert.equal(rules.status, 409); assert.match((await rules.json() as { error: string }).error, /changed in another tab/);
+});
+
+test('provider error text never keeps an account identifier; time limits are worded exactly', async () => {
+  const { OpenAICompatibleProvider } = await import('../lib/recall/agent/provider.ts');
+  const p = new OpenAICompatibleProvider({ name: 'groq', baseUrl: 'https://api.test/v1', apiKey: 'k', model: 'm', fetcher: (async () => new Response('{"error":{"message":"Request too large for model in organization `org_01abcDEF123` on tokens per minute"}}', { status: 413 })) as unknown as typeof fetch });
+  await assert.rejects(p.complete({ messages: [], tools: [], maxTokens: 10, signal: AbortSignal.timeout(1000) }), (e: Error) => !/org_01abc/.test(e.message) && /org_\[redacted\]/.test(e.message));
+  const { duration } = await import('../lib/recall/format.ts');
+  assert.deepEqual([60, 89, 90, 240, 480, 870, 45].map(duration), ['1 minute', '1 minute 29 s', '1 minute 30 s', '4 minutes', '8 minutes', '14 minutes 30 s', '45 s']);
 });

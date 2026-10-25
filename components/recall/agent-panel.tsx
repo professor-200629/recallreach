@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowRight, Bot, Brain, Check, CircleHelp, Clock3, Cpu, 
 import type { AgentRun, LedgerRecord, ValidatedFact } from '@/lib/recall/types';
 import { challengeFact, type Challenge } from '@/lib/recall/explain';
 import { ChallengeView } from './challenge';
+import { duration } from '@/lib/recall/format';
 import { CiteChips, date, Dialog, number, Tag, type Payload } from './shared';
 
 const TOOL_LABELS: Record<string, string> = {
@@ -44,7 +45,7 @@ export function AgentPanel({ data, busy, onRun, onEvidence, onRecord, onQueue, o
           <label className={mode === 'rules' ? 'checked' : ''}><input type="radio" name="mode" value="rules" checked={mode === 'rules'} onChange={() => setMode('rules')} /><ListChecks size={15} /><span><strong>Rules mode</strong><small>Fixed procedure, no AI model</small></span></label>
         </fieldset>
         <div className="agent-actions">
-          <p className="fine-print">The agent reads evidence through read-only tools. It cannot change stock, send messages or approve anything. {mode === 'auto' && live ? 'Free-tier rate limits can make a live run take a few minutes.' : ''}{!live ? ` ${capabilities.agent.reason}` : ''}</p>
+          <p className="fine-print">The agent reads evidence through read-only tools. It cannot change stock, send messages or approve anything. {mode === 'auto' && live ? `A live run stops after ${duration(capabilities.agent.time_limit_s)}; free-tier rate limits can make it use most of that time.` : ''}{!live ? ` ${capabilities.agent.reason}` : ''}</p>
           <button className="button primary" type="submit" disabled={!!busy || question.trim().length < 5}>{running ? <Loader2 size={16} className="spin" /> : <Play size={16} />}Investigate</button>
         </div>
       </form>
@@ -80,7 +81,7 @@ function RunView({ run, data, open, onQueue }: { run: AgentRun; data: Payload; o
       <div className="run-header">
         <div className="run-tags"><Tag tone={run.mode === 'live' ? 'teal' : ''}>{run.mode === 'live' ? `LIVE MODEL · ${run.provider} ${run.model}` : 'RULES MODE · NO LANGUAGE MODEL'}</Tag><Tag tone={run.status === 'completed' ? 'teal' : 'red'}>{run.status.replace('_', ' ').toUpperCase()}</Tag></div>
         <h2>{run.question}</h2>
-        <p className="run-meta">{date(run.started_at)} · {(run.duration_ms / 1000).toFixed(1)} s · {run.steps.length} tool steps · {usage}</p>
+        <p className="run-meta">{date(run.started_at)} · {(run.duration_ms / 1000).toFixed(1)} s{run.limits ? ` of a ${Math.round(run.limits.total_timeout_ms / 1000)} s limit` : ''} · {run.steps.length} tool steps · {usage}</p>
         {run.status !== 'completed' && <p className="form-error" role="alert">{run.status_detail}</p>}
       </div>
       {a && a.version === 2 && <>
