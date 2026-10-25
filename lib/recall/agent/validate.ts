@@ -1,11 +1,13 @@
-import type { CitedClaim, MissingEvidence, ProposedFollowUp, VerifiedAnswer } from '../types.ts';
-import { TOOLS, type FinalArgs, type ToolContext } from './tools.ts';
+import type { EvidenceRequest, Interpretation, ProposedFollowUp, VerifiedAnswer } from '../types.ts';
+import { citesDelivered, TOOLS, type FinalArgs, type ToolContext } from './tools.ts';
+import { validateFact, validatedSummary } from './facts.ts';
 
 const TOOL_NAMES = new Set<string>([...TOOLS.map(t => t.name), 'submit_findings']);
 
-// Checks a submitted answer against what the run actually retrieved. Claims keep their
-// text, but anything unsupported is labelled unverified with the reason, and citations
-// to records the run never retrieved are rejected.
+// Builds the checked answer. Only typed facts can be validated, and each is checked field by field
+// (validateFact). Everything else the agent writes (its summary, interpretations and evidence
+// requests) is kept and shown, but never labelled verified. The patterns below only warn when free
+// text states a conclusion RecallReach can never establish; they are not how facts are checked.
 const OVERREACH: [RegExp, string, boolean][] = [
   [/\brecall (is |has been |was )?(now )?(complete|completed|closed|finished|resolved)\b/i, 'declares the recall complete', true],
   [/\b(physically|visually) (verified|confirmed|checked|inspected)\b/i, 'claims physical verification', true],
@@ -27,17 +29,11 @@ export function overreach(text: string): string[] {
   return [...new Set(problems)];
 }
 
-function quantities(text: string, unit: string): number[] {
-  const stem = unit.trim().toLowerCase().replace(/e?s$/, '');
-  const words = ['bottle', 'pen', 'unit', 'pack', 'box', 'boxe', 'tablet', 'vial', 'item', stem].filter(Boolean).map(w => w.replace(/[^a-z]/g, '')).filter(Boolean);
-  const re = new RegExp(`(?<![\\d.,])(\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d+)?)\\s*(%|percent\\b|(?:${[...new Set(words)].join('|')})(?:e?s)?\\b)`, 'gi');
-  return [...text.matchAll(re)].map(m => Number(m[1].replaceAll(',', '')));
-}
-
+/** Maps a citation to a stable identifier, or null if it names nothing the run returned. Memory IDs map to memory:<id> (context, not evidence). */
 export function resolveCitation(token: string, ctx: ToolContext): string | null {
   const t = token.trim();
   if (ctx.handles.has(t)) return ctx.handles.get(t)!;
-  if (ctx.externalRows.has(t)) { const x = ctx.externalRows.get(t)!; return `${x.mode === 'mock' ? 'zetaris-mock' : 'zetaris'}:${x.table}:${x.row_key}`; }
+  if (ctx.externalRows.has(t)) { const x = ctx.externalRows.get(t)!; return `zetaris:${x.instance}:${x.table}:${x.row_key}`; }
   const issue = t.replace(/^issue:/, '');
   if (ctx.issueIds.has(issue)) return issue;
   if (ctx.diffs.has(t)) return ctx.diffs.get(t)!;
@@ -45,50 +41,31 @@ export function resolveCitation(token: string, ctx: ToolContext): string | null 
   return null;
 }
 
-const UNRESOLVED = /\b(unresolved|awaiting containment|unaccounted|not (yet )?contained|without (an? )?(accepted )?(containment|quarantine)|lacks? (an? |any )?(accepted )?containment|still available|remains? available)\b/i;
-const CONTAINED = /\b(quarantined|returned|contained|dispensed)\b/i;
-const PRESENT = /\b(remain|remains|still|currently|now|is|are|has|have)\b/i;
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** A present-tense "N units unresolved" statement about a shipment must match the engine's current balance. */
-export function contradictsEngine(text: string, ctx: ToolContext, unit: string): string[] {
-  if (!UNRESOLVED.test(text) || !PRESENT.test(text) || CONTAINED.test(text)) return [];
-  const mentioned = ctx.r.shipments.filter(s => new RegExp(`\\b${escapeRe(s.shipment_id)}\\b`).test(text));
-  if (mentioned.length !== 1) return [];
-  // Ignore the shipment's opening total when stated as context ("out of 200 pens accepted").
-  const s = mentioned[0], stated = quantities(text.replace(/\bout of [\d,]+\s*\w+\s+accepted\b/gi, ''), unit);
-  return stated.some(n => n !== s.available) ? [`Contradicts the current reconciliation: ${s.shipment_id} has ${s.available} ${unit} awaiting containment.`] : [];
-}
-
-function check(text: string, citations: string[], ctx: ToolContext, unit: string, basis: CitedClaim['basis'] | null) {
-  const problems: string[] = [], resolved: string[] = [], rejected: string[] = [];
-  for (const token of citations) { const id = resolveCitation(token, ctx); if (id) resolved.push(id); else rejected.push(token); }
-  for (const token of rejected) problems.push(TOOL_NAMES.has(token) ? `Cited the tool name “${token}” instead of an identifier it returned.` : `Citation “${token}” was not retrieved in this run.`);
-  if (!resolved.length) problems.push('No valid citation supports this statement.');
-  else if (resolved.every(id => id.startsWith('memory:'))) problems.push('Supported only by earlier memory. Memory is context, not current evidence; cite current records or issues.');
-  for (const id of resolved) if (id.startsWith('memory:') && ctx.disputedMemoryIds.has(id.slice(7))) problems.push(`Cites ${id.slice(7)}, which an operator marked wrong.`);
-  problems.push(...contradictsEngine(text, ctx, unit));
-  for (const n of quantities(text, unit)) if (!ctx.numbers.has(n)) problems.push(`Quantity ${n} does not match any retrieved record or reconciliation figure.`);
-  if (basis === 'engine_calculated' && !ctx.toolsUsed.has('run_reconciliation') && !ctx.toolsUsed.has('get_shipment_ledger')) problems.push('Marked as engine-calculated, but the reconciliation was not consulted.');
-  if (basis === 'unverified') problems.push('The agent itself marked this as unverified.');
-  problems.push(...overreach(text));
-  return { resolved: [...new Set(resolved)], rejected, problems };
-}
-
-export function verifyAnswer(args: FinalArgs, ctx: ToolContext): VerifiedAnswer & { summary_problems: string[] } {
-  const unit = ctx.c.alert.unit, rejected: string[] = [];
-  const findings: CitedClaim[] = args.findings.map(f => {
-    const v = check(f.claim, f.citations, ctx, unit, f.basis); rejected.push(...v.rejected);
-    return { claim: f.claim, citations: v.resolved, basis: f.basis, verification: v.problems.length ? 'unverified' : 'verified', problems: v.problems };
+export function verifyAnswer(args: FinalArgs, ctx: ToolContext): VerifiedAnswer {
+  const rejected: string[] = [];
+  const facts = args.facts.map(f => validateFact(f, ctx));
+  const interpretations: Interpretation[] = args.interpretations.map(i => {
+    const related: string[] = [], problems = overreach(i.text);
+    for (const token of i.related) {
+      const t = token.trim();
+      if (ctx.memoryIds.has(t)) { related.push(`memory:${t}`); if (ctx.disputedMemoryIds.has(t)) problems.push(`Points to ${t}, which an operator marked wrong.`); continue; }
+      if (citesDelivered(t, ctx)) { related.push(resolveCitation(t, ctx)!); continue; }
+      rejected.push(t);
+      problems.push(TOOL_NAMES.has(t) ? `Pointed to the tool name “${t}” instead of an identifier it returned.` : `“${t}” was not returned with its contents in this run.`);
+    }
+    return { text: i.text, related: [...new Set(related)], problems };
   });
-  const missing: MissingEvidence[] = args.missing_evidence.map(m => {
-    const v = check(`${m.description} ${m.would_resolve}`, m.citations, ctx, unit, null); rejected.push(...v.rejected);
-    return { description: m.description, would_resolve: m.would_resolve, citations: v.resolved, verification: v.problems.length ? 'unverified' : 'verified', problems: v.problems };
+  const evidence_requests: EvidenceRequest[] = args.evidence_requests.map(e => {
+    const id = e.issue_id.trim().replace(/^issue:/, ''), exists = ctx.r.issues.some(i => i.id === id), linked = exists && ctx.delivered.issues.has(id);
+    return { issue_id: id, description: e.description, would_change: e.would_change, linked,
+      problems: [...(linked ? [] : [exists ? `Issue ${id} was not returned to the agent in this run.` : `${id} is not an open issue in the current reconciliation.`]), ...overreach(`${e.description} ${e.would_change}`)] };
   });
   const follow_ups: ProposedFollowUp[] = ctx.proposals.map(p => ({
     issue_id: p.issue_id, action: p.action, owner_role: p.owner_role, evidence_requested: p.evidence_requested,
     citations: p.citations.map(h => resolveCitation(h, ctx)).filter((x): x is string => !!x), accepted: true, problems: overreach(`${p.action} ${p.evidence_requested}`),
   }));
-  const summaryProblems = [...overreach(args.summary), ...quantities(args.summary, unit).filter(n => !ctx.numbers.has(n)).map(n => `Summary quantity ${n} does not match retrieved evidence.`)];
-  return { summary: args.summary, summary_problems: summaryProblems, findings, missing_evidence: missing, follow_ups, rejected_citations: [...new Set(rejected)] };
+  return {
+    version: 2, summary: args.summary, summary_problems: overreach(args.summary), validated_summary: validatedSummary(facts),
+    facts, interpretations, evidence_requests, findings: [], missing_evidence: [], follow_ups, rejected_citations: [...new Set(rejected)],
+  };
 }

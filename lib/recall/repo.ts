@@ -7,10 +7,20 @@ export interface SqlStatement {
   all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
   run(): Promise<{ meta: { changes: number } }>;
 }
-export interface SqlDatabase { prepare(sql: string): SqlStatement }
+export interface SqlDatabase {
+  prepare(sql: string): SqlStatement;
+  /** Runs statements as one transaction (D1 batch): if any statement fails, none of them is applied. */
+  batch(statements: SqlStatement[]): Promise<unknown[]>;
+}
 
 export type CaseRow = { id: string; owner_id: string; name: string; payload: string; version: number; created_at: string; updated_at: string };
 export type MemoryRow = { case_id: string; owner_id: string; engine: string; state: string; version: number; updated_at: string };
+export type SaveResult = 'saved' | 'case_conflict' | 'memory_conflict';
+export type MemoryWrite = { engine: string; state: string; expectedVersion: number | null };
+// The guard statement fails (json() of a non-JSON string raises an error) unless both rows now carry
+// this save's token, which aborts and rolls back the whole batch.
+const GUARD_FAILED = 'recallreach-save-guard';
+
 export type IntegrationCheckRow = { id: string; owner_id: string; integration: string; mode: string; operation: string; ok: number; latency_ms: number; detail: string; at: string };
 
 export class CaseRepository {
@@ -29,6 +39,30 @@ export class CaseRepository {
   async updateCase(id: string, owner: string, expectedVersion: number, payload: string, version: number, updatedAt: string): Promise<boolean> {
     const r = await this.db.prepare('UPDATE recall_cases SET payload = ?, version = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND version = ?').bind(payload, version, updatedAt, id, owner, expectedVersion).run();
     return r.meta.changes === 1;
+  }
+
+  /**
+   * Saves a case and, optionally, its memory in one transaction. Both writes are guarded by the
+   * versions read before the change, and each payload carries a unique save token; a final guard
+   * statement checks both tokens and aborts the batch otherwise. Either both commit or neither does.
+   */
+  async saveCaseAndMemory(id: string, owner: string, expectedVersion: number, payload: string, version: number, updatedAt: string, token: string, memory: MemoryWrite | null): Promise<SaveResult> {
+    const statements = [this.db.prepare('UPDATE recall_cases SET payload = ?, version = ?, updated_at = ? WHERE id = ? AND owner_id = ? AND version = ?').bind(payload, version, updatedAt, id, owner, expectedVersion)];
+    if (memory) statements.push(memory.expectedVersion === null
+      ? this.db.prepare('INSERT INTO case_memory (case_id, owner_id, engine, state, version, updated_at) VALUES (?, ?, ?, ?, 1, ?) ON CONFLICT(case_id) DO NOTHING').bind(id, owner, memory.engine, memory.state, updatedAt)
+      : this.db.prepare('UPDATE case_memory SET engine = ?, state = ?, version = version + 1, updated_at = ? WHERE case_id = ? AND owner_id = ? AND version = ?').bind(memory.engine, memory.state, updatedAt, id, owner, memory.expectedVersion));
+    const caseOk = "EXISTS (SELECT 1 FROM recall_cases WHERE id = ? AND owner_id = ? AND json_extract(payload, '$.save_token') = ?)";
+    const memoryOk = "EXISTS (SELECT 1 FROM case_memory WHERE case_id = ? AND owner_id = ? AND json_extract(state, '$.save_token') = ?)";
+    statements.push(this.db.prepare(`SELECT json(CASE WHEN ${caseOk}${memory ? ` AND ${memoryOk}` : ''} THEN '1' ELSE '${GUARD_FAILED}' END) AS ok`)
+      .bind(id, owner, token, ...(memory ? [id, owner, token] : [])));
+    try {
+      await this.db.batch(statements);
+      return 'saved';
+    } catch (error) {
+      if (!/malformed JSON/i.test((error as Error)?.message ?? '')) throw error;
+      const current = await this.getCase(id, owner);
+      return current?.version === expectedVersion ? 'memory_conflict' : 'case_conflict';
+    }
   }
 
   getMemory(caseId: string, owner: string) {

@@ -19,9 +19,11 @@ All secrets are read on the server from Worker bindings (`.dev.vars` locally). N
 A recall investigation needs records from systems that are owned by different organisations and were never one dataset: the distributor's dispatch log, each pharmacy's stock system and the returns desk. RecallReach queries each through Zetaris with a fixed, code-owned `SELECT` (see `lib/recall/sources/external.ts`):
 
 - Only `SELECT` statements written in code. The model and the operator supply filter values only (batch, shipment ID). Values are restricted to `[A-Za-z0-9 ._()/-]` and quote-escaped; table names come from server configuration and must be plain identifiers.
-- Every query is bounded (`LIMIT` ≤ 500) and times out after 20 s.
+- Every query is bounded (`LIMIT` ≤ 500 per page) and times out after 20 s; an investigation's deadline also cancels a query in flight.
 - Each source keeps its native column names. The mapping to RecallReach's ledger columns, and the assumption it makes, is stated per source and shown to the agent and in the audit trail. For example, a return note is mapped to quarantined → returned, because the register does not record the prior state.
-- Imported rows become a new evidence source with system, mode, table, query ID, fetch time, latency, SQL and each row's source row key attached. Importing a source again adds only rows whose key is not already in the case, and the import message says how many were skipped.
+- **An import is a complete read.** RecallReach first runs `SELECT COUNT(*)` for the batch, then reads pages of 200 rows in a stable order (the source's timestamp column, then `row_no` as the tie-breaker, as a keyset condition bound as literals). The read succeeds only if the pages return exactly the counted number of distinct rows; a failed page, a row returned twice or a count mismatch fails the whole read and nothing is imported. "No matching rows" is a recorded, successful check, distinct from a failed query. A read is capped at 2,000 rows.
+- **Identity and versions.** Each row is identified by source instance (`zetaris://host/org/<id>`), table and the source's row key, and its content is hashed. Re-importing skips unchanged rows; a row that changed at the source under the same key is imported as a new version and the earlier version is superseded by an audited correction (kept, no longer counted, so nothing is double counted); a previously imported row the source no longer returns is reported in the import message and the audit log, never reversed; equal row keys from two instances are different rows. Imports saved before instances and hashes were recorded are still recognised (their hash is recomputed from the retained row).
+- Imported rows become a new evidence source with system, mode, instance, table, query IDs, fetch time, latency, SQL, each row's key and content hash, and the coverage of the read (pages, rows, source count).
 - Every health check and query is recorded (owner, mode, operation, result, latency, short detail) and shown on **Integrations**. Zetaris is shown as **connected only after a live `SELECT 1` succeeds**.
 
 Request contract (from `zetaris/getting-started`, `docs/connections/client-setup.md` and `scripts/zetaris_sql.py`):
@@ -132,7 +134,7 @@ All against the local Zetaris 2.4.3 instance on this laptop, with the fictional 
 | Re-import with no new evidence | "no new rows. All 6 rows from Zetaris are already in this case"; nothing changed |
 | Follow-up quarantine added to the pharmacy source, then re-imported | "1 new row imported from Zetaris; 6 already in this case skipped"; **940 contained (94%)**, 0 awaiting containment, 840 quarantined; review and duplicate counts unchanged (4 and 1); earlier memory notes marked for recheck |
 
-Found and fixed during this verification: the HTTP 400 "Not Allowed" answer to a wrong key (was reported as a failed query), datasource descriptions with spaces (Zetaris rejects them), and re-imports that added rows already in the case again (they inflated the review and duplicate counts but not the totals).
+Recorded with the code of 25 Oct 2026 morning. The import was then rebuilt as a complete, versioned read (above) and checked again against the same instance that evening: complete paged reads, the same case totals, an unchanged re-import, a new row, a row changed in place (imported as a new version, nothing double counted) and a removed row (reported, not reversed). See `eval/zetaris-import-check-2026-10-25.md`. Found and fixed during the first verification: the HTTP 400 "Not Allowed" answer to a wrong key (was reported as a failed query), datasource descriptions with spaces (Zetaris rejects them), and re-imports that added rows already in the case again (they inflated the review and duplicate counts but not the totals).
 
 ### Troubleshooting on this laptop (Windows 11 26H2, build 26300)
 
@@ -162,16 +164,16 @@ How RecallReach uses it (`lib/recall/memory/hmem.ts`):
 
 | H-MEM feature | RecallReach use |
 | --- | --- |
-| Records with mandatory `source`, `confidence`, `provenance.refs` | Verified agent findings, open questions and operator decisions, each citing evidence record IDs |
+| Records with mandatory `source`, `confidence`, `provenance.refs` | Validated typed facts (in RecallReach's wording) and operator decisions; `provenance.refs` holds each one's dependencies (case, shipment, record, or connected-source row with instance, table, key, content hash and capture time) |
 | Hybrid retrieval (`HMEM.query`) scoped by `chatId` | Agent tool `recall_memory`, scoped to the case |
-| `supersedes` / `supersededBy` lineage via `store.update` | When cited evidence changes, a recheck note supersedes the old memory; nothing is deleted |
+| `supersedes` / `supersededBy` lineage via `store.update` | When a dependency changes, a recheck note supersedes the old memory and quotes its text |
 | Trust ledger | Every create, read, update and conflict is logged; summary shown in the UI |
 | Conflict detection (`conflicts.scan`) | Detection only; contradictions are listed, never auto-resolved |
 | Layers | Operator-approved decisions go to `long_term`; unreviewed agent findings stay in `working` |
 
-RecallReach's own additions: an evidence fingerprint per memory, covering the cited records and every record on the shipments the memory is about. It is used to label each memory `current`, `stale` or `superseded` against today's evidence, and the label is shown to the agent and to the operator. Memory never feeds stock numbers; the agent is told that current records win.
+RecallReach's own additions: dependencies per memory and a fingerprint of the case evidence they cover, rechecked on every read. Each memory is labelled `current` (every dependency checked and unchanged), `stale` (a dependency changed, including a connected-source row whose content changed or that a later complete read no longer returned), `superseded`, or `unknown` (nothing recorded to check, or a connected-source row not read again since it was captured; unknown is never shown as current). The label and its reason are shown to the agent and to the operator. Memory never feeds stock numbers, and the agent cannot cite a memory, or a record a memory merely names, as evidence.
 
-Limits: upstream calls this a reference implementation, "not a production library", with a deterministic hash embedder rather than a learned embedding model. The ledger kept in D1 is capped at 800 entries per case (older entries are counted as dropped and the count is shown).
+Limits: upstream calls this a reference implementation, "not a production library", with a deterministic hash embedder rather than a learned embedding model. **Retention is bounded:** per case, D1 keeps the newest 200 memories and 800 ledger entries. Older ones are dropped; the number dropped is stored and shown in the memory panel, so the history is complete only until those limits are reached.
 
 ---
 

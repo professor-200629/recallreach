@@ -1,4 +1,4 @@
-import { buildSelect, EXTERNAL_SOURCES, mapRow, type ExternalFailure, type ExternalQueryResult, type ExternalSource, type ExternalSourceKey, type HealthResult, type IntegrationEvent } from './external.ts';
+import { buildCount, buildSelect, EXTERNAL_SOURCES, mapRow, type ExternalCountResult, type ExternalFailure, type ExternalFilter, type ExternalQueryResult, type ExternalSource, type ExternalSourceKey, type HealthResult, type IntegrationEvent, type QueryOptions } from './external.ts';
 
 // Read-only client for the Zetaris REST API documented in zetaris/getting-started
 // (docs/connections/client-setup.md, scripts/zetaris_sql.py): POST {base}/sql-editor/sqls/run
@@ -32,19 +32,25 @@ class ZetarisRequestError extends Error {
 export class ZetarisSource implements ExternalSource {
   readonly system = 'zetaris' as const;
   readonly mode = 'live' as const;
-  constructor(private config: ZetarisConfig, private onEvent: (e: IntegrationEvent) => void = () => {}, private fetcher: typeof fetch = fetch) {}
+  readonly instance: string;
+  constructor(private config: ZetarisConfig, private onEvent: (e: IntegrationEvent) => void = () => {}, private fetcher: typeof fetch = fetch) {
+    this.instance = `zetaris://${new URL(config.restUrl).host}/org/${config.orgId}`;
+  }
 
-  private async run(sql: string, limit: number, queryId: string): Promise<unknown[][]> {
+  private async run(sql: string, limit: number, queryId: string, signal?: AbortSignal): Promise<unknown[][]> {
     let response: Response;
+    const timeout = AbortSignal.timeout(this.config.timeoutMs ?? 20_000);
     try {
       response = await this.fetcher(`${this.config.restUrl}/sql-editor/sqls/run`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${this.config.apiKey}`, 'X-Org-ID': this.config.orgId, 'X-Request-ID': crypto.randomUUID(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ queryId, sql, source: 'SqlEditor', limit }),
-        signal: AbortSignal.timeout(this.config.timeoutMs ?? 20_000),
+        // The caller's signal carries the investigation deadline; the timeout bounds a single request.
+        signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
       });
     } catch (error) {
       const name = (error as Error)?.name;
+      if (signal?.aborted) throw new ZetarisRequestError('timeout', 'Cancelled: the investigation time limit was reached.');
       if (name === 'TimeoutError' || name === 'AbortError') throw new ZetarisRequestError('timeout', `Zetaris did not respond within ${(this.config.timeoutMs ?? 20_000) / 1000} s.`);
       throw new ZetarisRequestError('unreachable', `Cannot reach Zetaris at ${new URL(this.config.restUrl).host}.`);
     }
@@ -83,19 +89,33 @@ export class ZetarisSource implements ExternalSource {
     }
   }
 
-  async query(source: ExternalSourceKey, filter: { batch: string; shipment_id?: string }, limit: number): Promise<ExternalQueryResult> {
-    const table = this.config.tables[source], queryId = crypto.randomUUID(), start = Date.now();
+  async query(source: ExternalSourceKey, filter: ExternalFilter, limit: number, opts: QueryOptions = {}): Promise<ExternalQueryResult> {
+    const table = this.config.tables[source], queryId = crypto.randomUUID(), start = Date.now(), instance = this.instance;
     let sql: string;
-    try { sql = buildSelect(source, table, filter, limit); }
-    catch (error) { return { ok: false, mode: 'live', source, table, failure: 'invalid_filter', message: (error as Error).message, latency_ms: 0, query_id: queryId }; }
+    try { sql = buildSelect(source, table, filter, limit, opts.after); }
+    catch (error) { return { ok: false, mode: 'live', instance, source, table, failure: 'invalid_filter', message: (error as Error).message, latency_ms: 0, query_id: queryId }; }
     try {
-      const data = await this.run(sql, limit, queryId), rows = data.map(mapRow), latency = Date.now() - start;
-      this.onEvent({ integration: 'zetaris', mode: 'live', operation: `query ${EXTERNAL_SOURCES[source].label}`, ok: true, latency_ms: latency, detail: `${rows.length} rows from ${table}.` });
-      return { ok: true, mode: 'live', source, table, sql, query_id: queryId, latency_ms: latency, rows, truncated: rows.length >= limit };
+      const data = await this.run(sql, limit, queryId, opts.signal), rows = data.map(mapRow), latency = Date.now() - start;
+      this.onEvent({ integration: 'zetaris', mode: 'live', operation: `query ${EXTERNAL_SOURCES[source].label}`, ok: true, latency_ms: latency, detail: `${rows.length} rows from ${table}${opts.after ? ' (next page)' : ''}.` });
+      const full = rows.length >= Math.min(500, limit);
+      return { ok: true, mode: 'live', instance, source, table, sql, query_id: queryId, latency_ms: latency, rows, truncated: full, next: full ? rows.at(-1)!.cursor ?? null : null };
     } catch (error) {
       const latency = Date.now() - start, failure = error instanceof ZetarisRequestError ? error.failure : 'invalid_response', message = (error as Error).message;
       this.onEvent({ integration: 'zetaris', mode: 'live', operation: `query ${EXTERNAL_SOURCES[source].label}`, ok: false, latency_ms: latency, detail: message });
-      return { ok: false, mode: 'live', source, table, failure, message, latency_ms: latency, query_id: queryId };
+      return { ok: false, mode: 'live', instance, source, table, failure, message, latency_ms: latency, query_id: queryId };
+    }
+  }
+
+  async count(source: ExternalSourceKey, filter: ExternalFilter, opts: { signal?: AbortSignal } = {}): Promise<ExternalCountResult> {
+    const table = this.config.tables[source], start = Date.now();
+    let sql: string;
+    try { sql = buildCount(source, table, filter); } catch (error) { return { ok: false, failure: 'invalid_filter', message: (error as Error).message, latency_ms: 0 }; }
+    try {
+      const data = await this.run(sql, 1, crypto.randomUUID(), opts.signal), n = Number(data[0]?.[0]);
+      if (!Number.isInteger(n) || n < 0) return { ok: false, failure: 'invalid_response', message: `Count query returned ${JSON.stringify(data[0]).slice(0, 60)}.`, latency_ms: Date.now() - start };
+      return { ok: true, count: n, latency_ms: Date.now() - start };
+    } catch (error) {
+      return { ok: false, failure: error instanceof ZetarisRequestError ? error.failure : 'invalid_response', message: (error as Error).message, latency_ms: Date.now() - start };
     }
   }
 }

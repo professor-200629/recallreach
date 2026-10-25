@@ -7,7 +7,7 @@ import { rememberDecision, revalidateMemory, runCaseInvestigation } from './inve
 import { CaseMemory, MEMORY_ENGINE, type MemoryState } from './memory/hmem.ts';
 import type { CaseRepository } from './repo.ts';
 import type { ChatProvider, ProviderSettings } from './agent/provider.ts';
-import type { ExternalSource, IntegrationEvent } from './sources/external.ts';
+import { readAll, type ExternalSource, type IntegrationEvent } from './sources/external.ts';
 import { exportCase, type ExportFormat } from './export.ts';
 import { appendAudit } from './audit.ts';
 
@@ -71,15 +71,16 @@ export function createHandlers(deps: Deps) {
       capabilities: { agent: settings, external: { mode: ext.mode, detail: ext.detail } }, ...extras,
     };
   }
-  async function save(c: RecallCase, owner: string, expected: number, now: string) {
-    c.version = expected + 1;
+  /** Saves the case and (if it changed) its memory atomically: both are written, or neither is. */
+  async function save(c: RecallCase, owner: string, expected: number, now: string, memory: { state: MemoryState; expected: number | null } | null) {
+    const token = crypto.randomUUID();
+    c.version = expected + 1; c.save_token = token;
     const payload = JSON.stringify(c);
     if (new TextEncoder().encode(payload).byteLength > MAX_CASE_BYTES) throw new ActionError('This case has reached the storage limit for this release. Export it and open a new case for additional evidence.', 413);
-    if (!await deps.repo.updateCase(c.id, owner, expected, payload, c.version, now)) throw new ActionError('A concurrent update was saved. Reload before retrying.', 409);
-  }
-  async function saveMemory(caseId: string, owner: string, state: MemoryState | null, expected: number | null, now: string) {
-    if (!state) return true;
-    return deps.repo.putMemory(caseId, owner, MEMORY_ENGINE, JSON.stringify(state), expected, now);
+    const result = await deps.repo.saveCaseAndMemory(c.id, owner, expected, payload, c.version, now, token,
+      memory ? { engine: MEMORY_ENGINE, state: JSON.stringify({ ...memory.state, save_token: token }), expectedVersion: memory.expected } : null);
+    if (result === 'case_conflict') throw new ActionError('A concurrent update was saved. Reload before retrying.', 409);
+    if (result === 'memory_conflict') throw new ActionError('Investigation memory was changed by another request. Nothing was saved; reload before retrying.', 409);
   }
   function recorder(owner: string) {
     const events: IntegrationEvent[] = [];
@@ -116,10 +117,10 @@ export function createHandlers(deps: Deps) {
       } else if (input.action === 'external_import') {
         const ext = deps.external(rec.onEvent);
         if (!ext.source) throw new ActionError(`No connected source is configured: ${ext.detail}`, 400);
-        const res = await ext.source.query(input.source, { batch: c.alert.batch }, 500);
+        const filter = { batch: c.alert.batch }, read = await readAll(ext.source, input.source, filter);
         await rec.flush();
-        if (!res.ok) throw new ActionError(`Zetaris${res.mode === 'mock' ? ' (mock)' : ''} query failed (${res.failure}): ${res.message}`, 502);
-        extras = { ...await importExternal(c, res, identity.displayName, now) };
+        if (!read.ok) throw new ActionError(`Zetaris${read.mode === 'mock' ? ' (mock)' : ''} read failed (${read.failure}): ${read.message}`, 502);
+        extras = { ...await importExternal(c, read, filter, identity.displayName, now) };
         const re = revalidateMemory(c, memoryState, identity.displayName, 'connected-source evidence imported'); memoryState = re.state; extras.memory_invalidated = re.invalidated;
       } else if (input.action === 'memory_feedback') {
         if (!memoryState) throw new ActionError('This case has no investigation memory yet.', 404);
@@ -133,10 +134,11 @@ export function createHandlers(deps: Deps) {
         if (effect.evidenceChanged) { const re = revalidateMemory(c, memoryState, identity.displayName, input.action === 'correct' ? 'a record was corrected' : 'new evidence was imported'); memoryState = re.state; extras.memory_invalidated = re.invalidated; }
         if (effect.decisionText) memoryState = rememberDecision(c, memoryState, identity.displayName, effect.decisionText.text, effect.decisionText.refs);
       }
-      await save(c, identity.userId, input.version, now);
-      const memorySaved = memoryState === mem.state || await saveMemory(id, identity.userId, memoryState, mem.version, now);
+      await save(c, identity.userId, input.version, now, memoryState && memoryState !== mem.state ? { state: memoryState, expected: mem.version } : null);
       await rec.flush();
-      return json(view(c, memoryState, { ...extras, memory_saved: memorySaved }));
+      // Respond with what was persisted, read back after the commit.
+      const saved = await load(id, identity.userId), savedMemory = await loadMemory(id, identity.userId);
+      return json(view(saved.c, savedMemory.state, { ...extras, memory_saved: true }));
     },
     async exportCase(request: Request, id: string) {
       const identity = await user(request), { c } = await load(id, identity.userId), url = new URL(request.url);

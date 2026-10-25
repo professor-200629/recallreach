@@ -6,13 +6,14 @@ import type { RecallCase, Reconciliation, LedgerRecord } from '@/lib/recall/type
 import type { RecalledMemory } from '@/lib/recall/memory/hmem';
 import type { ProviderSettings } from '@/lib/recall/agent/provider';
 
-export type MemoryView = { engine: string; items: RecalledMemory[]; contradictions: { a: string; b: string; reason: string }[]; ledger: { entries: number; dropped: number; by_action: Record<string, number> } | null };
+export type MemoryView = { engine: string; items: RecalledMemory[]; contradictions: { a: string; b: string; reason: string }[]; ledger: { entries: number; dropped: number; records?: number; records_dropped?: number; record_limit?: number; ledger_limit?: number; by_action: Record<string, number> } | null };
 export type Payload = {
   case: RecallCase; result: Reconciliation;
   staleness: { stale: boolean; last_run_at: string | null; last_trigger: string | null; current_fingerprint: string };
   memory: MemoryView;
   capabilities: { agent: ProviderSettings; external: { mode: 'live' | 'mock' | 'none'; detail: string } };
   memory_invalidated?: number; memory_saved?: boolean; run_id?: string; imported?: number; skipped?: number;
+  updated?: number; unchanged?: number; conflicts?: string[]; missing_at_source?: string[]; pages?: number; source_count?: number;
 };
 
 export const number = (v: number) => v.toLocaleString('en-IN');
@@ -45,6 +46,8 @@ export function citeLabel(id: string, c: RecallCase): string {
   if (id.startsWith('zetaris')) return id.split(':').slice(-2).join(' row ');
   if (id.startsWith('memory:')) return `memory ${id.slice(7)}`;
   if (id.startsWith('snapshot-diff:')) return 'change since previous run';
+  if (id.startsWith('engine:shipment:')) return `engine balance ${id.slice(16)}`;
+  if (id === 'engine:totals') return 'engine totals';
   return id;
 }
 

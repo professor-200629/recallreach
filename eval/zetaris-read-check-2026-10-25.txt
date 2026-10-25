@@ -1,0 +1,10 @@
+Instance zetaris://localhost:8888/org/1; page size 2; 2026-10-25T16:37:12.178Z
+OK   DEMO-042      distributor_dispatches   4 rows in 3 pages, 712 ms; distinct keys 4; keys 1,2,3,4
+OK   DEMO-042      pharmacy_stock_events    6 rows in 4 pages, 792 ms; distinct keys 6; keys 1,2,3,4,5,6
+OK   DEMO-042      return_records           4 rows in 3 pages, 624 ms; distinct keys 4; keys 1,2,3,4
+OK   VL-2207       distributor_dispatches   5 rows in 3 pages, 614 ms; distinct keys 5; keys 6,7,8,10,9
+OK   VL-2207       pharmacy_stock_events   12 rows in 7 pages, 1467 ms; distinct keys 12; keys 7,8,9,11,12,14,15,10,16,13,18,17
+OK   VL-2207       return_records           2 rows in 2 pages, 425 ms; distinct keys 2; keys 5,6
+OK   NO-SUCH-BATCH distributor_dispatches   0 rows in 1 pages, 275 ms; distinct keys 0; keys -
+OK   NO-SUCH-BATCH pharmacy_stock_events    0 rows in 1 pages, 305 ms; distinct keys 0; keys -
+OK   NO-SUCH-BATCH return_records           0 rows in 1 pages, 272 ms; distinct keys 0; keys -

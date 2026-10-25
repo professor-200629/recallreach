@@ -1,6 +1,6 @@
 # Running and deploying RecallReach
 
-## Status (24 Oct 2026)
+## Status (25 Oct 2026)
 
 - **Local:** reproducible and verified on Windows 11, Node 24.14 (steps below).
 - **Hosted:** **not deployed.** There is no live URL. The project keeps its original hosting identity, an OpenAI Sites project (`.openai/hosting.json`, project `appgprj_6adbc4…`). Sites publishing is done from Codex with the Sites plugin, which was not available in this build session.
@@ -22,9 +22,9 @@ Open `http://localhost:5173/signin-with-chatgpt?return_to=/`. In development thi
 Checks:
 
 ```bash
-npm test            # 69 tests (node:test, Node's built-in SQLite for server tests)
+npm test            # 115 tests (node:test, Node's built-in SQLite for server tests)
 npm run typecheck   # tsc --noEmit
-npm run eval        # fixture evaluation vs the batch-lookup baseline -> eval/results.json
+npm run eval        # baseline vs engine vs rules mode, incl. the held-out case -> eval/results.json
 ```
 
 Local data lives in `.wrangler/state` (gitignored). Delete that folder to start fresh, then rerun `npm run db:migrate:local`.
@@ -32,9 +32,17 @@ Local data lives in `.wrangler/state` (gitignored). Delete that folder to start 
 ## Option A — OpenAI Sites (keeps the existing hosting identity)
 
 1. Open this folder in Codex with the Sites plugin and publish with its skill. The build copies `drizzle/` into `dist/.openai/`, and per the starter README Sites applies production migrations itself.
-2. Sign-in is provided by Sites (*Sign in with ChatGPT*). Identity headers are injected by the Sites dispatcher, which is what makes `app/chatgpt-auth.ts` safe.
+2. Sign-in is provided by Sites (*Sign in with ChatGPT*). Identity headers are injected by the Sites dispatcher, which is what makes `app/chatgpt-auth.ts` safe (see *Trust boundary* below).
 3. Secrets (`GROQ_API_KEY`, `ZETARIS_*`): **unverified** whether and how Sites lets you set Worker secrets. If it does not, the hosted app still works in rules mode with Zetaris shown as not configured.
 4. Zetaris must be reachable from the hosted Worker, so a local Docker instance on your laptop will not work for a hosted app. Use the Zetaris AWS cluster route for that.
+
+## Trust boundary for sign-in
+
+RecallReach does not authenticate users itself. `lib/recall/identity.ts` reads the `oai-authenticated-user-id` and `oai-authenticated-user-email` headers (both required) that the OpenAI Sites dispatcher sets after *Sign in with ChatGPT*, and removes from any client request. That is the only reason those headers can be trusted.
+
+- **Safe:** served through the Sites dispatcher (Option A), or locally through `npm run dev`, where the Vite plugin strips client-sent identity headers and sets the test user only for loopback requests with its sign-in cookie (`tests/boundaries.test.ts` sends forged headers through it).
+- **Not safe:** any route that reaches the Worker without the dispatcher in front: a `workers.dev` URL, a custom route, another proxy, or `npm start` (Wrangler) exposed beyond your machine. A caller could then send forged headers and read or change another user's cases. This was observed directly on 24 Oct 2026 by running the built Worker under Wrangler.
+- Not tested: the hosted Sites dispatcher itself (the app has not been deployed).
 
 ## Option B — Cloudflare Workers under your own account (needs an auth change first)
 

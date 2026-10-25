@@ -35,7 +35,7 @@ test('memory state survives a save and reload, including the trust ledger', () =
   assert.throws(() => new CaseMemory(c.id, 't', { ...a.toState(), engine: 'something-else' }), /written by something-else/);
 });
 
-test('new evidence invalidates the earlier conclusion; it is superseded, not deleted', async () => {
+test('new evidence invalidates the earlier conclusion; it is superseded by a recheck note that keeps its text', async () => {
   const c = createScenarioCase('missing-40', 'm2', NOW);
   const first = await runCaseInvestigation({ c, memoryState: null, provider: null, external: null, question: SCENARIOS['missing-40'].question, actor: 'QA' });
   const before = new CaseMemory(c.id, 'QA', first.memoryState).list({ c, r: reconcileCase(c) });
@@ -57,7 +57,8 @@ test('new evidence invalidates the earlier conclusion; it is superseded, not del
   const second = await runCaseInvestigation({ c, memoryState: state, provider: null, external: null, question: 'What changed after the new evidence, and what is still open?', actor: 'QA' });
   const recalled = second.run.steps.find(s => s.tool === 'recall_memory')!;
   assert.match(recalled.summary, /\d+ memories/);
-  assert.equal(second.run.answer!.findings.some(f => /recheck|stale|superseded/.test(f.claim)), true, 'later run reports the recheck instead of reusing the old conclusion');
+  assert.equal(second.run.answer!.interpretations!.some(i => /recheck|stale|superseded/.test(i.text)), true, 'later run reports the recheck instead of reusing the old conclusion');
+  assert.equal(second.run.answer!.facts!.some(f => f.status === 'validated' && f.entity.id === 'RR-104' && f.predicate === 'balance.available'), false, 'the old 40-bottle balance is not restated');
   assert.equal(reconcileCase(c).available, 0, 'stock comes from records, never from memory');
 });
 

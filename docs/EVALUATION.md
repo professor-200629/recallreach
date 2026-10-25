@@ -2,91 +2,87 @@
 
 Everything here is **automated testing on fictional fixtures** or **observed live runs** recorded on 24–25 Oct 2026. There has been **no evaluation with real users or real recall data**, and nothing here measures time saved or real-world outcomes.
 
-Important caveat: the same developer wrote the engine, the fixtures and the answer keys. Fixture scores show that RecallReach behaves as designed on cases built to exercise those rules; they are not independent accuracy measurements.
+**Caveat:** the same developer wrote the engine, the rules procedure, the fixtures and the answer keys, including the held-out case. The held-out key was committed before any run, so it was not tuned to results, but it was not written independently. Treat every score below as "behaves as designed on cases built to exercise it", not as independent accuracy.
 
-## 1. Automated tests: 69 passing
+## 1. Automated tests: 115 passing
 
-`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 25 Oct 2026: **69 tests, 69 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
+`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 25 Oct 2026: **115 tests, 115 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
 
 | Suite | Tests | Covers |
 | --- | --- | --- |
-| `tests/recall.test.ts` | 24 | Stock conservation (total and per shipment), quarantine→return without double counting, duplicates, conflicting versions, reused references, double openings, overspend, release/reversal attempts, identity matching, near-miss batches, units, fractional/negative/zero/implausible quantities, chronology, location, future and timezone-less timestamps, the correction workflow, CSV parsing, original-row retrieval, formula neutralisation, audit tamper detection, evidence snapshots and staleness |
-| `tests/agent.test.ts` | 20 | Tool schemas; a scripted investigation; fabricated citations and unsupported quantities; invalid arguments; malformed JSON; missing structured answer; timeout; rate-limit and auth handling; tool-call limit; prompt injection in source text; rules mode on both scenarios; unavailable connected source; budget handling and forced final submission; citable comparisons and memories; memory-only and contradicting claims; provider error mapping; follow-up checklist |
-| `tests/memory.test.ts` | 5 | Vendored H-MEM files match upstream hashes; save/reload round trip including the trust ledger; invalidation after new evidence (superseded, not deleted); operator decisions as long-term memory; contradictions kept and reported |
-| `tests/http.test.ts` | 12 | Unauthenticated access; owner-only reads and writes (SQL-level too); cross-site/non-JSON/oversized writes; concurrent updates (409, nothing lost); the full demo flow over HTTP; corrections; export downloads and content; persistence after reopening the database; mock source labelling; re-imports that add only rows not already in the case; unreachable Zetaris; memory feedback |
-| `tests/zetaris.test.ts` | 8 | The documented REST request shape, row mapping and exponent numbers; failure classification, including Zetaris 2.4's HTTP 400 "Not Allowed" for a wrong key; health check; SQL-injection resistance; configuration validation; read-only diagnostic probes; the datasource setup SQL (no secrets, allowed description characters) and the setup runner (skips what exists, dry run, stops at the first failure) |
+| `tests/recall.test.ts` | 24 | Engine: conservation (total and per shipment), quarantine→return without double counting, duplicates, conflicting versions, reused references, double openings, overspend, release/reversal attempts, identity, near-miss batches, units, bad quantities, chronology, location, timestamps, corrections, CSV parsing, original rows, formula neutralisation, audit tamper detection, snapshots |
+| `tests/agent.test.ts` | 21 | Agent loop with typed facts: scripted investigation, fabricated handles and wrong quantities, old free-text submissions rejected, invalid arguments, malformed JSON, missing answer, timeout, rate limits and auth, tool limit, prompt injection, rules mode on both development scenarios, unavailable source, forced final submission, follow-up citations, changes since the previous run, memory context, provider error mapping, follow-up checklist |
+| `tests/facts.test.ts` | 12 | Typed-fact validator counterexamples: wrong shipment, state, unit, scope, stale snapshot, not delivered, mixed clauses and unsupported summaries, record facts, referenced-but-not-delivered handles, connected-source rows (MOCK label, external dependency), evidence-request linking, and valid facts with generated wording |
+| `tests/trust.test.ts` | 6 | Regressions from the external review: the false "RR-104 60 dispensed" claim, the memory-reference bypass, connected-source-only memory (unknown → current → stale), legacy memories with no dependencies, bounded retention with dropped counts, oversized tool output (valid JSON, omitted counts, not delivered) |
+| `tests/import.test.ts` | 11 | Connected-source import: keyset SQL and literal binding, 1,200 rows over 7 pages with shared timestamps, unchanged re-import, same-key correction (twice), operator-corrected conflict, page failure, count mismatch, repeated row, too large, zero rows vs failed query, equal keys from two instances, a disappeared row, legacy imports |
+| `tests/boundaries.test.ts` | 10 | Atomic case + memory save (memory write failure rolls back the case; memory-version and case-version conflicts), concurrent runs, identity headers, forged headers through the local dispatcher stand-in, deadline with a fake clock (no tool after the deadline, late answer not accepted, cancellation reaches an in-flight source query, rate-limit wait past the deadline), rules-mode limits |
+| `tests/explain.test.ts` | 6 | Evidence Challenge on the drill: why RR-104 is unresolved, why approval cannot change it, which new evidence changed the result and why a reported quarantine is not a confirmed destination, why 60 dispensed need follow-up, the hypothetical preview, no invented likelihoods |
+| `tests/memory.test.ts` | 5 | Vendored H-MEM hashes, save/reload round trip, invalidation after new evidence, operator decisions, contradiction detection |
+| `tests/http.test.ts` | 12 | Unauthenticated access, owner-only access, cross-site/non-JSON/oversized writes, concurrent updates, the demo flow over HTTP, corrections, exports, persistence after reopening, mock labelling, versioned re-import over HTTP (response read back from storage), unreachable Zetaris, memory feedback |
+| `tests/zetaris.test.ts` | 8 | REST request shape and row mapping, failure classification, health check, SQL-injection resistance, configuration, read-only probes, datasource setup SQL and runner |
 
-The required verification list maps to these as follows:
+[JUDGE_GUIDE.md](JUDGE_GUIDE.md) maps each reported counterexample to its test.
 
-| Requirement | Test(s) |
-| --- | --- |
-| Conservation of stock quantities | recall: sample reconciles…, conservation holds per shipment… |
-| Duplicate and conflict handling | recall: conflicting event versions…, different IDs cannot count…, a second opening record… |
-| Identity and unit checks | recall: wrong batch…, case and outer whitespace…, near-miss…, unit mismatch… |
-| Chronology and invalid movements | recall: movement before shipment…, future events…, timestamps without a timezone…, overspending…, releasing held stock… |
-| CSV parsing and formula protection | recall: CSV supports…, CSV export neutralizes…; http: exports download… |
-| Audit tamper detection | recall: audit verifies… |
-| Case ownership and unauthorised access | http: unauthenticated…, cases are private… |
-| Concurrent updates | http: concurrent updates… |
-| Persistence after a fresh reload | http: data persists after the database is reopened…; memory: memory state survives… |
-| Invalid agent tool arguments | agent: invalid tool arguments…, repeated malformed JSON… |
-| Prompt injection inside source text | agent: instructions hidden in source text… |
-| Unavailable sponsor sources | agent: an unavailable connected source…; http: an unreachable Zetaris instance… |
-| LLM timeout or malformed output | agent: a model that never responds…, an answer without submit_findings…, the provider maps HTTP errors… |
-| Citation correctness | agent: fabricated citations…, comparisons and memories are citable…, memory alone cannot verify… |
-| Memory invalidation after corrected evidence | memory: new evidence invalidates…; http: the demo flow… |
-| Real export downloads and readable content | http: exports download…; browser check below |
+## 2. Held-out evaluation (Corvel vials)
 
-## 2. Fixture comparison with a batch-lookup baseline
+`eval/heldout/corvel-vials.ts` is a fictional case written for evaluation only: a unit mismatch (20 boxes recorded against vials), a reused hold reference, a duplicated return, an unconfirmed destination, a near-miss batch (`CV-3319B`), a different batch (`CV-3391`), and an instruction planted in a reference field. It is not in the app's scenario list. Its answer key and a follow-up rubric were committed alone in **`1313452`**, before the engine, rules mode or any model was run on it, and nothing was changed after seeing results.
 
-`npm run eval` → `eval/results.json`. Both methods see the same imported records.
+Results: `eval/results.json` (offline) and `eval/results-live-corvel-vials.json` (live). Methods:
 
-- **Baseline:** what an exact-batch spreadsheet filter plus SUMIF does. It keeps rows whose batch text equals the alert batch, sums openings per shipment, and subtracts every movement into quarantined, returned or dispensed. It has no unit, duplicate, chronology, reference or identity checks.
-- **RecallReach:** the deterministic engine (rules v2). The questions are scored against hand-written answer keys in `lib/recall/sample.ts`.
+- **Baseline:** an exact-batch spreadsheet filter plus SUMIF by shipment and state, with no unit, duplicate, reference or chronology checks.
+- **Engine:** RecallReach's deterministic reconciliation alone.
+- **Agent, rules mode:** the fixed tool-using procedure, submitting typed facts through the validator. No model.
+- **Agent, live model:** Groq free tier, `openai/gpt-oss-120b`, **3 runs**, bounded at 240 s each.
 
-| Scenario | Method | Unresolved shipments found (recall / precision) | Records wrongly counted | Questions correct |
+| Measure | Baseline | Engine | Agent, rules mode | Agent, live (3 runs) |
 | --- | --- | --- | --- | --- |
-| Missing 40 bottles (initial) | Baseline | 1/1 (1.00 / 1.00) | 5 | 3 / 7 |
-| | RecallReach | 1/1 (1.00 / 1.00) | 0 | 7 / 7 |
+| Questions correct (of 7: unresolved, dispensed, destinations, review, near-miss, duplicates, totals) | 1 | 7 | – | – |
+| Unresolved shipments with the right quantity | 1 / 3 | 3 / 3 | 3 / 3 | 0 / 3 in every run |
+| Records wrongly counted | 4 | 0 | 0 | 0 (stock unchanged by every run) |
+| Key facts stated as validated facts (of 5) | – | – | 5 | 0, 0, 0 |
+| Unsupported claims accepted as validated | – | – | 0 | 0, 0, 0 |
+| Facts submitted / validated / rejected | – | – | 12 / 12 / 0 | 3/3/0 · 0/0/0 · 0/0/0 |
+| Missing evidence identified (unresolved shipments with a linked request or proposal) | – | – | 3 / 3 | 2/3 · 0/3 · 0/3 |
+| Follow-up rubric points (of 12: proposed, right owner, names shipment and quantity, for 4 issues) | – | – | 12 | 6 · 0 · 0 |
+| Status | – | – | completed | completed · limit reached · limit reached |
+| Tool calls / model calls | – | – | 21 / 0 | 3/4 · 7/8 · 4/6 |
+| Time (of which waiting on rate limits) | – | – | 2 ms | 99.6 s (89 s) · 227.8 s (200 s) · 218.7 s (203 s) |
+| Tokens in / out | – | – | 0 | 18.7k/2.2k · 33.9k/2.3k · 25.5k/2.1k |
+
+What this shows, plainly:
+
+- The **engine** answers all seven questions on a case it was not tuned to; the spreadsheet baseline gets one, because the boxes record, the reused reference and the duplicated return hide two of the three gaps.
+- **Rules mode** turns the engine's answer into validated facts and well-formed follow-ups. It is a fixed procedure written by the same developer, so its score mostly confirms that procedure works on this kind of case.
+- **The live model did poorly on the held-out case.** Two of three runs spent about 200 s waiting on Groq's free-tier limit (8,000 tokens per minute) and stopped at the 240 s deadline without submitting anything; the deadline handling reported them as *limit reached*, not as completed. The one completed run used only 3 tools and submitted 3 facts, all validated, but none of them was one of the 5 key facts. The validator accepted nothing false in any run. With this provider tier the live agent is not reliable enough to quote as a result; rules mode and the engine are what the numbers support.
+
+## 3. Development fixtures
+
+The two scenarios in the app were used during development, so they are not held out.
+
+| Scenario | Method | Unresolved found (right quantity) | Records wrongly counted | Questions correct |
+| --- | --- | --- | --- | --- |
+| Missing 40 bottles (initial) | Baseline | 1/1 | 5 | 3 / 7 |
+| | Engine | 1/1 | 0 | 7 / 7 |
 | Missing 40 bottles (after follow-up) | Baseline | 0/0 | 5 | 3 / 7 |
-| | RecallReach | 0/0 | 0 | 7 / 7 |
-| Velora pens (second scenario) | Baseline | **1/3** (recall 0.33) | 10 | 1 / 7 |
-| | RecallReach | 3/3 (1.00 / 1.00) | 0 | 7 / 7 |
+| | Engine | 0/0 | 0 | 7 / 7 |
+| Velora pens | Baseline | 1/3 | 10 | 1 / 7 |
+| | Engine | 3/3 | 0 | 7 / 7 |
 
-The seven questions are: unresolved shipments and quantities, dispensed by shipment, unconfirmed destinations, records needing review, near-miss batch records, duplicates, and source-reported totals. On the second scenario the baseline misses VS-202 and VS-203, because double-counted openings and over-counted movements hide their gaps.
+Rules mode, typed facts: Missing 40 — 13 tool calls, 6 of 6 facts validated, 3/3 key facts, 1/1 missing evidence identified, 2 follow-ups. Velora pens — 18 tool calls, 12 of 12 validated, 5/5 key facts, 3/3 missing evidence, 4 follow-ups.
 
-## 3. Investigation runs on the fixtures
+## 4. Earlier live runs (24–25 Oct 2026, earlier free-text validator)
 
-Rules mode (no model), from `eval/results.json`:
+These runs used the previous design, in which the model wrote free-text claims and "verified" meant that the cited records existed and stated quantities appeared in them. An external review showed that this could accept a false claim (a quantity true for another shipment), which is why it was replaced by typed facts. The records are kept for transparency; their "verified" counts should not be quoted.
 
-| Scenario | Tool calls | Time | Findings verified | Unresolved shipments stated correctly | Follow-ups proposed |
-| --- | --- | --- | --- | --- | --- |
-| Missing 40 | 13 | 16 ms | 4 / 4 | 1 / 1 | 2 |
-| Velora pens | 18 | 2 ms | 12 / 12 | 3 / 3 | 4 |
+| Run | Scenario | Status | Time (waiting) | Tool calls | Model calls | Tokens in / out |
+| --- | --- | --- | --- | --- | --- | --- |
+| `eval/results-live-2026-10-24-run1.json` | Missing 40 | completed | 4.4 s | 2 | 3 | 7.2k / 1.1k |
+| same | Velora pens | completed | 153.5 s (137 s) | 5 | 6 | 23.0k / 3.1k |
+| `eval/results-live.json` | Missing 40 | completed | 6.5 s | 3 | 4 | 10.3k / 1.4k |
+| same | Velora pens | completed | 221.2 s (198 s) | 9 | 10 | 41.1k / 4.0k |
+| In the app, through Zetaris (25 Oct) | Missing 40 | completed | 140.1 s | 9 | 9 | 28.1k / 2.3k |
 
-Live model: Groq free tier, `openai/gpt-oss-120b`, one run per scenario, so treat these as anecdotes rather than statistics. Cost charged: **$0** (free tier).
-
-| Run | Scenario | Status | Time (waiting on rate limits) | Tool calls | Model calls | Tokens in / out | Findings verified | Unresolved shipments stated correctly | Follow-ups proposed |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 (`eval/results-live-2026-10-24-run1.json`) | Missing 40 | completed | 4.4 s | 2 | 3 | 7.2k / 1.1k | 1 / 1 | 1 / 1 | 0 |
-| 1 | Velora pens | completed | 153.5 s (137 s) | 5 | 6 | 23.0k / 3.1k | 3 / 3 | 3 / 3 | 0 |
-| 2, final code (`eval/results-live.json`) | Missing 40 | completed | 6.5 s | 3 | 4 | 10.3k / 1.4k | 1 / 2 | 1 / 1 | 1 |
-| 2 | Velora pens | completed | 221.2 s (198 s) | 9 | 10 | 41.1k / 4.0k | 3 / 3 | 3 / 3 | 1 |
-
-"Stated correctly" means a verified finding names the shipment and its exact unresolved quantity. Run 2 includes the follow-up checklist added after run 1, which is why it proposes follow-ups. The live model is noticeably less thorough than rules mode on the first scenario (2–3 tools against 13).
-
-## 4. Live runs in the app (observed, 24 Oct 2026, all on the fictional drill)
-
-These runs found real defects, which were fixed and covered by tests:
-
-| # | Question | Outcome | What it showed |
-| --- | --- | --- | --- |
-| 1 | Why are 40 bottles still unresolved…? | **Limit reached** after 85 s, 7 tool calls, 12 model calls (20.4k in / 1.6k out tokens), 74 s waiting on rate limits, no findings | Rate-limited retries were consuming the model-call budget. Fixed: 429s no longer count, and the final call is forced to `submit_findings` when the budget runs low. |
-| 2 | Same | Completed, 130 s, 10 tool steps, 10 model calls (27.8k / 2.7k), 1/1 finding verified, 1 evidence gap, 1 proposal | One proposal was rejected because it cited an issue ID (`stock:RR-104`), which findings allowed but proposals did not. Fixed. |
-| 3 | What changed since the previous run…? (after follow-up evidence) | Completed, 141 s, 0/4 findings verified | The reasoning was correct, but the model cited tool names instead of identifiers. The verifier correctly refused them. Fixed: comparisons (`D1`) and memories became citable, and tool-name citations get a specific explanation. |
-| 4 | Same | Completed, 147 s, 2/2 "verified", but one claim was **wrong**: it said the 40 bottles were still unresolved, based on a recheck memory, while the engine showed 0 | A verifier gap. Fixed: memory-only claims stay unverified, and present-tense "N unresolved" claims are checked against current balances (test added). The bad memory was marked wrong in the UI with H-MEM feedback. |
-
-Live run quality varies from run to run: some runs are thorough, others stop after 2–3 tools, and before the checklist was added none proposed follow-ups. The verifier labels what is supported; it does not make a weak run thorough.
+In-app runs on 24 Oct found defects that were fixed then: rate-limited retries consuming the model-call budget, proposals refusing issue IDs, tool names used as citations, and a memory-based claim that the old verifier accepted although the engine disagreed. The last one is the class of failure the typed-fact design removes (`tests/trust.test.ts`).
 
 ## 5. Through a real Zetaris instance (25 Oct 2026)
 
@@ -94,26 +90,35 @@ A local Zetaris 2.4.3 instance (the hackathon's local download) federated three 
 
 | Step | Observed |
 | --- | --- |
-| Case built only from Zetaris imports (DEMO-042) | 1,000 accepted / 900 contained / 40 awaiting containment / 60 dispensed; 4 records to review; 1 duplicate. Same as the answer key; the CSV drill's one out-of-scope record (DEMO-043) is not fetched, because the query filters by batch at the source |
-| Live-model investigation | Completed, 140.1 s, 9 tool steps, 9 model calls, 28.1k in / 2.3k out tokens; one `query_connected_source` step against Zetaris (1 row, 401 ms); 2 of 2 findings verified; RR-104's 40 bottles stated correctly; 1 follow-up proposed |
-| New evidence in the pharmacy source, re-imported through Zetaris | 1 new row added, 6 skipped; 940 contained (94%), 0 awaiting containment; review and duplicate counts unchanged |
+| Case built only from Zetaris imports (DEMO-042) | 1,000 accepted / 900 contained / 40 awaiting containment / 60 dispensed; 4 records to review; 1 duplicate. Same as the answer key |
+| Live-model investigation (earlier validator) | Completed, 140.1 s, 9 tool steps, one `query_connected_source` step against Zetaris (1 row, 401 ms) |
+| New evidence in the pharmacy source, re-imported through Zetaris | 1 new row added, 6 skipped; 940 contained (94%), 0 awaiting containment |
 
-An earlier run of the same flow, before the re-import fix, showed why it was needed: the second pharmacy import added its 6 existing rows again. Totals stayed correct, because the engine counts exact duplicates once, but the evidence health panel overstated duplicates (5) and records to review (6).
+These were recorded with the import code of the morning of 25 Oct. The import was then rebuilt as a counted, paged, versioned read (ARCHITECTURE.md) and **checked again against the same instance that evening** (`eval/zetaris-import-check-2026-10-25.md`, `eval/zetaris-read-check-2026-10-25.txt`):
 
-## 6. Browser checks (local dev server, Chrome-based pane)
+| Step | Observed |
+| --- | --- |
+| Paged reads with a page size of 2 | Every source read completely in 2–7 pages, distinct keys equal to the COUNT; an unknown batch returned 0 rows as a successful check |
+| Case built from three imports | 1,000 / 900 / 40 / 60, 4 to review, 1 duplicate (the answer key); instance recorded on each source |
+| Re-import, nothing changed | 0 new, 0 changed, 6 unchanged |
+| Rules-mode run on that case | Completed; 6 of 6 facts validated; case and memory saved together on local D1 |
+| Follow-up row added at the source | 1 new, 6 unchanged; 940 contained, 0 available |
+| The same row changed at the source (40 → 39) | 1 changed: the new version supersedes the old through a correction; 839 quarantined, 1 available; nothing double counted |
+| The row removed at the source | Reported as no longer returned; not reversed; balances unchanged |
 
-Done by hand on 24 Oct 2026 against `npm run dev`:
+## 6. Browser checks (local dev server)
 
-- Drill end to end: 1,000 accepted / 900 contained (90%) / 40 / 60 → live agent investigation → proposal approved, **still 40** → fictional follow-up evidence → **940 contained (94%), 0 available, 60 dispensed**. Dispensed and unconfirmed-destination follow-ups stayed open. The staleness banner appeared, and 3 memory notes were marked for recheck.
-- Second scenario: an instruction hidden in E-14's reference is found by the *Instruction-like text* filter. Correcting E-10's timezone-less timestamp via **Correct this record** superseded the original and recalculated: available 47 → 35, quarantined 280 → 292.
-- Exports fetched from the browser: Markdown, CSV and JSON returned HTTP 200 with `attachment` filenames and readable content (the files were not saved to disk).
-- Integrations screen: on 24 Oct, without Zetaris, it showed `MOCK · NOT ZETARIS`, every check was labelled mock, and **Run connection check** recorded a mock health entry. On 25 Oct, configured for the local instance, it showed `CONFIGURED · NOT YET VERIFIED` until the check passed, then `CONNECTED · LAST CHECK PASSED` with a `LIVE` entry (198 ms); the earlier mock entries stayed labelled mock.
-- Dialogs: focus moves into the dialog on open; Escape closes it.
-- Phone width: at 375 px no element was wider than the viewport, and navigation shows 5 short labels. The pane's device emulation kept reverting to 590 px, so dialog layout was checked at 590 px (17 px gutters). **Not tested on a physical phone.**
-- Production build: `npm run build` succeeds, and the built Worker boots under Wrangler/workerd (`/api/integrations` returns 401 without sign-in). The same check confirmed that **forged identity headers are accepted when the Worker runs without the Sites dispatcher**; see DEPLOYMENT.md.
+25 Oct 2026, against `npm run dev` with the current code:
 
-Not done: screen-reader testing, automated contrast audit, and testing on a real phone or tablet.
+- Drill: 1,000 / 900 / 40 / 60. *Why this finding?* on "Locate and check 40 bottles": calculation (opening +40), "None of the 4 records held for review … names RR-104", what could change it, why approval does not, and a hypothetical preview (40 → 0 available; the destination issue stays open).
+- Rules-mode investigation: COMPLETED, 6 of 6 typed facts validated, checked summary shown; the model/rules summary is labelled interpretation.
+- Proposal approved: still 40. Fictional follow-up evidence: 940 contained, 0 available, 60 dispensed; 4 memory notes marked for recheck. *Why this finding?* on the destination issue explains that the reported quarantine does not name a responsible recipient and lists the follow-up record under "Added since the previous run".
+- Reassessment in rules mode: 5 of 5 facts validated, including "the case available changed from 40 to 0"; memory shows SUPERSEDED notes with recheck notes quoting them.
+- Live-model run in the app with the current code (Groq free tier, fresh drill case): completed in 213.7 s, of which 189 s waiting on rate limits; 7 tool calls, 10 model calls, 36.2k in / 3.1k out tokens; 6 of 6 typed facts validated (RR-104 40 available, the case total, the opening record's report and status, the stock and destination issues); 1 follow-up proposed. It is the run shown in the deck. It did not state the RR-103 dispensing fact.
+- Older cases: runs made with the earlier validator render under "EARLIER RUN · FREE-TEXT FORMAT" with a note that their "verified" label only meant citations existed; their memories show CURRENT where dependencies can be checked and UNKNOWN where none were recorded.
+
+24 Oct 2026 checks (still valid for unchanged screens): exports download with readable content, dialogs take focus and close on Escape, no horizontal overflow at 375 px, the production build boots under Wrangler, and forged identity headers are accepted when the Worker runs **without** the Sites dispatcher (see DEPLOYMENT.md). Not done: screen-reader testing, an automated contrast audit, a physical phone.
 
 ## 7. Token use and cost
 
-All live calls used Groq's free tier: about 223k input and 23k output tokens in total across the five in-app runs (one through Zetaris), the two evaluation runs, two terminal smoke runs and three tiny header checks. **$0 charged.** Free-tier limit: 8,000 tokens per minute per model, so live runs take up to about 4 minutes.
+All live calls used Groq's free tier, as in earlier sessions (no cost estimate is configured, and the account's billing page was not checked in this session). Totals so far: about 337k input and 33k output tokens (six in-app runs, the four earlier evaluation runs, the three held-out runs, and a few smoke checks). Free-tier limit: 8,000 tokens per minute per model, which is why live runs spend most of their time waiting.

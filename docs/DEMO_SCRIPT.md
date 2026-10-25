@@ -1,35 +1,34 @@
-# Demo script (target 3:30; the official limit is 1–4 minutes)
+# Demo script (target 3:15–3:30; the official limit is 1–4 minutes)
 
-Rule 6.1 asks the video to show the main workflow, how the agent solves the challenge, its key features, and how Zetaris and Meterless are integrated. Timings are a guide. Cut the optional lines first if you run long.
+Rule 6.1 asks the video to show the main workflow, how the agent solves the challenge, its key features, and how Zetaris and Meterless are integrated. Seven beats; timings are a guide.
 
-**Before recording**
+## Recording rules (keep the video honest)
 
-- Zetaris is connected on this laptop. Start Docker with `scripts\windows\start-docker-desktop.ps1`, run `bring-up.sh` in Ubuntu (it re-runs `verify.sh`), and reset the follow-up row with `integrations/zetaris/fixtures/03-reset-followup.sql` (see INTEGRATIONS.md).
-- `npm run dev` and sign in. Then either:
-  - **Zetaris path (recommended):** New case → Example Pharma (fictional) / Nivara oral solution / DEMO-042 / bottles, then **Import records → From a connected source** for all three sources. The numbers match the drill below.
-  - **Drill path:** **New case → The missing 40 bottles** (sample records, no Zetaris).
-- Live model runs take up to about 4 minutes on Groq's free tier. Start the live run, then **cut or speed up** the waiting in editing and say so on screen ("sped up ×8"). Never imply it took seconds.
-- Show **Integrations → Run connection check** passing. If Zetaris is down on the day, say so; never show the labelled mock as Zetaris.
-- Everything shown is fictional: say it once at the start.
+- **No splicing.** Every run you show is one continuous run in one case. You may speed up waiting, but do not cut from one run's tool steps to another run's results, and do not re-record a single beat with a different outcome without saying so.
+- **Label speed-ups on screen** ("sped up ×8") whenever waiting is compressed. A live run on Groq's free tier takes 1–4 minutes; never imply it took seconds.
+- **Label rules mode on screen** ("RULES MODE · no language model") whenever a result comes from rules mode. The app shows the same label; keep it visible.
+- **Say "fictional data" once at the start**, and "local Zetaris instance" when Zetaris appears. If the connection check fails on the day, say so and do not show the labelled mock as Zetaris.
+- **Don't say:** "production-ready", "verified" for anything other than a validated fact, "complete", "first prize", "physically checked", "no patients were affected", "real-time", "independently evaluated".
 
-| Time | Screen | Say (plain, short) |
-| --- | --- | --- |
-| 0:00 | Overview | "When a medicine batch is recalled, the records that say where it went are spread across distributors, pharmacies and returns desks. RecallReach helps the recall coordinator find what is still unresolved, and shows the evidence for every finding. Everything here is fictional." |
-| 0:15 | Stat cards, stock bar | "1,000 bottles shipped. The deterministic engine reports 900 contained and 60 dispensed, and 40 bottles have no containment record. It also refused to count a duplicate return, two conflicting versions, a wrong unit and a record with no shipment ID." |
-| 0:35 | Evidence library, filter *Needs review*, open one record | "Nothing is swept aside: each record says why it was or wasn't counted, with its original row." |
-| 0:50 | Agent screen: ask the prefilled question, Live model | "Now the investigation agent. It's a bounded, tool-using agent: it can only read evidence through these tools, and it can't change stock." |
-| 1:00 | Tool activity (sped up) | "It chose its own steps: scope, reconciliation, the RR-104 ledger, the original dispatch row, a reference trace. Each step shows its stated purpose." |
-| 1:20 | Findings with *Verified* tags and citation chips; click a chip | "Every claim cites records it actually retrieved. RecallReach checks the citations and the numbers; anything it can't support is marked unverified, not hidden." |
-| 1:40 | Follow-up queue → Approve the proposal | "It proposes a follow-up, asking the distributor for proof of delivery. A person approves it." |
-| 1:50 | Overview: still 40 | "Approval alone changes nothing: still 40 bottles to follow up." |
-| 2:00 | Zetaris path: run `02-followup-quarantine.sql` off camera, then **Import records → Pharmacy stock events** ("1 new row imported from Zetaris; 6 already in this case skipped"). Drill path: *Add fictional follow-up evidence* | "Now the pharmacy's own system records those 40 bottles as quarantined, and RecallReach picks up just that new record through Zetaris." |
-| 2:10 | Overview: 940 contained, 0 available, 60 dispensed; staleness banner | "The engine reconciles to 940 contained and zero available. The 60 dispensed bottles still need a pharmacist, and the destination is still unconfirmed: a quarantine record isn't proof of where the stock is. Earlier conclusions are now flagged as stale." |
-| 2:30 | Agent: *What changed since the previous run* (rules mode is instant; live is slower) | "Reassessing: it compares the evidence snapshots and recalls its earlier notes from Meterless H-MEM memory. The old conclusion is marked superseded, not reused." |
-| 2:50 | Memory panel (CURRENT / SUPERSEDED tags) | "Meterless H-MEM stores verified findings and decisions with their evidence. When that evidence changes, the memory is superseded, never silently overwritten." |
-| 3:05 | Integrations screen: **Run connection check** (LIVE, about 200 ms) and the query log | "Zetaris lets RecallReach query each source system read-only, with latency and failures recorded. Here it's a local Zetaris instance with fictional source systems, and the last check passed." |
-| 3:20 | Audit tab → Verify hash chain; Export | "Every decision and change is in a hash-chained log you can export. RecallReach never sends messages and never declares a recall complete." |
-| 3:30 | End | "RecallReach: every batch, every handoff, with evidence." |
+## Before recording
 
-**Optional cut-ins if time allows:** the second scenario (*Velora pens*), where the agent finds 12 pens held back by a quarantine record with an ambiguous timestamp; or the instruction hidden in a source row being flagged as data.
+- Zetaris: start Docker (`scripts\windows\start-docker-desktop.ps1`), run `bring-up.sh` in Ubuntu (it re-runs `verify.sh`), and reset the follow-up row with `integrations/zetaris/fixtures/03-reset-followup.sql` (see INTEGRATIONS.md).
+- `npm run dev`, then sign in at `http://localhost:5173/signin-with-chatgpt?return_to=/`.
+- **Zetaris path (recommended):** New case → Example Pharma (fictional) / Nivara oral solution / DEMO-042 / bottles → **Import records → From a connected source** for all three sources. **Drill path:** New case → *The missing 40 bottles*.
+- Start the live investigation before you begin talking over beat 3, so the wait can be sped up.
 
-**Don't say:** "production-ready", "complete", "first-prize", "verified physically", "no patients were affected", "real-time integration", or that Zetaris is connected unless the check passed on screen.
+## The seven beats
+
+| # | Time | Screen | Say (plain, short) |
+| --- | --- | --- | --- |
+| 1 | 0:00 | Overview | "When a medicine batch is recalled, the records that say where it went are split across a distributor, pharmacies and a returns desk. RecallReach helps a recall coordinator find stock that is still unresolved and shows why. Everything here is fictional." |
+| 2 | 0:20 | Stat cards, then Evidence library filtered to *Needs review* | "A deterministic engine reconciles the records: 1,000 bottles shipped, 900 reported contained, 60 dispensed, and 40 with no containment record. It refused to count a duplicate return, conflicting versions, a wrong unit and a record with no shipment, and each record says why." |
+| 3 | 0:50 | Agent → prefilled question → **Live model**; tool activity (label "sped up ×N") | "The investigation agent can only read evidence through these tools. It chose its own steps: reconciliation, the RR-104 ledger, the original dispatch row, a reference trace, the connected sources through Zetaris." |
+| 3 | 1:10 | Run result: **Checked summary** and **Typed facts** | "It can't just write a claim. Each fact is typed — this shipment, this state, this quantity, this unit — and RecallReach checks every field against the engine and the records the agent actually received, then writes the wording itself. The model's own summary sits below, marked as interpretation." (If the run has a **REJECTED** fact, show it: "here it got one wrong, and it was rejected with the reason.") |
+| 4 | 1:35 | **Why this finding?** on the RR-104 balance | "Ask why. The calculation: 40 accepted, nothing moved. No rejected record names RR-104 or 40 bottles. What would change it: a dated quarantine, return or dispensing record. And approving a follow-up won't, because only evidence changes stock. The preview reruns the engine with one hypothetical record: the 40 would close, but the destination would stay unconfirmed." |
+| 5 | 2:05 | Follow-up queue → approve → Overview still 40; then run `02-followup-quarantine.sql` off camera and **Import records → Pharmacy stock events** | "A person approves the proposed follow-up. Still 40. Now the pharmacy's own system records the 40 as quarantined, and RecallReach reads it through Zetaris: one new row, the unchanged ones skipped. 940 contained, zero available. The destination is still unconfirmed, and *Why this finding?* says why: a quarantine report isn't proof of who holds the stock. The 60 dispensed still need a pharmacist." |
+| 6 | 2:35 | Agent → *What changed since the previous run* in **rules mode** (label it) → Memory panel | "Rules mode, no model, reassesses instantly. Meterless H-MEM memory stores validated facts with what they depend on; the old 40-bottle note is superseded by a recheck note, not reused. Anything it can't recheck is shown as unknown, never as current." |
+| 7 | 3:00 | Integrations → **Run connection check** (LIVE); Audit → Verify hash chain | "Zetaris gives read-only access to each source system; here it's a local instance with fictional databases, and the check just passed. Every change is in a hash-chained log you can export. RecallReach sends no messages and never declares a recall complete." |
+| | 3:25 | End card | "RecallReach: every batch, every handoff, with evidence." |
+
+**If a live run fails or hits its limit on the day,** show it as it is (the status is on screen) and switch to rules mode with the label. Do not re-run until it looks good and present that as typical; the evaluation numbers in EVALUATION.md are what to quote.

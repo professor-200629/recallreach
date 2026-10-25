@@ -40,3 +40,13 @@
 .drill-picker{border:1px dashed #d9cfa9;background:#fbf8ee;border-radius:8px;padding:12px 14px}.drill-picker>div{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .memory-wrong{margin-left:auto;font-size:10px;color:#a14d33}
 @media(max-width:680px){.sidebar nav .nav-item .nav-long{display:none}.sidebar nav .nav-item .nav-short{display:block;font-size:9px}}
+
+/* Typed facts and the Evidence Challenge ("Why this finding?"). */
+.checked-summary{list-style:disc;margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:6px}.checked-summary li{font-size:13px;line-height:1.65;color:#2f4f40}
+.claim.verified{border-left-color:#5fae86}.why-button{margin-left:auto;font-size:11px;font-weight:600;color:#22604d}.claim-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.challenge{display:flex;flex-direction:column;gap:14px}.challenge-statement{border:1px solid #dfe8dc;border-radius:8px;padding:12px 14px;background:#f7faf6}.challenge-statement p{font-size:13px;line-height:1.7;color:#2f4f40;margin:8px 0}.challenge-statement p.subtle{font-size:11px;color:#64766b}
+.challenge-section h3{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#284b3c;margin-bottom:8px}.challenge-list{list-style:disc;margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}.challenge-list li{font-size:12px;line-height:1.65;color:#2f4f40}.challenge-list .text-button,.challenge-steps .text-button{text-align:left;font-size:12px;line-height:1.6;padding:0;color:#22604d;white-space:normal}
+.challenge-steps{list-style:decimal;margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}.challenge-steps li{font-size:12px;color:#2f4f40}.challenge-result{font-size:12px;font-weight:600;color:#395c48;margin-top:8px;line-height:1.6}
+.balance-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.balance-row>span{display:inline-flex;align-items:baseline;gap:4px;border:1px solid #e3eae1;border-radius:4px;padding:2px 6px;background:#fff}.balance-row small{font-size:10px;color:#64766b}.balance-row strong{font-size:11px;color:#284b3c}
+.hypo-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;font-size:11px;color:#64766b;margin:8px 0}.challenge-section p.subtle{font-size:11px;line-height:1.6;color:#64766b;margin:4px 0}
+@media(max-width:680px){.why-button{margin-left:0}.hypo-grid{grid-template-columns:1fr}.challenge-statement{padding:10px 12px}}

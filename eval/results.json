@@ -1,15 +1,17 @@
 {
-  "generated_at": "2026-10-24T14:59:27.123Z",
+  "generated_at": "2026-10-25T16:53:58.767Z",
   "note": "Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.",
+  "held_out_key_commit": "1313452",
   "scenarios": {
     "missing-40": {
+      "held_out": false,
       "initial": {
         "baseline": {
           "unresolved_found": {
             "RR-104": 40
           },
-          "unresolved_precision": 1,
-          "unresolved_recall": 1,
+          "unresolved_correct": "1/1",
+          "unresolved_false_positives": 0,
           "wrongly_counted_records": 5,
           "totals": {
             "shipped": 1000,
@@ -31,12 +33,12 @@
           "questions_correct": 3,
           "questions_total": 7
         },
-        "recallreach": {
+        "engine": {
           "unresolved_found": {
             "RR-104": 40
           },
-          "unresolved_precision": 1,
-          "unresolved_recall": 1,
+          "unresolved_correct": "1/1",
+          "unresolved_false_positives": 0,
           "wrongly_counted_records": 0,
           "totals": {
             "shipped": 1000,
@@ -62,8 +64,8 @@
       "after_followup": {
         "baseline": {
           "unresolved_found": {},
-          "unresolved_precision": 1,
-          "unresolved_recall": 1,
+          "unresolved_correct": "0/0",
+          "unresolved_false_positives": 0,
           "wrongly_counted_records": 5,
           "totals": {
             "shipped": 1000,
@@ -85,10 +87,10 @@
           "questions_correct": 3,
           "questions_total": 7
         },
-        "recallreach": {
+        "engine": {
           "unresolved_found": {},
-          "unresolved_precision": 1,
-          "unresolved_recall": 1,
+          "unresolved_correct": "0/0",
+          "unresolved_false_positives": 0,
           "wrongly_counted_records": 0,
           "totals": {
             "shipped": 1000,
@@ -114,32 +116,51 @@
       "agent_rules_mode": {
         "mode": "rules",
         "provider": "none",
-        "model": "rules-v2",
+        "model": "rules-v3",
         "status": "completed",
         "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
-        "duration_ms": 16,
+        "duration_ms": 21,
         "tool_calls": 13,
         "rejected_tool_calls": 0,
         "model_calls": 0,
         "input_tokens": 0,
         "output_tokens": 0,
         "estimated_cost_usd": null,
-        "findings": 4,
-        "verified_findings": 4,
-        "citations_valid": 9,
-        "citations_rejected": 0,
-        "unresolved_shipments_correctly_stated": "1/1",
-        "follow_ups_proposed": 2
+        "facts_submitted": 6,
+        "facts_validated": 6,
+        "facts_rejected": 0,
+        "rejected_fact_reasons": [],
+        "key_facts_correct": "3/3",
+        "key_facts": [
+          {
+            "item": "RR-104 available 40",
+            "found": true
+          },
+          {
+            "item": "RR-103 dispensed 60",
+            "found": true
+          },
+          {
+            "item": "RR-104 destination unconfirmed",
+            "found": true
+          }
+        ],
+        "unsupported_claims_accepted": 0,
+        "overreach_flags": 0,
+        "missing_evidence_identified": "1/1",
+        "follow_ups_proposed": 2,
+        "stock_unchanged_by_run": true
       }
     },
     "velora-pens": {
+      "held_out": false,
       "initial": {
         "baseline": {
           "unresolved_found": {
             "VS-204": 25
           },
-          "unresolved_precision": 1,
-          "unresolved_recall": 0.3333333333333333,
+          "unresolved_correct": "1/3",
+          "unresolved_false_positives": 0,
           "wrongly_counted_records": 10,
           "totals": {
             "shipped": 505,
@@ -161,14 +182,14 @@
           "questions_correct": 1,
           "questions_total": 7
         },
-        "recallreach": {
+        "engine": {
           "unresolved_found": {
             "VS-202": 12,
             "VS-203": 10,
             "VS-204": 25
           },
-          "unresolved_precision": 1,
-          "unresolved_recall": 1,
+          "unresolved_correct": "3/3",
+          "unresolved_false_positives": 0,
           "wrongly_counted_records": 0,
           "totals": {
             "shipped": 425,
@@ -194,22 +215,186 @@
       "agent_rules_mode": {
         "mode": "rules",
         "provider": "none",
-        "model": "rules-v2",
+        "model": "rules-v3",
         "status": "completed",
         "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
-        "duration_ms": 4,
+        "duration_ms": 3,
         "tool_calls": 18,
         "rejected_tool_calls": 0,
         "model_calls": 0,
         "input_tokens": 0,
         "output_tokens": 0,
         "estimated_cost_usd": null,
-        "findings": 12,
-        "verified_findings": 12,
-        "citations_valid": 19,
-        "citations_rejected": 0,
-        "unresolved_shipments_correctly_stated": "3/3",
-        "follow_ups_proposed": 4
+        "facts_submitted": 12,
+        "facts_validated": 12,
+        "facts_rejected": 0,
+        "rejected_fact_reasons": [],
+        "key_facts_correct": "5/5",
+        "key_facts": [
+          {
+            "item": "VS-202 available 12",
+            "found": true
+          },
+          {
+            "item": "VS-203 available 10",
+            "found": true
+          },
+          {
+            "item": "VS-204 available 25",
+            "found": true
+          },
+          {
+            "item": "VS-202 dispensed 38",
+            "found": true
+          },
+          {
+            "item": "VS-204 destination unconfirmed",
+            "found": true
+          }
+        ],
+        "unsupported_claims_accepted": 0,
+        "overreach_flags": 0,
+        "missing_evidence_identified": "3/3",
+        "follow_ups_proposed": 4,
+        "stock_unchanged_by_run": true
+      }
+    },
+    "corvel-vials": {
+      "held_out": true,
+      "initial": {
+        "baseline": {
+          "unresolved_found": {
+            "CV-304": 60
+          },
+          "unresolved_correct": "1/3",
+          "unresolved_false_positives": 0,
+          "wrongly_counted_records": 4,
+          "totals": {
+            "shipped": 470,
+            "available": -240,
+            "quarantined": 380,
+            "returned": 300,
+            "dispensed": 30
+          },
+          "totals_correct": false,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": false,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": false,
+            "Which records need review?": false,
+            "Which near-miss batch records need checking?": false,
+            "Which records are duplicates?": false,
+            "Are the source-reported totals correct?": false
+          },
+          "questions_correct": 1,
+          "questions_total": 7
+        },
+        "engine": {
+          "unresolved_found": {
+            "CV-302": 20,
+            "CV-303": 30,
+            "CV-304": 60
+          },
+          "unresolved_correct": "3/3",
+          "unresolved_false_positives": 0,
+          "wrongly_counted_records": 0,
+          "totals": {
+            "shipped": 470,
+            "available": 110,
+            "quarantined": 180,
+            "returned": 150,
+            "dispensed": 30
+          },
+          "totals_correct": true,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": true,
+            "Which records need review?": true,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": true
+          },
+          "questions_correct": 7,
+          "questions_total": 7
+        }
+      },
+      "agent_rules_mode": {
+        "mode": "rules",
+        "provider": "none",
+        "model": "rules-v3",
+        "status": "completed",
+        "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
+        "duration_ms": 1,
+        "tool_calls": 21,
+        "rejected_tool_calls": 0,
+        "model_calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "estimated_cost_usd": null,
+        "facts_submitted": 12,
+        "facts_validated": 12,
+        "facts_rejected": 0,
+        "rejected_fact_reasons": [],
+        "key_facts_correct": "5/5",
+        "key_facts": [
+          {
+            "item": "CV-302 available 20",
+            "found": true
+          },
+          {
+            "item": "CV-303 available 30",
+            "found": true
+          },
+          {
+            "item": "CV-304 available 60",
+            "found": true
+          },
+          {
+            "item": "CV-301 dispensed 30",
+            "found": true
+          },
+          {
+            "item": "CV-304 destination unconfirmed",
+            "found": true
+          }
+        ],
+        "unsupported_claims_accepted": 0,
+        "overreach_flags": 0,
+        "missing_evidence_identified": "3/3",
+        "follow_ups_proposed": 4,
+        "follow_up_rubric": [
+          {
+            "issue_id": "stock:CV-302",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:CV-303",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:CV-304",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "dispensed:CV-301",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          }
+        ],
+        "follow_up_rubric_points": "12/12",
+        "stock_unchanged_by_run": true
       }
     }
   }

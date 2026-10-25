@@ -14,7 +14,7 @@ flowchart LR
     INV[investigation.ts]
     AG[agent/runner.ts<br/>bounded tool loop]
     TOOLS[agent/tools.ts<br/>10 read-only tools]
-    VAL[agent/validate.ts<br/>citation + quantity checks]
+    VAL[agent/facts.ts + validate.ts<br/>typed-fact checks]
     MEM[memory/hmem.ts<br/>+ vendored Meterless H-MEM]
     SRC[sources/zetaris.ts<br/>sources/mock.ts]
   end
@@ -37,7 +37,7 @@ flowchart LR
 | --- | --- | --- |
 | Stock arithmetic, identity matching, unit and chronology checks | `engine.ts` (deterministic, rules v2) | The language model; memory |
 | Choosing what to look at next, explaining evidence | The language model (live mode) or `agent/rules.ts` (rules mode) | The engine |
-| Whether a claim is supported | `agent/validate.ts` against what the run actually retrieved | The model's own say-so |
+| Whether a statement is supported | `agent/facts.ts`: each typed fact is checked field by field against the engine and the evidence delivered in that run; RecallReach writes the wording | The model's own say-so, or a second model |
 | Approving follow-ups, correcting records | A signed-in person | The agent (no tool exists for it) |
 | Remembering earlier conclusions and when they went stale | Meterless H-MEM plus RecallReach evidence fingerprints | Current-evidence calculations |
 
@@ -78,18 +78,42 @@ sequenceDiagram
     R->>T: validate arguments (zod), execute
     T-->>R: data + citation handles (E1, X1, issue IDs)
   end
-  M->>R: submit_findings (forced if budget runs low)
-  R->>V: check citations and quantities
-  V-->>R: verified / unverified claims, rejected citations
-  R->>R: store proposals, verified memories, snapshot, audit entry
-  R-->>O: run record: tool activity, findings, follow-ups
+  M->>R: submit_findings: typed facts + interpretations + evidence requests
+  R->>V: validate each fact field by field against engine + delivered evidence
+  V-->>R: validated facts (RecallReach wording) / rejected facts with reasons
+  R->>R: store proposals, validated facts as memory (with dependencies), snapshot, audit entry
+  R-->>O: run record: tool activity, checked summary, facts, interpretation, follow-ups
 ```
 
 - **Tools** (`agent/tools.ts`): read recall scope, run reconciliation, search records, open shipment ledger, retrieve original source row, trace a reference, recall memory, compare with the previous run, query a connected source through Zetaris, and propose a follow-up. All are read-only. `propose_follow_up` creates a draft that does nothing until a person approves it.
 - **Arguments** are validated with zod schemas, which are also the JSON schemas sent to the model. Invalid, malformed or unknown calls are rejected, recorded and reported back to the model. After 3 consecutive turns of only invalid calls the run stops.
-- **Citations** are short per-run handles (`E7`) mapped to record IDs. A claim is *verified* only if every citation was returned by a tool in this run, every quantity it states matches a retrieved record or engine figure, and it does not claim something RecallReach cannot establish (recall complete, physically verified, destination confirmed, all stock contained, patient outcomes). Unsupported claims are kept but labelled *unverified* with the reasons. Only verified statements are written to memory.
+- **Typed facts, not free text** (`agent/facts.ts`). The agent can only state a checkable fact in one of seven typed forms: `shipment_balance`, `case_total`, `record_report`, `record_status`, `open_issue`, `change_since_previous`, `source_row_report`. Each names an entity, a predicate, a quantity, a unit, a scope and (optionally) the evidence snapshot. The validator checks every field against the engine or the exact record: a quantity that is true for another shipment, the right number in the wrong state, a different unit, a case total presented as a shipment figure, an earlier snapshot, or evidence the agent never received each reject the fact with a specific reason. There is no regex extraction of numbers from prose and no second model acting as judge.
+- **Wording is generated** from the validated fields, labelled *calculated by the engine* or *reported by a source, not proof of physical handling*. The **checked summary** is the list of validated statements. The model's own summary, its interpretations and its evidence requests are shown separately as unverified; overreaching phrases (recall complete, physically verified, destination confirmed, all stock contained, patient outcomes) are flagged there.
+- **Delivered versus referenced.** Evidence counts as delivered only if it appears in the serialized tool result the model actually received (`collectDelivered`). Record handles that a memory or an issue list merely mentions are *referenced* and cannot support a fact until retrieved with `get_source_row`, `search_records` or `get_shipment_ledger`. Memory IDs are never evidence.
+- **Tool output is always valid JSON.** Long results are shortened in passes (fewer items, shorter strings) with `<key>_omitted` counts and paging hints (`offset`, `next_offset`); items dropped are not delivered.
+- **Evidence requests** must link to an open issue the agent retrieved. **Follow-up proposals** must name a retrieved issue and cite delivered evidence.
 - **No hidden reasoning** is requested, stored or shown. The visible trace is the actual sequence of tool calls, each with the model's one-sentence stated purpose.
-- **Rules mode** runs a fixed procedure that branches on the question and on tool results. It uses the same executor and verifier, and is labelled "no language model".
+- **Rules mode** runs a fixed procedure that branches on the question and on tool results. It submits typed facts through the same executor and validator, and is labelled "no language model". It has its own tool-call limit (40) and shares the time limit.
+- **One deadline** (240 s by default) covers model calls, retries, rate-limit waits and tools. One cancellation signal reaches every model request and connected-source query. No tool starts after the deadline, a rate-limit wait that would pass it ends the run, and a run is never reported *completed* after its deadline (tests use a fake clock).
+
+## Evidence Challenge ("Why this finding?")
+
+`lib/recall/explain.ts` explains any validated fact or open issue from the case records, the engine's record statuses and the fact's typed fields: the statement and its snapshot, the evidence, the step-by-step calculation with the running balance, records not counted and why, what the evidence does not show, what evidence could change the conclusion, which evidence arrived since the previous run, why an approval does not change stock, and a clearly labelled hypothetical preview (the engine rerun with one synthetic containment record, nothing saved). No likelihoods are estimated.
+
+## Memory dependencies and retention
+
+Only validated facts and operator decisions are written to memory, in RecallReach's wording, with the dependencies the validator recorded: the case, a shipment, a record, or a connected-source row (instance, table, row key, content hash, capture time, query scope). Validity is recomputed on every read:
+
+- **current**: every dependency was checked and is unchanged;
+- **stale**: a dependency changed (a shipment's records or balance, a record's status, or a source row's content; or a complete read of the source no longer returned the row). Stale memories are superseded by a recheck note that quotes the old text;
+- **unknown**: something cannot be checked here: no dependencies were recorded (older memories), or a connected-source row has not been read again since it was captured. Unknown is never shown as current.
+
+Retention is bounded: the newest 200 memories and 800 ledger entries are kept per case. Older entries are dropped and the counts are stored and shown in the memory panel.
+
+## Connected-source imports
+
+An import is a **complete read** (`readAll`): a `COUNT(*)`, then keyset pages ordered by the source's timestamp column with `row_no` as the tie-breaker (bound as literals). The read succeeds only if the pages return exactly the counted number of distinct rows; a failed page, a repeated row or a count mismatch fails the whole read and nothing is imported. Each row's identity is source instance + table + row key, and its content is hashed: unchanged rows are skipped, a row changed at the source is imported as a new version that supersedes the old one through an audited correction (the old record is kept and no longer counted), a row the source no longer returns is reported but never reversed, and a read with no matching rows is a recorded, successful check. Every row read is recorded as an observation, which is what lets memory tell current connected-source evidence from evidence that has not been re-checked.
+
 
 ## Untrusted input
 
@@ -103,16 +127,15 @@ Imported files, connected-source rows and source text are treated as data:
 
 ## Authentication and authorisation
 
-- Identity comes from the OpenAI Sites dispatcher, which injects `oai-authenticated-user-*` headers after *Sign in with ChatGPT* (`app/chatgpt-auth.ts`).
+- **Trust boundary.** RecallReach does not authenticate users itself. It reads `oai-authenticated-user-*` headers that the OpenAI Sites dispatcher sets after *Sign in with ChatGPT* and strips from client requests (`lib/recall/identity.ts`, used by `app/chatgpt-auth.ts`). Inside a Sites deployment those headers can be trusted; anywhere the Worker is reachable without that dispatcher in front (a `workers.dev` route, another proxy), a caller could forge them. See `DEPLOYMENT.md`.
+- In local development the Vite plugin plays the dispatcher's role: it strips client-sent identity headers on every request and sets the local test user (`local_seedy`) only for loopback requests carrying its sign-in cookie. `tests/boundaries.test.ts` sends forged headers through it.
 - Every case query filters by `owner_id = <signed-in user>`, including updates (`repo.ts`). A guessed case ID returns 404.
 - Writes require JSON, reject cross-site origins and enforce size limits.
-- The development sign-in (`local_seedy`) exists only in the Vite dev-server plugin, only answers loopback requests, and is not part of production builds.
-- **Important:** the header-based identity is only safe behind the Sites dispatcher, which strips and sets those headers. Deploying the Worker anywhere else (for example plain `wrangler deploy`) would let a caller forge them. See `DEPLOYMENT.md`.
 
 ## Concurrency and persistence
 
-- Each case is one JSON document in `recall_cases` with a `version`. Every update is `UPDATE … WHERE id = ? AND owner_id = ? AND version = ?`; a stale writer gets HTTP 409 and must reload.
-- Memory has its own versioned row in `case_memory`. It is written after the case and is not atomic with it; if the memory write loses a race, the response says `memory_saved: false` and the case is still correct.
+- Each case is one JSON document in `recall_cases` with a `version`; its memory is a versioned row in `case_memory`.
+- A change saves both **in one transaction** (a D1 batch): the case update is guarded by its version, the memory update by its version, both payloads carry a unique save token, and a final guard statement aborts the batch unless both rows now carry that token. Either both commit or neither does; a conflict on either returns HTTP 409, and the response is read back from storage after the commit.
 - Evidence snapshots (`snapshot.ts`) store a 64-bit change-detection fingerprint and per-shipment balances at each run. They drive the staleness banner, `compare_with_previous_run`, and memory revalidation. The fingerprint detects change only; it is not a security hash.
 
 ## Audit trail
@@ -125,12 +148,14 @@ Every change appends an entry whose SHA-256 hash covers the previous entry's has
 app/                 pages and API routes (cases, export, integrations)
 components/recall/   workspace, agent panel, integrations, record dialog
 lib/recall/          engine, csv, snapshot, audit, actions, http, repo, export, investigation
-lib/recall/agent/    tools, runner, rules, validate, provider, safety
+lib/recall/agent/    tools, runner, rules, facts (typed-fact validator), validate, provider, safety
+lib/recall/explain.ts  Evidence Challenge
 lib/recall/memory/   H-MEM adapter
 lib/recall/sources/  Zetaris adapter, mock, shared mapping
 vendor/meterless-hmem/  unmodified Meterless H-MEM reference (Apache-2.0)
 drizzle/             D1 migrations
 integrations/zetaris/   fixture source databases for a local Zetaris
 scripts/             evaluate, migrate-local, zetaris-fixtures, starter tooling
-tests/               node:test suites (engine, agent, memory, http, zetaris)
+tests/               node:test suites (engine, agent, facts, trust, import, boundaries, explain, memory, http, zetaris)
+eval/heldout/        held-out fixture and answer key, committed before any run
 ```

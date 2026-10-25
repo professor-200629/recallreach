@@ -7,6 +7,7 @@ import { sqliteD1 } from './helpers/sqlite-d1.ts';
 import { CaseRepository } from '../lib/recall/repo.ts';
 import { createHandlers, handle, type Deps, type ExternalSetup } from '../lib/recall/http.ts';
 import { MockZetarisSource } from '../lib/recall/sources/mock.ts';
+import type { ExternalSource } from '../lib/recall/sources/external.ts';
 import { ZetarisSource } from '../lib/recall/sources/zetaris.ts';
 import { verifyAudit } from '../lib/recall/audit.ts';
 import { CSV_COLUMNS } from '../lib/recall/csv.ts';
@@ -162,27 +163,30 @@ test('mock source imports are labelled mock and recorded; Zetaris is not reporte
   assert.equal(status.checks[0].mode, 'mock');
 });
 
-test('re-importing a connected source adds only rows that are not already in the case', async () => {
+test('re-importing a connected source adds only new or changed rows, and the result is what was saved', async () => {
   let followup = false;
+  const extra = { values: Object.fromEntries(CSV_COLUMNS.map((col, i) => [col, String(MISSING_40.followup!.rows[0][i])])), row_key: 'missing-40:followup:1' };
   const external = (onEvent: Parameters<Deps['external']>[0]): ExternalSetup => {
     const mock = new MockZetarisSource(onEvent);
-    return { mode: 'mock', detail: 'MOCK for tests', source: { system: 'zetaris', mode: 'mock', health: () => mock.health(), query: async (source, filter, limit) => {
-      const res = await mock.query(source, filter, limit);
-      if (res.ok && followup && source === 'pharmacy_stock_events') res.rows.push({ values: Object.fromEntries(CSV_COLUMNS.map((col, i) => [col, String(MISSING_40.followup!.rows[0][i])])), row_key: 'missing-40:followup:1' });
-      return res;
-    } } };
+    const source: ExternalSource = { system: 'zetaris', mode: 'mock', instance: mock.instance, health: () => mock.health(),
+      count: async (s, f) => { const r = await mock.count(s, f); return r.ok && followup && s === 'pharmacy_stock_events' ? { ...r, count: r.count + 1 } : r; },
+      query: async (s, f, limit, opts) => { const res = await mock.query(s, f, limit, opts); if (res.ok && followup && s === 'pharmacy_stock_events' && !res.next) res.rows.push(extra); return res; } };
+    return { mode: 'mock', detail: 'MOCK for tests', source };
   };
   const a = app(':memory:', external), { data } = await a.call('POST', '/api/cases', { user: 'alice', body: { action: 'create', name: 'Re-import', alert: { product: 'Nivara oral solution', manufacturer: 'Example Pharma (fictional)', batch: 'DEMO-042', unit: 'bottles', source_url: '', description: '' } } });
   let version = 1, res: Awaited<ReturnType<typeof change>> | undefined;
   for (const source of ['distributor_dispatches', 'pharmacy_stock_events', 'return_records']) { res = await change(a, data.case.id, version++, { action: 'external_import', source }); assert.equal(res.status, 200, JSON.stringify(res.data)); }
   assert.equal(res!.data.result.available, 40);
+  assert.equal(res!.data.case.sources[0].origin.instance, 'mock://fixtures');
   const again = await change(a, data.case.id, version++, { action: 'external_import', source: 'pharmacy_stock_events' });
-  assert.deepEqual([again.data.imported, again.data.skipped, again.data.case.sources.length], [0, 6, 3], 'nothing new: no rows and no empty source are added');
+  assert.deepEqual([again.data.imported, again.data.updated, again.data.unchanged, again.data.case.sources.length], [0, 0, 6, 3], 'nothing new: no rows and no empty source are added');
+  assert.equal(again.data.result.available, 40, 'unchanged rows are not counted twice');
   followup = true;
-  const update = await change(a, data.case.id, version++, { action: 'external_import', source: 'pharmacy_stock_events' });
-  assert.deepEqual([update.data.imported, update.data.skipped], [1, 6]);
-  assert.deepEqual([update.data.result.available, update.data.result.quarantined], [0, 840]);
-  assert.deepEqual(update.data.case.sources.at(-1).origin.row_keys, ['missing-40:followup:1']);
+  const after = await change(a, data.case.id, version++, { action: 'external_import', source: 'pharmacy_stock_events' });
+  assert.deepEqual([after.data.imported, after.data.unchanged, after.data.case.sources.length], [1, 6, 4]);
+  assert.equal(after.data.result.available, 0);
+  const saved = (await a.call('GET', `/api/cases/${data.case.id}`, { user: 'alice' })).data;
+  assert.equal(saved.case.version, after.data.case.version, 'the response reflects the persisted case');
 });
 
 test('an unreachable Zetaris instance is reported as a failure, not as connected', async () => {
