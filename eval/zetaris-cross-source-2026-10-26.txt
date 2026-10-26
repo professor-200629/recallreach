@@ -1,0 +1,8 @@
+Instance zetaris://localhost:8888/org/1; 2026-10-26T09:42:45.307Z
+Query (read-only, one statement across recall_distributor.dispatches, recall_pharmacy.stock_events and recall_returns.return_notes):
+  SELECT d.consignment_ref, d.qty, d.qty_unit, d.consignee, d.invoice_no FROM recall_distributor.dispatches d LEFT JOIN recall_pharmacy.stock_events p ON p.consignment_ref = d.consignment_ref AND p.batch_no = d.batch_no LEFT JOIN recall_returns.return_notes r ON r.consignment_ref = d.consignment_ref AND r.batch_no = d.batch_no WHERE d.batch_no = 'DEMO-042' AND p.consignment_ref IS NULL AND r.consignment_ref IS NULL ORDER BY d.consignment_ref
+
+OK   1 row in 1856 ms
+     RR-104 | 40 | bottles | Destination pending confirmation | DISPATCH-104
+
+These are source reports on fictional data. A consignment missing downstream is a gap to follow up, not proof of where the stock is.

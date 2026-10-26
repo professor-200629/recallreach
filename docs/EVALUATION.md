@@ -4,9 +4,9 @@ Everything here is **automated testing on fictional fixtures** or **observed liv
 
 **Caveat:** the same developer wrote the engine, the rules procedure, the fixtures and the answer keys, including the held-out case. The held-out key was committed before any run, so it was not tuned to results, but it was not written independently. Treat every score below as "behaves as designed on cases built to exercise it", not as independent accuracy.
 
-## 1. Automated tests: 142 passing
+## 1. Automated tests: 144 passing
 
-`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 26 Oct 2026: **142 tests, 142 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
+`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 26 Oct 2026: **144 tests, 144 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
 
 | Suite | Tests | Covers |
 | --- | --- | --- |
@@ -19,8 +19,8 @@ Everything here is **automated testing on fictional fixtures** or **observed liv
 | `tests/explain.test.ts` | 7 | Evidence Challenge on the drill: why RR-104 is unresolved, why approval cannot change it, which new evidence changed the result and why a reported quarantine is not a confirmed destination, why 60 dispensed need follow-up, the hypothetical preview, what each source says (which sources name RR-104, dated live reads through Zetaris, MOCK reads labelled, imports from one table grouped), no invented likelihoods |
 | `tests/budget.test.ts` | 21 | Groq free-tier fitting with a simulated provider: token estimate and calibration; fitting order (results already read go first, results not yet read last); a long run kept under 8,000 tokens per request (and over it without fitting); several large results in one turn all sent in full; a submission in the same turn as new results sent back once to read them; results sent only as a summary retired and never resent in full; rejections that say why evidence was not read (same turn or summary only); smaller resends after a too-large refusal, never an identical one, and the learned ceiling recorded (stated, count-only or silent refusals); malformed tool calls retried without using the budget, then counted, still reaching the forced final answer; unique tool-call IDs; daily quota ending the run; provider error classification; settings and a ceiling too small for the fixed instructions |
 | `tests/memory.test.ts` | 5 | Vendored H-MEM hashes, save/reload round trip, invalidation after new evidence, operator decisions, contradiction detection |
-| `tests/http.test.ts` | 13 | Unauthenticated access, owner-only access, cross-site/non-JSON/oversized writes, concurrent updates, the demo flow over HTTP, corrections, exports, persistence after reopening, mock labelling, versioned re-import over HTTP (response read back from storage), unreachable Zetaris, the last live health check found after many later queries, memory feedback |
-| `tests/zetaris.test.ts` | 8 | REST request shape and row mapping, failure classification, health check, SQL-injection resistance, configuration, read-only probes, datasource setup SQL and runner |
+| `tests/http.test.ts` | 14 | Unauthenticated access, owner-only access, cross-site/non-JSON/oversized writes, concurrent updates, the demo flow over HTTP, corrections, exports, persistence after reopening, mock labelling, versioned re-import over HTTP (response read back from storage), unreachable Zetaris, the last live health check found after many later queries, the cross-source query (live only, never the mock; recorded), memory feedback |
+| `tests/zetaris.test.ts` | 9 | REST request shape and row mapping, failure classification, health check, SQL-injection resistance, configuration, read-only probes, datasource setup SQL and runner, the cross-source gap query (one statement over the three tables, unsafe batch refused) |
 
 [JUDGE_GUIDE.md](JUDGE_GUIDE.md) maps each reported counterexample to its test.
 
@@ -124,6 +124,10 @@ These were recorded with the import code of the morning of 25 Oct. The import wa
 | Follow-up row added at the source | 1 new, 6 unchanged; 940 contained, 0 available |
 | The same row changed at the source (40 → 39) | 1 changed: the new version supersedes the old through a correction; 839 quarantined, 1 available; nothing double counted |
 | The row removed at the source | Reported as no longer returned; not reversed; balances unchanged |
+
+### Cross-source query through Zetaris (26 Oct 2026)
+
+One read-only statement joining all three datasources inside Zetaris (`scripts/zetaris-cross-check.ts`; the same query runs from **Integrations → Find consignments with no downstream record**): dispatched consignments of DEMO-042 with no pharmacy stock event and no return note. Result: **1 row, RR-104, 40 bottles, "Destination pending confirmation", DISPATCH-104**, in 1,856 ms from the command line (`eval/zetaris-cross-source-2026-10-26.txt`) and 703 ms from the app. That is the same gap the engine finds from the imported records. The query gives a lead; it does not change any stock number.
 
 ## 6. Browser checks (local dev server)
 

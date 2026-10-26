@@ -111,3 +111,19 @@ test('setup skips what exists, honours dry run, and stops at the first failure',
   const failing = await runZetarisSetup(config, steps, { fetcher: fetcher('CREATE DATASOURCE b'), log: () => {} });
   assert.equal(failing.ok, false); assert.equal(sent.some(s => s.startsWith('REGISTER DATASOURCE TABLES FROM b')), false, 'nothing runs after a failure');
 });
+
+test('the cross-source gap query joins the three configured tables in one read-only statement', async () => {
+  const events: IntegrationEvent[] = [];
+  const { fetcher, seen } = fake(() => Response.json({ data: [['RR-104', '4.0E1', 'bottles', 'Destination pending confirmation', 'DISPATCH-104']] }));
+  const z = new ZetarisSource(config, e => events.push(e), fetcher), res = await z.gaps('DEMO-042');
+  assert.equal(res.ok, true);
+  if (!res.ok) return;
+  const sql = String(seen[0].body.sql);
+  assert.equal(sql, res.sql); assert.equal(seen.length, 1);
+  assert.match(sql, /^SELECT d\.consignment_ref, d\.qty, d\.qty_unit, d\.consignee, d\.invoice_no FROM recall_distributor\.dispatches d LEFT JOIN recall_pharmacy\.stock_events p ON .+ LEFT JOIN recall_returns\.return_notes r ON .+ WHERE d\.batch_no = 'DEMO-042' AND p\.consignment_ref IS NULL AND r\.consignment_ref IS NULL ORDER BY d\.consignment_ref LIMIT 100$/);
+  assert.deepEqual(res.rows, [{ shipment_id: 'RR-104', quantity: '40', unit: 'bottles', consignee: 'Destination pending confirmation', reference: 'DISPATCH-104' }]);
+  assert.equal(events[0].operation, 'cross-source query'); assert.equal(events[0].ok, true);
+  const bad = await z.gaps("DEMO-042' OR '1'='1");
+  assert.equal(bad.ok, false); assert.equal(seen.length, 1, 'an unsafe batch value is refused before any request');
+});
+

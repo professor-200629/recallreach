@@ -1,4 +1,4 @@
-import { buildCount, buildSelect, EXTERNAL_SOURCES, mapRow, type ExternalCountResult, type ExternalFailure, type ExternalFilter, type ExternalQueryResult, type ExternalSource, type ExternalSourceKey, type HealthResult, type IntegrationEvent, type QueryOptions } from './external.ts';
+import { buildCount, buildGapQuery, buildSelect, EXTERNAL_SOURCES, mapRow, type GapResult, type ExternalCountResult, type ExternalFailure, type ExternalFilter, type ExternalQueryResult, type ExternalSource, type ExternalSourceKey, type HealthResult, type IntegrationEvent, type QueryOptions } from './external.ts';
 
 // Read-only client for the Zetaris REST API documented in zetaris/getting-started
 // (docs/connections/client-setup.md, scripts/zetaris_sql.py): POST {base}/sql-editor/sqls/run
@@ -103,6 +103,24 @@ export class ZetarisSource implements ExternalSource {
       const latency = Date.now() - start, failure = error instanceof ZetarisRequestError ? error.failure : 'invalid_response', message = (error as Error).message;
       this.onEvent({ integration: 'zetaris', mode: 'live', operation: `query ${EXTERNAL_SOURCES[source].label}`, ok: false, latency_ms: latency, detail: message });
       return { ok: false, mode: 'live', instance, source, table, failure, message, latency_ms: latency, query_id: queryId };
+    }
+  }
+
+  /** The cross-source gap query (buildGapQuery): one statement joining the three configured tables, recorded like any other query. */
+  async gaps(batch: string): Promise<GapResult> {
+    const start = Date.now(), operation = 'cross-source query';
+    let sql: string;
+    try { sql = buildGapQuery(this.config.tables, batch); } catch (error) { return { ok: false, failure: 'invalid_filter', message: (error as Error).message, latency_ms: 0 }; }
+    try {
+      const data = await this.run(sql, 100, crypto.randomUUID()), latency = Date.now() - start, raw = (v: unknown) => v === null || v === undefined ? '' : String(v).trim();
+      // Zetaris REST may return numbers in exponent notation ("4.0E1").
+      const rows = data.map(x => ({ shipment_id: raw(x[0]), quantity: Number.isFinite(Number(raw(x[1]))) && raw(x[1]) !== '' ? String(Number(raw(x[1]))) : raw(x[1]), unit: raw(x[2]), consignee: raw(x[3]), reference: raw(x[4]) }));
+      this.onEvent({ integration: 'zetaris', mode: 'live', operation, ok: true, latency_ms: latency, detail: `${rows.length} dispatched consignment${rows.length === 1 ? '' : 's'} of ${batch} with no pharmacy or returns row.` });
+      return { ok: true, instance: this.instance, sql, rows, latency_ms: latency, at: new Date().toISOString() };
+    } catch (error) {
+      const latency = Date.now() - start, failure = error instanceof ZetarisRequestError ? error.failure : 'invalid_response', message = (error as Error).message;
+      this.onEvent({ integration: 'zetaris', mode: 'live', operation, ok: false, latency_ms: latency, detail: message });
+      return { ok: false, failure, message, latency_ms: latency };
     }
   }
 

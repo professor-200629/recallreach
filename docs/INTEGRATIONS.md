@@ -4,7 +4,7 @@ RecallReach uses three external pieces. Each one is optional at runtime, and the
 
 | Piece | Role | Status on 25 Oct 2026 |
 | --- | --- | --- |
-| Zetaris | Read-only access, through one Zetaris instance, to separately owned source systems registered as its datasources (each query reads one source table) | **Connected to a local instance** (the hackathon's local download, Zetaris 2.4.3, on this laptop) and verified with real queries on 25 Oct 2026; see [Verification record](#verification-record-25-oct-2026). The three source systems behind it hold fictional fixture data. |
+| Zetaris | Read-only access, through one Zetaris instance, to separately owned source systems registered as its datasources (each import reads one source table; one cross-source query joins all three) | **Connected to a local instance** (the hackathon's local download, Zetaris 2.4.3, on this laptop) and verified with real queries on 25 Oct 2026; see [Verification record](#verification-record-25-oct-2026). The three source systems behind it hold fictional fixture data. |
 | Meterless H-MEM | Investigation memory across runs | **In use**: vendored, unmodified reference engine; upstream conformance suite 13/13. |
 | Language model (Groq, OpenAI-compatible) | Chooses tools and explains evidence | **Working** with Groq free tier, `openai/gpt-oss-120b`. Rules mode works with no model. |
 

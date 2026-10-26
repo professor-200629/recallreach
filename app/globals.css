@@ -51,3 +51,4 @@
 .balance-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.balance-row>span{display:inline-flex;align-items:baseline;gap:4px;border:1px solid #e3eae1;border-radius:4px;padding:2px 6px;background:#fff}.balance-row small{font-size:10px;color:#64766b}.balance-row strong{font-size:11px;color:#284b3c}
 .hypo-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;font-size:11px;color:#64766b;margin:8px 0}.challenge-section p.subtle{font-size:11px;line-height:1.6;color:#64766b;margin:4px 0}
 @media(max-width:680px){.why-button{margin-left:0}.hypo-grid{grid-template-columns:1fr}.challenge-statement{padding:10px 12px}}
+.cross-source{border-top:1px solid #e3ebe0;margin-top:4px}.cross-source h3{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#284b3c;margin:0 0 6px}.cross-source pre{white-space:pre-wrap;word-break:break-word;font-size:11px}

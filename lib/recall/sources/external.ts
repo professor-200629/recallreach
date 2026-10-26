@@ -90,6 +90,23 @@ export function buildSelect(source: ExternalSourceKey, table: string, filter: Ex
   return `SELECT ${s.select} FROM ${table} WHERE ${where} ORDER BY ${s.orderColumn}, row_no LIMIT ${n}`;
 }
 
+/**
+ * One read-only statement across all three sources: consignments of a batch that the distributor
+ * dispatched but that no pharmacy stock event and no return note mentions. It gives a lead for
+ * follow-up, not a stock figure; the engine still reconciles each source's imported rows on their own.
+ */
+export function buildGapQuery(tables: Record<ExternalSourceKey, string>, batch: string): string {
+  const d = EXTERNAL_SOURCES.distributor_dispatches, p = EXTERNAL_SOURCES.pharmacy_stock_events, r = EXTERNAL_SOURCES.return_records;
+  if (!EXTERNAL_SOURCE_KEYS.every(k => isSafeTableName(tables[k]))) throw new Error('Configured table names must be plain identifiers.');
+  if (!isSafeFilterValue(batch)) throw new Error('Filter values may only contain letters, digits, spaces and . _ ( ) / -');
+  const on = (alias: string, s: typeof p | typeof r) => `${alias}.${s.shipmentColumn} = d.${d.shipmentColumn} AND ${alias}.${s.batchColumn} = d.${d.batchColumn}`;
+  return `SELECT d.${d.shipmentColumn}, d.qty, d.qty_unit, d.consignee, d.invoice_no FROM ${tables.distributor_dispatches} d`
+    + ` LEFT JOIN ${tables.pharmacy_stock_events} p ON ${on('p', p)} LEFT JOIN ${tables.return_records} r ON ${on('r', r)}`
+    + ` WHERE d.${d.batchColumn} = ${literal(batch)} AND p.${p.shipmentColumn} IS NULL AND r.${r.shipmentColumn} IS NULL ORDER BY d.${d.shipmentColumn} LIMIT 100`;
+}
+export type GapRow = { shipment_id: string; quantity: string; unit: string; consignee: string; reference: string };
+export type GapResult = { ok: true; instance: string; sql: string; rows: GapRow[]; latency_ms: number; at: string } | { ok: false; failure: ExternalFailure; message: string; latency_ms: number };
+
 /** How many rows match the batch filter, used to check that paging read every row. */
 export function buildCount(source: ExternalSourceKey, table: string, filter: ExternalFilter): string {
   return `SELECT COUNT(*) FROM ${table} WHERE ${whereClause(source, table, filter)}`;

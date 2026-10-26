@@ -212,6 +212,19 @@ test('the last live Zetaris health check is still found after many later queries
   assert.equal(status.zetaris.last_live_check?.id, 'chk-health'); assert.equal(status.zetaris.connected, true);
 });
 
+test('the cross-source query runs only through a live Zetaris connection and is recorded', async () => {
+  const mock = app();
+  const refused = await mock.call('POST', '/api/integrations', { user: 'alice', body: { integration: 'zetaris', check: 'gaps', batch: 'DEMO-042' } });
+  assert.equal(refused.data.ok, false); assert.match(refused.data.detail, /only against a live Zetaris connection, not the MOCK/);
+  const fetcher = (async () => Response.json({ data: [['RR-104', '40', 'bottles', 'Destination pending confirmation', 'DISPATCH-104']] })) as unknown as typeof fetch;
+  const live = (onEvent: Parameters<Deps['external']>[0]): ExternalSetup => ({ source: new ZetarisSource({ restUrl: 'http://zetaris.test/api/v1.0', apiKey: 'test-key', orgId: '1', tables: { distributor_dispatches: 'a.d', pharmacy_stock_events: 'a.p', return_records: 'a.r' } }, onEvent, fetcher), mode: 'live', detail: 'test' });
+  const a = app(':memory:', live);
+  const res = await a.call('POST', '/api/integrations', { user: 'alice', body: { integration: 'zetaris', check: 'gaps', batch: 'DEMO-042' } });
+  assert.equal(res.data.ok, true); assert.deepEqual(res.data.rows.map((r: { shipment_id: string }) => r.shipment_id), ['RR-104']);
+  const status = (await a.call('GET', '/api/integrations', { user: 'alice' })).data;
+  assert.equal(status.checks[0].operation, 'cross-source query'); assert.equal(JSON.stringify(status).includes('test-key'), false);
+});
+
 test('operators can mark a memory wrong; it is kept, flagged, and the agent is told not to rely on it', async () => {
   const a = app(), { data } = await a.call('POST', '/api/cases', { user: 'alice', body: { action: 'sample' } }), id = data.case.id;
   const run = await change(a, id, 1, { action: 'agent', question: 'Why are 40 bottles still unresolved, and what evidence would resolve this?', mode: 'rules' });

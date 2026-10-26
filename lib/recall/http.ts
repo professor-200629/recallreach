@@ -7,7 +7,7 @@ import { rememberDecision, revalidateMemory, runCaseInvestigation } from './inve
 import { CaseMemory, MEMORY_ENGINE, type MemoryState } from './memory/hmem.ts';
 import type { CaseRepository } from './repo.ts';
 import type { ChatProvider, ProviderSettings } from './agent/provider.ts';
-import { readAll, type ExternalSource, type IntegrationEvent } from './sources/external.ts';
+import { readAll, type ExternalSource, type GapResult, type IntegrationEvent } from './sources/external.ts';
 import { exportCase, type ExportFormat } from './export.ts';
 import { appendAudit } from './audit.ts';
 
@@ -194,9 +194,18 @@ export function createHandlers(deps: Deps) {
       });
     },
     async checkIntegration(request: Request) {
-      const identity = await user(request, true), input = z.object({ integration: z.literal('zetaris') }).parse(await body(request));
+      const identity = await user(request, true), input = z.object({ integration: z.literal('zetaris'), check: z.enum(['health', 'gaps']).default('health'), batch: z.string().max(80).optional() }).parse(await body(request));
       const rec = recorder(identity.userId), ext = deps.external(rec.onEvent);
       if (!ext.source) return json({ integration: input.integration, ok: false, mode: 'none', detail: ext.detail });
+      if (input.check === 'gaps') {
+        // Only a live Zetaris runs the cross-source query; the mock never stands in for it.
+        const src = ext.source as ExternalSource & { gaps?: (batch: string) => Promise<GapResult> };
+        if (src.mode !== 'live' || !src.gaps) return json({ integration: input.integration, ok: false, mode: src.mode, detail: 'The cross-source query runs only against a live Zetaris connection, not the MOCK.' });
+        if (!input.batch) throw new ActionError('A batch is required.', 400);
+        const gaps = await src.gaps(input.batch);
+        await rec.flush();
+        return json({ integration: input.integration, mode: 'live', ...gaps });
+      }
       const health = await ext.source.health();
       await rec.flush();
       return json({ integration: input.integration, ...health });
