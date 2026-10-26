@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_COOKIE, demoFetch } from '../lib/recall/demo.ts';
+import { DEMO_COOKIE, demoFetch, resetDemoPageCache } from '../lib/recall/demo.ts';
 import { identityFromHeaders } from '../lib/recall/identity.ts';
 
 const ID = '3f2b6c1e-8a4d-4c2e-9b7a-1d2e3f4a5b6c';
@@ -30,6 +30,24 @@ test('public demo: a returning browser keeps its sandbox; a malformed cookie get
 test('public demo: request bodies pass through unchanged', async () => {
   const res = await demoFetch(new Request('https://demo.example/api/cases', { method: 'POST', body: '{"action":"sample"}', headers: { 'content-type': 'application/json', cookie: `${DEMO_COOKIE}=${ID}` } }), inner);
   assert.equal(await res.text(), 'ok POST {"action":"sample"}');
+});
+
+test('public demo: the HTML page is rendered once and reused; API calls and RSC requests never are', async () => {
+  resetDemoPageCache();
+  let renders = 0;
+  const render = async (r: Request) => { renders++; return new Response(r.headers.has('rsc') ? 'rsc payload' : `<html>page</html>`, { headers: { 'content-type': 'text/html', 'set-cookie': 'other=1' } }); };
+  const html = { accept: 'text/html,application/xhtml+xml' };
+  const first = await demoFetch(new Request('https://demo.example/', { headers: html }), render);
+  const second = await demoFetch(new Request('https://demo.example/', { headers: { ...html, cookie: `${DEMO_COOKIE}=${ID}` } }), render);
+  assert.equal(await first.text(), '<html>page</html>'); assert.equal(await second.text(), '<html>page</html>');
+  assert.equal(renders, 1);
+  assert.equal(second.headers.get('set-cookie'), null, 'a kept page never carries another response\'s cookies');
+  const newcomer = await demoFetch(new Request('https://demo.example/', { headers: html }), render);
+  assert.ok(cookieOf(newcomer), 'a new visitor served from the kept page still gets a sandbox cookie');
+  await demoFetch(new Request('https://demo.example/', { headers: { ...html, rsc: '1' } }), render);
+  await demoFetch(new Request('https://demo.example/api/cases', { headers: html }), render);
+  await demoFetch(new Request('https://demo.example/?tab=about', { headers: html }), render);
+  assert.equal(renders, 4);
 });
 
 test('public demo: sign-in and sign-out only redirect within the site', async () => {

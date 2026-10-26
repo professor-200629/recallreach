@@ -24,6 +24,14 @@ function returnPath(url: URL): string {
   try { const u = new URL(to, 'https://demo.local'); return u.origin === 'https://demo.local' ? `${u.pathname}${u.search}` : '/'; } catch { return '/'; }
 }
 
+// The workspace page is the same for every demo visitor (it loads cases from the API afterwards), and
+// rendering it is the costliest request on the free plan's CPU budget, so each Worker instance keeps
+// one rendered copy for a few minutes. Only the plain HTML document is kept, never API responses.
+const PAGE_TTL_MS = 10 * 60_000;
+let page: { at: number; status: number; headers: [string, string][]; body: ArrayBuffer } | null = null;
+export const resetDemoPageCache = () => { page = null; };
+const isPlainPage = (request: Request, url: URL) => request.method === 'GET' && url.pathname === '/' && !url.search && !request.headers.has('rsc') && (request.headers.get('accept') ?? '').includes('text/html');
+
 const setCookie = (id: string) => `${DEMO_COOKIE}=${id}; Path=/; Max-Age=${MAX_AGE_S}; HttpOnly; Secure; SameSite=Lax`;
 const redirect = (to: string, cookie: string) => new Response(null, { status: 303, headers: { location: to, 'set-cookie': cookie, 'cache-control': 'no-store' } });
 
@@ -39,7 +47,17 @@ export async function demoFetch(request: Request, inner: (request: Request) => P
   headers.set(IDENTITY_HEADERS.email, `visitor-${id.slice(0, 8)}@demo.recallreach.invalid`);
   headers.set(IDENTITY_HEADERS.fullName, encodeURIComponent('Demo visitor'));
   headers.set(IDENTITY_HEADERS.fullNameEncoding, 'percent-encoded-utf-8');
-  const response = await inner(new Request(request, { headers }));
+  const cacheable = isPlainPage(request, url), now = Date.now();
+  let response: Response;
+  if (cacheable && page && now - page.at < PAGE_TTL_MS) response = new Response(page.body.slice(0), { status: page.status, headers: page.headers });
+  else {
+    response = await inner(new Request(request, { headers }));
+    if (cacheable && response.status === 200) {
+      const body = await response.arrayBuffer(), kept = [...response.headers].filter(([name]) => name.toLowerCase() !== 'set-cookie');
+      page = { at: now, status: 200, headers: kept, body };
+      response = new Response(body.slice(0), { status: 200, headers: response.headers });
+    }
+  }
   if (known) return response;
   const out = new Response(response.body, response);
   out.headers.append('set-cookie', setCookie(id));
