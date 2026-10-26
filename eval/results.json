@@ -1,7 +1,11 @@
 {
-  "generated_at": "2026-10-25T19:06:36.967Z",
+  "generated_at": "2026-10-26T17:52:36.629Z",
   "note": "Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.",
   "held_out_key_commit": "1313452",
+  "code": {
+    "commit": "500a795",
+    "uncommitted_changes": false
+  },
   "scenarios": {
     "missing-40": {
       "held_out": false,
@@ -125,7 +129,7 @@
           "max_tool_calls": 40,
           "max_request_tokens": null
         },
-        "duration_ms": 24,
+        "duration_ms": 23,
         "tool_calls": 13,
         "rejected_tool_calls": 0,
         "model_calls": 0,
@@ -158,6 +162,310 @@
         "overreach_flags": 0,
         "missing_evidence_identified": "1/1",
         "follow_ups_proposed": 2,
+        "trace": {
+          "steps": [
+            {
+              "seq": 1,
+              "tool": "get_recall_scope",
+              "args": {
+                "purpose": "Confirm the exact recall scope before reading evidence."
+              },
+              "ok": true,
+              "summary": "Scope Example Pharma (fictional) / Nivara oral solution / batch DEMO-042 in bottles; 3 sources.",
+              "record_ids": [],
+              "duration_ms": 1
+            },
+            {
+              "seq": 2,
+              "tool": "run_reconciliation",
+              "args": {
+                "purpose": "Get balances and open issues from the deterministic engine."
+              },
+              "ok": true,
+              "summary": "1000 accepted; 40 awaiting containment, 800 quarantined, 100 returned, 60 dispensed; 9 issues.",
+              "record_ids": [],
+              "duration_ms": 1
+            },
+            {
+              "seq": 3,
+              "tool": "search_records",
+              "args": {
+                "purpose": "List records the engine held for review; one may explain a gap.",
+                "status": "review",
+                "limit": 20
+              },
+              "ok": true,
+              "summary": "4 matching records.",
+              "record_ids": [
+                "sample-missing-40-pharmacy_stock_events:6",
+                "sample-missing-40-pharmacy_stock_events:7",
+                "sample-missing-40-return_records:4",
+                "sample-missing-40-return_records:5"
+              ],
+              "duration_ms": 8
+            },
+            {
+              "seq": 4,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for RR-104 in time order.",
+                "shipment_id": "RR-104"
+              },
+              "ok": true,
+              "summary": "1 records for RR-104; 40 awaiting containment.",
+              "record_ids": [
+                "sample-missing-40-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 5,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind RR-104.",
+                "cite": "E8"
+              },
+              "ok": true,
+              "summary": "Original row 5 of Distributor dispatches (fictional).csv.",
+              "record_ids": [
+                "sample-missing-40-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 6,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference DISPATCH-104 is reused elsewhere.",
+                "reference": "DISPATCH-104"
+              },
+              "ok": true,
+              "summary": "1 records use reference DISPATCH-104.",
+              "record_ids": [
+                "sample-missing-40-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 7,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:RR-104",
+                "action": "Ask the distributor for proof of delivery for RR-104 (DISPATCH-104) and the name of the responsible recipient.",
+                "owner_role": "distributor",
+                "evidence_requested": "Proof of delivery and a status report for 40 bottles from the named recipient.",
+                "citations": [
+                  "E8"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P1 for stock:RR-104 awaits human approval.",
+              "record_ids": [
+                "sample-missing-40-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 8,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for RR-103 in time order.",
+                "shipment_id": "RR-103"
+              },
+              "ok": true,
+              "summary": "4 records for RR-103; 0 awaiting containment.",
+              "record_ids": [
+                "sample-missing-40-distributor_dispatches:4",
+                "sample-missing-40-pharmacy_stock_events:4",
+                "sample-missing-40-pharmacy_stock_events:5",
+                "sample-missing-40-pharmacy_stock_events:6"
+              ],
+              "duration_ms": 2
+            },
+            {
+              "seq": 9,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind RR-103.",
+                "cite": "E5"
+              },
+              "ok": true,
+              "summary": "Original row 4 of Distributor dispatches (fictional).csv.",
+              "record_ids": [
+                "sample-missing-40-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 10,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-103 is reused elsewhere.",
+                "reference": "INV-103"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-103.",
+              "record_ids": [
+                "sample-missing-40-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 11,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "dispensed:RR-103",
+                "action": "Assign a supervising pharmacist to review dispensing records for RR-103 against the recall instructions, outside this workspace.",
+                "owner_role": "supervising_pharmacist",
+                "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+                "citations": [
+                  "dispensed:RR-103"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P2 for dispensed:RR-103 awaits human approval.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 12,
+              "tool": "recall_memory",
+              "args": {
+                "purpose": "Check earlier notes on this case and whether they still hold.",
+                "query": "Why are 40 bottles still unresolved, and what evidence would resolve this?"
+              },
+              "ok": true,
+              "summary": "0 memories (0 current, 0 stale, superseded or unknown).",
+              "record_ids": [],
+              "duration_ms": 1
+            },
+            {
+              "seq": 13,
+              "tool": "compare_with_previous_run",
+              "args": {
+                "purpose": "Check what changed since the previous investigation run."
+              },
+              "ok": true,
+              "summary": "No previous run to compare with.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 14,
+              "tool": "submit_findings",
+              "args": {
+                "facts": 6
+              },
+              "ok": true,
+              "summary": "6 facts, 1 notes, 1 evidence requests submitted.",
+              "record_ids": [],
+              "duration_ms": 0
+            }
+          ],
+          "facts": [
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "RR-104",
+                "state": "available",
+                "quantity": 40,
+                "unit": "bottles"
+              },
+              "statement": "Shipment RR-104 (Destination pending confirmation): 40 bottles available (no accepted quarantine, return or dispensing record), of 40 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:RR-104"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 40 bottles. Destination pending confirmation: shipment RR-104 has 40 bottles without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "destination:RR-104"
+              },
+              "statement": "Open issue, Destination unconfirmed: Confirm where shipment RR-104 went. The opening record names “Destination pending confirmation” as the destination. Movements reported for this shipment do not establish who holds the stock.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "RR-103",
+                "state": "dispensed",
+                "quantity": 60,
+                "unit": "bottles"
+              },
+              "statement": "Shipment RR-103 (Meadow Pharmacy): 60 bottles recorded as dispensed, of 160 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "dispensed:RR-103"
+              },
+              "statement": "Open issue, Pharmacist follow-up: 60 bottles recorded as dispensed. Meadow Pharmacy reported dispensing this quantity. Records do not establish who consumed it or whether anyone was harmed.",
+              "problems": []
+            },
+            {
+              "type": "record_report",
+              "status": "validated",
+              "claimed": {
+                "type": "record_report",
+                "record": "E8",
+                "shipment_id": "RR-104",
+                "from_state": "none",
+                "to_state": "available",
+                "quantity": 40,
+                "unit": "bottles"
+              },
+              "statement": "Distributor dispatches (fictional).csv, row 5 reports an opening shipment into available of 40 bottles for shipment RR-104 at “Destination pending confirmation” (DISPATCH-104, 2026-10-01T09:30:00Z). This is a source report, not proof of physical handling.",
+              "problems": []
+            }
+          ],
+          "follow_ups": [
+            {
+              "issue_id": "stock:RR-104",
+              "owner_role": "distributor",
+              "action": "Ask the distributor for proof of delivery for RR-104 (DISPATCH-104) and the name of the responsible recipient.",
+              "evidence_requested": "Proof of delivery and a status report for 40 bottles from the named recipient.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "dispensed:RR-103",
+              "owner_role": "supervising_pharmacist",
+              "action": "Assign a supervising pharmacist to review dispensing records for RR-103 against the recall instructions, outside this workspace.",
+              "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+              "accepted": true,
+              "problems": []
+            }
+          ],
+          "evidence_requests": [
+            {
+              "issue_id": "stock:RR-104",
+              "description": "No dated containment, return or dispensing record covers 40 bottles of RR-104.",
+              "would_change": "A record from the distributor or the actual recipient for RR-104, same batch, in bottles, showing the current status of the 40 bottles, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            }
+          ],
+          "summary": "40 bottles across 1 shipment (RR-104) lack an accepted containment or dispensing record. 6 typed facts and 2 proposed follow-ups await human review."
+        },
         "stock_unchanged_by_run": true
       }
     },
@@ -233,7 +541,7 @@
           "max_tool_calls": 40,
           "max_request_tokens": null
         },
-        "duration_ms": 3,
+        "duration_ms": 2,
         "tool_calls": 18,
         "rejected_tool_calls": 0,
         "model_calls": 0,
@@ -274,6 +582,501 @@
         "overreach_flags": 0,
         "missing_evidence_identified": "3/3",
         "follow_ups_proposed": 4,
+        "trace": {
+          "steps": [
+            {
+              "seq": 1,
+              "tool": "get_recall_scope",
+              "args": {
+                "purpose": "Confirm the exact recall scope before reading evidence."
+              },
+              "ok": true,
+              "summary": "Scope Northwind Biologics (fictional) / Velora insulin pen / batch VL-2207 in pens; 3 sources.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 2,
+              "tool": "run_reconciliation",
+              "args": {
+                "purpose": "Get balances and open issues from the deterministic engine."
+              },
+              "ok": true,
+              "summary": "425 accepted; 47 awaiting containment, 280 quarantined, 60 returned, 38 dispensed; 18 issues.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 3,
+              "tool": "search_records",
+              "args": {
+                "purpose": "List records the engine held for review; one may explain a gap.",
+                "status": "review",
+                "limit": 20
+              },
+              "ok": true,
+              "summary": "10 matching records.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:5",
+                "sample-velora-pens-pharmacy_stock_events:7",
+                "sample-velora-pens-pharmacy_stock_events:9",
+                "sample-velora-pens-pharmacy_stock_events:5",
+                "sample-velora-pens-pharmacy_stock_events:10",
+                "sample-velora-pens-pharmacy_stock_events:11",
+                "sample-velora-pens-pharmacy_stock_events:8",
+                "sample-velora-pens-pharmacy_stock_events:13",
+                "sample-velora-pens-return_records:3",
+                "sample-velora-pens-pharmacy_stock_events:12"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 4,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for VS-204 in time order.",
+                "shipment_id": "VS-204"
+              },
+              "ok": true,
+              "summary": "1 records for VS-204; 25 awaiting containment.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:6"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 5,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind VS-204.",
+                "cite": "E18"
+              },
+              "ok": true,
+              "summary": "Original row 6 of Northwind dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:6"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 6,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-204 is reused elsewhere.",
+                "reference": "INV-204"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-204.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:6"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 7,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:VS-204",
+                "action": "Ask the distributor for proof of delivery for VS-204 (INV-204) and the name of the responsible recipient.",
+                "owner_role": "distributor",
+                "evidence_requested": "Proof of delivery and a status report for 25 pens from the named recipient.",
+                "citations": [
+                  "E18"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P1 for stock:VS-204 awaits human approval.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:6"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 8,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for VS-202 in time order.",
+                "shipment_id": "VS-202"
+              },
+              "ok": true,
+              "summary": "6 records for VS-202; 12 awaiting containment.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:3",
+                "sample-velora-pens-pharmacy_stock_events:3",
+                "sample-velora-pens-pharmacy_stock_events:4",
+                "sample-velora-pens-pharmacy_stock_events:5",
+                "sample-velora-pens-pharmacy_stock_events:10",
+                "sample-velora-pens-pharmacy_stock_events:12"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 9,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind VS-202.",
+                "cite": "E13"
+              },
+              "ok": true,
+              "summary": "Original row 3 of Northwind dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 10,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-202 is reused elsewhere.",
+                "reference": "INV-202"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-202.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 11,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:VS-202",
+                "action": "Ask Riverside Hospital Pharmacy to reissue HOLD-R2 with a full date, time and timezone; it was rejected for an ambiguous timestamp.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "Corrected record HOLD-R2 for VS-202 with an ISO timestamp including timezone.",
+                "citations": [
+                  "E4",
+                  "E13"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P2 for stock:VS-202 awaits human approval.",
+              "record_ids": [
+                "sample-velora-pens-pharmacy_stock_events:10",
+                "sample-velora-pens-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 12,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "dispensed:VS-202",
+                "action": "Assign a supervising pharmacist to review dispensing records for VS-202 against the recall instructions, outside this workspace.",
+                "owner_role": "supervising_pharmacist",
+                "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+                "citations": [
+                  "dispensed:VS-202"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P3 for dispensed:VS-202 awaits human approval.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 13,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for VS-203 in time order.",
+                "shipment_id": "VS-203"
+              },
+              "ok": true,
+              "summary": "6 records for VS-203; 10 awaiting containment.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:4",
+                "sample-velora-pens-distributor_dispatches:5",
+                "sample-velora-pens-pharmacy_stock_events:6",
+                "sample-velora-pens-pharmacy_stock_events:7",
+                "sample-velora-pens-pharmacy_stock_events:8",
+                "sample-velora-pens-return_records:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 14,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind VS-203.",
+                "cite": "E16"
+              },
+              "ok": true,
+              "summary": "Original row 4 of Northwind dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 15,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-203 is reused elsewhere.",
+                "reference": "INV-203"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-203.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 16,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:VS-203",
+                "action": "Ask Hillview Pharmacy to locate shipment VS-203 and report the status of 10 pens.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "A dated quarantine, return or dispensing record for 10 pens of VS-203.",
+                "citations": [
+                  "E16"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P4 for stock:VS-203 awaits human approval.",
+              "record_ids": [
+                "sample-velora-pens-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 17,
+              "tool": "recall_memory",
+              "args": {
+                "purpose": "Check earlier notes on this case and whether they still hold.",
+                "query": "Which shipments still have pens without a containment or dispensing record, and why?"
+              },
+              "ok": true,
+              "summary": "0 memories (0 current, 0 stale, superseded or unknown).",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 18,
+              "tool": "compare_with_previous_run",
+              "args": {
+                "purpose": "Check what changed since the previous investigation run."
+              },
+              "ok": true,
+              "summary": "No previous run to compare with.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 19,
+              "tool": "submit_findings",
+              "args": {
+                "facts": 12
+              },
+              "ok": true,
+              "summary": "12 facts, 2 notes, 3 evidence requests submitted.",
+              "record_ids": [],
+              "duration_ms": 0
+            }
+          ],
+          "facts": [
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "VS-204",
+                "state": "available",
+                "quantity": 25,
+                "unit": "pens"
+              },
+              "statement": "Shipment VS-204 (Unknown - courier manifest pending): 25 pens available (no accepted quarantine, return or dispensing record), of 25 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:VS-204"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 25 pens. Unknown - courier manifest pending: shipment VS-204 has 25 pens without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "destination:VS-204"
+              },
+              "statement": "Open issue, Destination unconfirmed: Confirm where shipment VS-204 went. The opening record names “Unknown - courier manifest pending” as the destination. Movements reported for this shipment do not establish who holds the stock.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "VS-202",
+                "state": "available",
+                "quantity": 12,
+                "unit": "pens"
+              },
+              "statement": "Shipment VS-202 (Riverside Hospital Pharmacy): 12 pens available (no accepted quarantine, return or dispensing record), of 200 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:VS-202"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 12 pens. Riverside Hospital Pharmacy: shipment VS-202 has 12 pens without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "VS-202",
+                "state": "dispensed",
+                "quantity": 38,
+                "unit": "pens"
+              },
+              "statement": "Shipment VS-202 (Riverside Hospital Pharmacy): 38 pens recorded as dispensed, of 200 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "dispensed:VS-202"
+              },
+              "statement": "Open issue, Pharmacist follow-up: 38 pens recorded as dispensed. Riverside Hospital Pharmacy reported dispensing this quantity. Records do not establish who consumed it or whether anyone was harmed.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "VS-203",
+                "state": "available",
+                "quantity": 10,
+                "unit": "pens"
+              },
+              "statement": "Shipment VS-203 (Hillview Pharmacy): 10 pens available (no accepted quarantine, return or dispensing record), of 80 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:VS-203"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 10 pens. Hillview Pharmacy: shipment VS-203 has 10 pens without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E9",
+                "status": "review"
+              },
+              "statement": "Record DISP-R1-REV (Pharmacy stock exports (fictional).csv, row 5) is held for review and not counted: Releasing held stock or reversing a return/dispensing record requires a separately reviewed correction. It is not an ordinary movement.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E4",
+                "status": "review"
+              },
+              "statement": "Record HOLD-R2 (Pharmacy stock exports (fictional).csv, row 10) is held for review and not counted: Timestamp “2026-09-12 10:00” is not a valid ISO 8601 time with a timezone.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E5",
+                "status": "review"
+              },
+              "statement": "Record HOLD-R3 (Pharmacy stock exports (fictional).csv, row 12) is held for review and not counted: This record is dated in the future. Its stock effect has not been applied.",
+              "problems": []
+            }
+          ],
+          "follow_ups": [
+            {
+              "issue_id": "stock:VS-204",
+              "owner_role": "distributor",
+              "action": "Ask the distributor for proof of delivery for VS-204 (INV-204) and the name of the responsible recipient.",
+              "evidence_requested": "Proof of delivery and a status report for 25 pens from the named recipient.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:VS-202",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Riverside Hospital Pharmacy to reissue HOLD-R2 with a full date, time and timezone; it was rejected for an ambiguous timestamp.",
+              "evidence_requested": "Corrected record HOLD-R2 for VS-202 with an ISO timestamp including timezone.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "dispensed:VS-202",
+              "owner_role": "supervising_pharmacist",
+              "action": "Assign a supervising pharmacist to review dispensing records for VS-202 against the recall instructions, outside this workspace.",
+              "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:VS-203",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Hillview Pharmacy to locate shipment VS-203 and report the status of 10 pens.",
+              "evidence_requested": "A dated quarantine, return or dispensing record for 10 pens of VS-203.",
+              "accepted": true,
+              "problems": []
+            }
+          ],
+          "evidence_requests": [
+            {
+              "issue_id": "stock:VS-204",
+              "description": "No dated containment, return or dispensing record covers 25 pens of VS-204.",
+              "would_change": "A record from the distributor or the actual recipient for VS-204, same batch, in pens, showing the current status of the 25 pens, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:VS-202",
+              "description": "No dated containment, return or dispensing record covers 12 pens of VS-202.",
+              "would_change": "A record from Riverside Hospital Pharmacy for VS-202, same batch, in pens, showing the current status of the 12 pens, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:VS-203",
+              "description": "No dated containment, return or dispensing record covers 10 pens of VS-203.",
+              "would_change": "A record from Hillview Pharmacy for VS-203, same batch, in pens, showing the current status of the 10 pens, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            }
+          ],
+          "summary": "47 pens across 3 shipments (VS-204, VS-202, VS-203) lack an accepted containment or dispensing record. 12 typed facts and 4 proposed follow-ups await human review."
+        },
         "stock_unchanged_by_run": true
       }
     },
@@ -349,7 +1152,7 @@
           "max_tool_calls": 40,
           "max_request_tokens": null
         },
-        "duration_ms": 2,
+        "duration_ms": 1,
         "tool_calls": 21,
         "rejected_tool_calls": 0,
         "model_calls": 0,
@@ -421,6 +1224,1173 @@
           }
         ],
         "follow_up_rubric_points": "12/12",
+        "trace": {
+          "steps": [
+            {
+              "seq": 1,
+              "tool": "get_recall_scope",
+              "args": {
+                "purpose": "Confirm the exact recall scope before reading evidence."
+              },
+              "ok": true,
+              "summary": "Scope Brightwater Laboratories (fictional) / Corvel injection vial / batch CV-3319 in vials; 3 sources.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 2,
+              "tool": "run_reconciliation",
+              "args": {
+                "purpose": "Get balances and open issues from the deterministic engine."
+              },
+              "ok": true,
+              "summary": "470 accepted; 110 awaiting containment, 180 quarantined, 150 returned, 30 dispensed; 11 issues.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 3,
+              "tool": "search_records",
+              "args": {
+                "purpose": "List records the engine held for review; one may explain a gap.",
+                "status": "review",
+                "limit": 20
+              },
+              "ok": true,
+              "summary": "3 matching records.",
+              "record_ids": [
+                "sample-corvel-vials-pharmacy_stock_events:6",
+                "sample-corvel-vials-pharmacy_stock_events:8",
+                "sample-corvel-vials-return_records:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 4,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for CV-304 in time order.",
+                "shipment_id": "CV-304"
+              },
+              "ok": true,
+              "summary": "1 records for CV-304; 60 awaiting containment.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 5,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind CV-304.",
+                "cite": "E14"
+              },
+              "ok": true,
+              "summary": "Original row 5 of Brightwater dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 6,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-304 is reused elsewhere.",
+                "reference": "INV-304"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-304.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 7,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:CV-304",
+                "action": "Ask the distributor for proof of delivery for CV-304 (INV-304) and the name of the responsible recipient.",
+                "owner_role": "distributor",
+                "evidence_requested": "Proof of delivery and a status report for 60 vials from the named recipient.",
+                "citations": [
+                  "E14"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P1 for stock:CV-304 awaits human approval.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 8,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for CV-303 in time order.",
+                "shipment_id": "CV-303"
+              },
+              "ok": true,
+              "summary": "3 records for CV-303; 30 awaiting containment.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:4",
+                "sample-corvel-vials-pharmacy_stock_events:7",
+                "sample-corvel-vials-pharmacy_stock_events:8"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 9,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind CV-303.",
+                "cite": "E12"
+              },
+              "ok": true,
+              "summary": "Original row 4 of Brightwater dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 10,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-303 is reused elsewhere.",
+                "reference": "INV-303"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-303.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 11,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:CV-303",
+                "action": "Ask Ward 7 Hospital Pharmacy to locate shipment CV-303 and report the status of 30 vials.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "A dated quarantine, return or dispensing record for 30 vials of CV-303.",
+                "citations": [
+                  "E12"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P2 for stock:CV-303 awaits human approval.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 12,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for CV-302 in time order.",
+                "shipment_id": "CV-302"
+              },
+              "ok": true,
+              "summary": "3 records for CV-302; 20 awaiting containment.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:3",
+                "sample-corvel-vials-pharmacy_stock_events:5",
+                "sample-corvel-vials-pharmacy_stock_events:6"
+              ],
+              "duration_ms": 1
+            },
+            {
+              "seq": 13,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind CV-302.",
+                "cite": "E10"
+              },
+              "ok": true,
+              "summary": "Original row 3 of Brightwater dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 14,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-302 is reused elsewhere.",
+                "reference": "INV-302"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-302.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 15,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:CV-302",
+                "action": "Ask Elm Street Pharmacy to locate shipment CV-302 and report the status of 20 vials.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "A dated quarantine, return or dispensing record for 20 vials of CV-302.",
+                "citations": [
+                  "E10"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P3 for stock:CV-302 awaits human approval.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 16,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for CV-301 in time order.",
+                "shipment_id": "CV-301"
+              },
+              "ok": true,
+              "summary": "7 records for CV-301; 0 awaiting containment.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:2",
+                "sample-corvel-vials-pharmacy_stock_events:2",
+                "sample-corvel-vials-pharmacy_stock_events:3",
+                "sample-corvel-vials-pharmacy_stock_events:4",
+                "sample-corvel-vials-return_records:2",
+                "sample-corvel-vials-return_records:3",
+                "sample-corvel-vials-return_records:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 17,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind CV-301.",
+                "cite": "E5"
+              },
+              "ok": true,
+              "summary": "Original row 2 of Brightwater dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 18,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-301 is reused elsewhere.",
+                "reference": "INV-301"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-301.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 19,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "dispensed:CV-301",
+                "action": "Assign a supervising pharmacist to review dispensing records for CV-301 against the recall instructions, outside this workspace.",
+                "owner_role": "supervising_pharmacist",
+                "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+                "citations": [
+                  "dispensed:CV-301"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P4 for dispensed:CV-301 awaits human approval.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 20,
+              "tool": "recall_memory",
+              "args": {
+                "purpose": "Check earlier notes on this case and whether they still hold.",
+                "query": "Which shipments of batch CV-3319 still have vials without a containment or dispensing record, and what would resolve each?"
+              },
+              "ok": true,
+              "summary": "0 memories (0 current, 0 stale, superseded or unknown).",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 21,
+              "tool": "compare_with_previous_run",
+              "args": {
+                "purpose": "Check what changed since the previous investigation run."
+              },
+              "ok": true,
+              "summary": "No previous run to compare with.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 22,
+              "tool": "submit_findings",
+              "args": {
+                "facts": 12
+              },
+              "ok": true,
+              "summary": "12 facts, 2 notes, 3 evidence requests submitted.",
+              "record_ids": [],
+              "duration_ms": 0
+            }
+          ],
+          "facts": [
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "CV-304",
+                "state": "available",
+                "quantity": 60,
+                "unit": "vials"
+              },
+              "statement": "Shipment CV-304 (Destination to be confirmed): 60 vials available (no accepted quarantine, return or dispensing record), of 60 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:CV-304"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 60 vials. Destination to be confirmed: shipment CV-304 has 60 vials without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "destination:CV-304"
+              },
+              "statement": "Open issue, Destination unconfirmed: Confirm where shipment CV-304 went. The opening record names “Destination to be confirmed” as the destination. Movements reported for this shipment do not establish who holds the stock.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "CV-303",
+                "state": "available",
+                "quantity": 30,
+                "unit": "vials"
+              },
+              "statement": "Shipment CV-303 (Ward 7 Hospital Pharmacy): 30 vials available (no accepted quarantine, return or dispensing record), of 90 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:CV-303"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 30 vials. Ward 7 Hospital Pharmacy: shipment CV-303 has 30 vials without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "CV-302",
+                "state": "available",
+                "quantity": 20,
+                "unit": "vials"
+              },
+              "statement": "Shipment CV-302 (Elm Street Pharmacy): 20 vials available (no accepted quarantine, return or dispensing record), of 120 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:CV-302"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 20 vials. Elm Street Pharmacy: shipment CV-302 has 20 vials without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "CV-301",
+                "state": "dispensed",
+                "quantity": 30,
+                "unit": "vials"
+              },
+              "statement": "Shipment CV-301 (Northgate Pharmacy): 30 vials recorded as dispensed, of 200 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "dispensed:CV-301"
+              },
+              "statement": "Open issue, Pharmacist follow-up: 30 vials recorded as dispensed. Northgate Pharmacy reported dispensing this quantity. Records do not establish who consumed it or whether anyone was harmed.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E4",
+                "status": "review"
+              },
+              "statement": "Record HOLD-W1 (Pharmacy stock exports (fictional).csv, row 8) is held for review and not counted: Reference HOLD-W1 was already used for this shipment and movement. A second event ID is not evidence of a second stock movement.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E2",
+                "status": "review"
+              },
+              "statement": "Record HOLD-E2 (Pharmacy stock exports (fictional).csv, row 6) is held for review and not counted: Unit “boxes” differs from case unit “vials”. No conversion has been assumed.",
+              "problems": []
+            },
+            {
+              "type": "record_report",
+              "status": "validated",
+              "claimed": {
+                "type": "record_report",
+                "record": "E14",
+                "shipment_id": "CV-304",
+                "from_state": "none",
+                "to_state": "available",
+                "quantity": 60,
+                "unit": "vials"
+              },
+              "statement": "Brightwater dispatch log (fictional).csv, row 5 reports an opening shipment into available of 60 vials for shipment CV-304 at “Destination to be confirmed” (INV-304, 2026-09-15T08:30:00Z). This is a source report, not proof of physical handling.",
+              "problems": []
+            }
+          ],
+          "follow_ups": [
+            {
+              "issue_id": "stock:CV-304",
+              "owner_role": "distributor",
+              "action": "Ask the distributor for proof of delivery for CV-304 (INV-304) and the name of the responsible recipient.",
+              "evidence_requested": "Proof of delivery and a status report for 60 vials from the named recipient.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:CV-303",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Ward 7 Hospital Pharmacy to locate shipment CV-303 and report the status of 30 vials.",
+              "evidence_requested": "A dated quarantine, return or dispensing record for 30 vials of CV-303.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:CV-302",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Elm Street Pharmacy to locate shipment CV-302 and report the status of 20 vials.",
+              "evidence_requested": "A dated quarantine, return or dispensing record for 20 vials of CV-302.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "dispensed:CV-301",
+              "owner_role": "supervising_pharmacist",
+              "action": "Assign a supervising pharmacist to review dispensing records for CV-301 against the recall instructions, outside this workspace.",
+              "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+              "accepted": true,
+              "problems": []
+            }
+          ],
+          "evidence_requests": [
+            {
+              "issue_id": "stock:CV-304",
+              "description": "No dated containment, return or dispensing record covers 60 vials of CV-304.",
+              "would_change": "A record from the distributor or the actual recipient for CV-304, same batch, in vials, showing the current status of the 60 vials, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:CV-303",
+              "description": "No dated containment, return or dispensing record covers 30 vials of CV-303.",
+              "would_change": "A record from Ward 7 Hospital Pharmacy for CV-303, same batch, in vials, showing the current status of the 30 vials, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:CV-302",
+              "description": "No dated containment, return or dispensing record covers 20 vials of CV-302.",
+              "would_change": "A record from Elm Street Pharmacy for CV-302, same batch, in vials, showing the current status of the 20 vials, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            }
+          ],
+          "summary": "110 vials across 3 shipments (CV-304, CV-303, CV-302) lack an accepted containment or dispensing record. 12 typed facts and 4 proposed follow-ups await human review."
+        },
+        "stock_unchanged_by_run": true
+      }
+    },
+    "halvex-tablets": {
+      "held_out": true,
+      "initial": {
+        "baseline": {
+          "unresolved_found": {
+            "HX-406": 60
+          },
+          "unresolved_correct": "0/3",
+          "unresolved_false_positives": 1,
+          "wrongly_counted_records": 7,
+          "totals": {
+            "shipped": 690,
+            "available": -450,
+            "quarantined": 750,
+            "returned": 370,
+            "dispensed": 20
+          },
+          "totals_correct": false,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": false,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": false,
+            "Which records need review?": false,
+            "Which near-miss batch records need checking?": false,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": false
+          },
+          "questions_correct": 2,
+          "questions_total": 7
+        },
+        "engine": {
+          "unresolved_found": {
+            "HX-401": 30,
+            "HX-402": 150,
+            "HX-404": 80
+          },
+          "unresolved_correct": "3/3",
+          "unresolved_false_positives": 0,
+          "wrongly_counted_records": 0,
+          "totals": {
+            "shipped": 630,
+            "available": 260,
+            "quarantined": 100,
+            "returned": 250,
+            "dispensed": 20
+          },
+          "totals_correct": true,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": true,
+            "Which records need review?": true,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": true
+          },
+          "questions_correct": 7,
+          "questions_total": 7
+        }
+      },
+      "agent_rules_mode": {
+        "mode": "rules",
+        "provider": "none",
+        "model": "rules-v3",
+        "status": "completed",
+        "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
+        "limits": {
+          "total_timeout_ms": 240000,
+          "max_model_calls": 0,
+          "max_tool_calls": 40,
+          "max_request_tokens": null
+        },
+        "duration_ms": 2,
+        "tool_calls": 18,
+        "rejected_tool_calls": 0,
+        "model_calls": 0,
+        "malformed_calls": 0,
+        "oversize_retries": 0,
+        "shortened_requests": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "estimated_cost_usd": null,
+        "facts_submitted": 12,
+        "facts_validated": 12,
+        "facts_rejected": 0,
+        "rejected_fact_reasons": [],
+        "key_facts_correct": "5/5",
+        "key_facts": [
+          {
+            "item": "HX-401 available 30",
+            "found": true
+          },
+          {
+            "item": "HX-402 available 150",
+            "found": true
+          },
+          {
+            "item": "HX-404 available 80",
+            "found": true
+          },
+          {
+            "item": "HX-401 dispensed 20",
+            "found": true
+          },
+          {
+            "item": "HX-404 destination unconfirmed",
+            "found": true
+          }
+        ],
+        "unsupported_claims_accepted": 0,
+        "overreach_flags": 0,
+        "missing_evidence_identified": "3/3",
+        "follow_ups_proposed": 4,
+        "follow_up_rubric": [
+          {
+            "issue_id": "stock:HX-401",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": false,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:HX-402",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:HX-404",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "dispensed:HX-401",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          }
+        ],
+        "follow_up_rubric_points": "11/12",
+        "trace": {
+          "steps": [
+            {
+              "seq": 1,
+              "tool": "get_recall_scope",
+              "args": {
+                "purpose": "Confirm the exact recall scope before reading evidence."
+              },
+              "ok": true,
+              "summary": "Scope Riverbend Generics (fictional) / Halvex 10 mg tablets / batch HX-2040 in packs; 3 sources.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 2,
+              "tool": "run_reconciliation",
+              "args": {
+                "purpose": "Get balances and open issues from the deterministic engine."
+              },
+              "ok": true,
+              "summary": "630 accepted; 260 awaiting containment, 100 quarantined, 250 returned, 20 dispensed; 13 issues.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 3,
+              "tool": "search_records",
+              "args": {
+                "purpose": "List records the engine held for review; one may explain a gap.",
+                "status": "review",
+                "limit": 20
+              },
+              "ok": true,
+              "summary": "6 matching records.",
+              "record_ids": [
+                "sample-halvex-tablets-pharmacy_stock_events:4",
+                "sample-halvex-tablets-pharmacy_stock_events:5",
+                "sample-halvex-tablets-pharmacy_stock_events:6",
+                "sample-halvex-tablets-pharmacy_stock_events:8",
+                "sample-halvex-tablets-return_records:3",
+                "sample-halvex-tablets-pharmacy_stock_events:9"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 4,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for HX-402 in time order.",
+                "shipment_id": "HX-402"
+              },
+              "ok": true,
+              "summary": "3 records for HX-402; 150 awaiting containment.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:3",
+                "sample-halvex-tablets-pharmacy_stock_events:5",
+                "sample-halvex-tablets-pharmacy_stock_events:6"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 5,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind HX-402.",
+                "cite": "E12"
+              },
+              "ok": true,
+              "summary": "Original row 3 of Riverbend dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 6,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference DN-402 is reused elsewhere.",
+                "reference": "DN-402"
+              },
+              "ok": true,
+              "summary": "1 records use reference DN-402.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 7,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:HX-402",
+                "action": "Ask Hillcrest Clinic Pharmacy to locate shipment HX-402 and report the status of 150 packs.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "A dated quarantine, return or dispensing record for 150 packs of HX-402.",
+                "citations": [
+                  "E12"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P1 for stock:HX-402 awaits human approval.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 8,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for HX-404 in time order.",
+                "shipment_id": "HX-404"
+              },
+              "ok": true,
+              "summary": "2 records for HX-404; 80 awaiting containment.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:5",
+                "sample-halvex-tablets-pharmacy_stock_events:9"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 9,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind HX-404.",
+                "cite": "E13"
+              },
+              "ok": true,
+              "summary": "Original row 5 of Riverbend dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 10,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference DN-404 is reused elsewhere.",
+                "reference": "DN-404"
+              },
+              "ok": true,
+              "summary": "1 records use reference DN-404.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 11,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:HX-404",
+                "action": "Ask the distributor for proof of delivery for HX-404 (DN-404) and the name of the responsible recipient.",
+                "owner_role": "distributor",
+                "evidence_requested": "Proof of delivery and a status report for 80 packs from the named recipient.",
+                "citations": [
+                  "E13"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P2 for stock:HX-404 awaits human approval.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 12,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for HX-401 in time order.",
+                "shipment_id": "HX-401"
+              },
+              "ok": true,
+              "summary": "5 records for HX-401; 30 awaiting containment.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:2",
+                "sample-halvex-tablets-pharmacy_stock_events:4",
+                "sample-halvex-tablets-pharmacy_stock_events:2",
+                "sample-halvex-tablets-pharmacy_stock_events:3",
+                "sample-halvex-tablets-return_records:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 13,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind HX-401.",
+                "cite": "E8"
+              },
+              "ok": true,
+              "summary": "Original row 2 of Riverbend dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 14,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference DN-401 is reused elsewhere.",
+                "reference": "DN-401"
+              },
+              "ok": true,
+              "summary": "1 records use reference DN-401.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 15,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:HX-401",
+                "action": "Ask Lakeside Pharmacy to reissue HOLD-L2 with a full date, time and timezone; it was rejected for an ambiguous timestamp.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "Corrected record HOLD-L2 for HX-401 with an ISO timestamp including timezone.",
+                "citations": [
+                  "E2",
+                  "E8"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P3 for stock:HX-401 awaits human approval.",
+              "record_ids": [
+                "sample-halvex-tablets-pharmacy_stock_events:4",
+                "sample-halvex-tablets-distributor_dispatches:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 16,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "dispensed:HX-401",
+                "action": "Assign a supervising pharmacist to review dispensing records for HX-401 against the recall instructions, outside this workspace.",
+                "owner_role": "supervising_pharmacist",
+                "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+                "citations": [
+                  "dispensed:HX-401"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P4 for dispensed:HX-401 awaits human approval.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 17,
+              "tool": "recall_memory",
+              "args": {
+                "purpose": "Check earlier notes on this case and whether they still hold.",
+                "query": "Which shipments of batch HX-2040 still have packs without a containment or dispensing record, and what would resolve each?"
+              },
+              "ok": true,
+              "summary": "0 memories (0 current, 0 stale, superseded or unknown).",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 18,
+              "tool": "compare_with_previous_run",
+              "args": {
+                "purpose": "Check what changed since the previous investigation run."
+              },
+              "ok": true,
+              "summary": "No previous run to compare with.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 19,
+              "tool": "submit_findings",
+              "args": {
+                "facts": 12
+              },
+              "ok": true,
+              "summary": "12 facts, 1 notes, 3 evidence requests submitted.",
+              "record_ids": [],
+              "duration_ms": 0
+            }
+          ],
+          "facts": [
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "HX-402",
+                "state": "available",
+                "quantity": 150,
+                "unit": "packs"
+              },
+              "statement": "Shipment HX-402 (Hillcrest Clinic Pharmacy): 150 packs available (no accepted quarantine, return or dispensing record), of 150 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:HX-402"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 150 packs. Hillcrest Clinic Pharmacy: shipment HX-402 has 150 packs without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "HX-404",
+                "state": "available",
+                "quantity": 80,
+                "unit": "packs"
+              },
+              "statement": "Shipment HX-404 (Pending confirmation): 80 packs available (no accepted quarantine, return or dispensing record), of 80 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:HX-404"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 80 packs. Pending confirmation: shipment HX-404 has 80 packs without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "destination:HX-404"
+              },
+              "statement": "Open issue, Destination unconfirmed: Confirm where shipment HX-404 went. The opening record names “Pending confirmation” as the destination. Movements reported for this shipment do not establish who holds the stock.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "HX-401",
+                "state": "available",
+                "quantity": 30,
+                "unit": "packs"
+              },
+              "statement": "Shipment HX-401 (Lakeside Pharmacy): 30 packs available (no accepted quarantine, return or dispensing record), of 300 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:HX-401"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 30 packs. Lakeside Pharmacy: shipment HX-401 has 30 packs without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "HX-401",
+                "state": "dispensed",
+                "quantity": 20,
+                "unit": "packs"
+              },
+              "statement": "Shipment HX-401 (Lakeside Pharmacy): 20 packs recorded as dispensed, of 300 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "dispensed:HX-401"
+              },
+              "statement": "Open issue, Pharmacist follow-up: 20 packs recorded as dispensed. Lakeside Pharmacy reported dispensing this quantity. Records do not establish who consumed it or whether anyone was harmed.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E4",
+                "status": "review"
+              },
+              "statement": "Record HOLD-H1 (Pharmacy stock exports (fictional).csv, row 5) is held for review and not counted: Event Q-H1 has conflicting versions. None of those versions has been applied.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E5",
+                "status": "review"
+              },
+              "statement": "Record HOLD-H1 (Pharmacy stock exports (fictional).csv, row 6) is held for review and not counted: Event Q-H1 has conflicting versions. None of those versions has been applied.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E3",
+                "status": "review"
+              },
+              "statement": "Record HOLD-P1 (Pharmacy stock exports (fictional).csv, row 9) is held for review and not counted: This record is dated in the future. Its stock effect has not been applied.",
+              "problems": []
+            }
+          ],
+          "follow_ups": [
+            {
+              "issue_id": "stock:HX-402",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Hillcrest Clinic Pharmacy to locate shipment HX-402 and report the status of 150 packs.",
+              "evidence_requested": "A dated quarantine, return or dispensing record for 150 packs of HX-402.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:HX-404",
+              "owner_role": "distributor",
+              "action": "Ask the distributor for proof of delivery for HX-404 (DN-404) and the name of the responsible recipient.",
+              "evidence_requested": "Proof of delivery and a status report for 80 packs from the named recipient.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:HX-401",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Lakeside Pharmacy to reissue HOLD-L2 with a full date, time and timezone; it was rejected for an ambiguous timestamp.",
+              "evidence_requested": "Corrected record HOLD-L2 for HX-401 with an ISO timestamp including timezone.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "dispensed:HX-401",
+              "owner_role": "supervising_pharmacist",
+              "action": "Assign a supervising pharmacist to review dispensing records for HX-401 against the recall instructions, outside this workspace.",
+              "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+              "accepted": true,
+              "problems": []
+            }
+          ],
+          "evidence_requests": [
+            {
+              "issue_id": "stock:HX-402",
+              "description": "No dated containment, return or dispensing record covers 150 packs of HX-402.",
+              "would_change": "A record from Hillcrest Clinic Pharmacy for HX-402, same batch, in packs, showing the current status of the 150 packs, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:HX-404",
+              "description": "No dated containment, return or dispensing record covers 80 packs of HX-404.",
+              "would_change": "A record from the distributor or the actual recipient for HX-404, same batch, in packs, showing the current status of the 80 packs, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:HX-401",
+              "description": "No dated containment, return or dispensing record covers 30 packs of HX-401.",
+              "would_change": "A record from Lakeside Pharmacy for HX-401, same batch, in packs, showing the current status of the 30 packs, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            }
+          ],
+          "summary": "260 packs across 3 shipments (HX-402, HX-404, HX-401) lack an accepted containment or dispensing record. 12 typed facts and 4 proposed follow-ups await human review."
+        },
         "stock_unchanged_by_run": true
       }
     }
