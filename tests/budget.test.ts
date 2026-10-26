@@ -193,6 +193,7 @@ test('the provider classifies Groq refusals: too large (with the count), daily q
     (e: ProviderError) => e.kind === 'quota' && !e.retryable && e.retryAfterMs === 3_723_500);
   await assert.rejects(call(new Response('{"error":{"message":"Rate limit reached on requests per day (RPD): Limit 1000. Please try again in 5m0s."}}', { status: 429 })), (e: ProviderError) => e.kind === 'quota');
   await assert.rejects(call(new Response('{"error":{"message":"Rate limit reached on tokens per minute (TPM). Please try again in 2.5s."}}', { status: 429 })), (e: ProviderError) => e.kind === 'rate_limit' && e.retryAfterMs === 2500);
+  await assert.rejects(call(new Response('{"error":{"message":"Rate limit reached on tokens per minute (TPM): Limit 8000, Used 1633, Requested 6466. Please try again in 742ms."}}', { status: 429 })), (e: ProviderError) => e.kind === 'rate_limit' && e.retryAfterMs === 742);
 });
 
 test('settings: Groq requests stay under 8,000 tokens by default; AGENT_MAX_REQUEST_TOKENS overrides or disables it', () => {

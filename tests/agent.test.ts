@@ -176,6 +176,17 @@ test('rules mode finds the different gaps in the second scenario', async () => {
   assert.equal(c.proposals.length >= 3, true);
 });
 
+test('repeated rate limits on one request back off past the stated wait, so a per-minute window can free up', async () => {
+  // Budget-fit series, 26 Oct: Groq stated waits under a second while its per-minute window stayed full, and
+  // six quick retries ended two runs. Each further limit now waits at least 2, 4, 8, 16, then 30 s.
+  let n = 0; const waits: number[] = [];
+  const result = await investigate({ question: 'Why are 40 bottles unresolved?', ctx: setup(), actor: 'T', sleep: async ms => { waits.push(ms); },
+    provider: new ScriptedProvider([() => { if (n++ < 5) throw new ProviderError('rate_limit', 'try again in 742ms', true, 742); return submit(); }]) });
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(waits, [2250, 4250, 8250, 16250, 30250]);
+  assert.ok(waits.reduce((a, b) => a + b, 0) > 60_000, 'the retries together outlast a one-minute window');
+});
+
 test('rate-limited attempts do not use up the model-call budget', async () => {
   let n = 0;
   const result = await run(setup(), [() => { if (n++ < 3) throw new ProviderError('rate_limit', 'try again in 0.01s', true, 10); return submit(); }], { maxModelCalls: 2 });

@@ -67,9 +67,9 @@ export class OpenAICompatibleProvider implements ChatProvider {
         throw new ProviderError('too_large', `${this.name} refused a request as too large: ${message}`, true, undefined, Number.isFinite(requested) ? requested : undefined, Number.isFinite(limit) ? limit : undefined);
       }
       if (response.status === 429) {
-        // Prefer the header; Groq also states the wait in the message ("try again in 7.5s", "1m2.5s", "1h2m3s").
-        const header = Number(response.headers.get('retry-after')), m = /try again in (?:(\d+)h)?(?:(\d+)m)?(\d+(?:\.\d+)?)s/i.exec(message);
-        const after = Number.isFinite(header) && header > 0 ? header * 1000 : m ? (Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3])) * 1000 : undefined;
+        // Prefer the header; Groq also states the wait in the message ("try again in 7.5s", "742ms", "1m2.5s", "1h2m3s").
+        const header = Number(response.headers.get('retry-after')), m = /try again in (?:(\d+)h)?(?:(\d+)m(?!s))?(\d+(?:\.\d+)?)(ms|s)/i.exec(message);
+        const after = Number.isFinite(header) && header > 0 ? header * 1000 : m ? (Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60) * 1000 + Number(m[3]) * (m[4].toLowerCase() === 'ms' ? 1 : 1000) : undefined;
         // A daily allowance (tokens or requests per day) will not come back within one run.
         if (/per day|\(TPD\)|\(RPD\)/i.test(message)) throw new ProviderError('quota', `${this.name} daily allowance used up: ${message}`, false, after);
         throw new ProviderError('rate_limit', `${this.name} rate limit reached: ${message}`, true, after);

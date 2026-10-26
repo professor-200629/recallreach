@@ -3,7 +3,8 @@
 // - engine: RecallReach's deterministic reconciliation;
 // - agent (rules mode): the fixed tool-using procedure, through the same validator;
 // - agent (live model): only with --live, a bounded number of runs (--runs N, default 1).
-// The held-out case (eval/heldout/corvel-vials.ts) and its rubric were committed before any run.
+// The held-out cases (eval/heldout/corvel-vials.ts, then eval/heldout/halvex-tablets.ts) and their rubrics
+// were each committed alone before any run on them.
 // These are fixture results, not user research or evidence of real-world performance.
 // Run: npm run eval            (no network, no model)
 //      node --env-file=.dev.vars --experimental-transform-types scripts/evaluate.ts --live --runs 3 --only corvel-vials --tag <name>
@@ -16,6 +17,7 @@ import { reconcileCase } from '../lib/recall/engine.ts';
 import { runCaseInvestigation } from '../lib/recall/investigation.ts';
 import { providerFromEnv } from '../lib/recall/agent/provider.ts';
 import { CORVEL_RUBRIC, CORVEL_VIALS } from '../eval/heldout/corvel-vials.ts';
+import { HALVEX_RUBRIC, HALVEX_TABLETS } from '../eval/heldout/halvex-tablets.ts';
 import type { AgentRun, LedgerRecord, RecallCase } from '../lib/recall/types.ts';
 
 type Totals = { shipped: number; available: number; quarantined: number; returned: number; dispensed: number };
@@ -23,6 +25,7 @@ type MethodResult = { totals: Totals; unresolved: Record<string, number>; counte
 const ALL: Record<string, { scenario: Scenario; held_out: boolean; rubric?: typeof CORVEL_RUBRIC }> = {
   ...Object.fromEntries(Object.values(SCENARIOS).map(s => [s.id, { scenario: s, held_out: false }])),
   [CORVEL_VIALS.id]: { scenario: CORVEL_VIALS, held_out: true, rubric: CORVEL_RUBRIC },
+  [HALVEX_TABLETS.id]: { scenario: HALVEX_TABLETS, held_out: true, rubric: HALVEX_RUBRIC },
 };
 
 function caseFor(s: Scenario, suffix = ''): RecallCase {

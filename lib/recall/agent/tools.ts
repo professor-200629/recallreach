@@ -218,7 +218,7 @@ export const TOOLS = [
     },
   }),
   tool({
-    name: 'propose_follow_up', description: 'Propose a next step for one open issue, for a human to approve or reject. Approval does not change stock. Cite evidence returned to you in this run (E#, X#, issue IDs or D#).',
+    name: 'propose_follow_up', description: 'Propose a next step for one open issue, for a human to approve or reject. Approval does not change stock. Cite evidence returned to you in this run (E#, X#, issue IDs or D#). owner_role is who must act: pharmacy_staff for stock at a named pharmacy, distributor for a shipment whose destination is unconfirmed, supervising_pharmacist for dispensed stock, recall_coordinator only when no one else owns it.',
     schema: z.object({ purpose, issue_id: z.string().min(1).max(200), action: z.string().min(10).max(300), owner_role: z.enum(OWNER_ROLES), evidence_requested: z.string().min(5).max(300), citations: z.array(z.string().max(200)).max(10) }),
     run: (a, ctx) => {
       if (!ctx.r.issues.some(i => i.id === a.issue_id)) return { ok: false, record_ids: [], error: `Issue ${a.issue_id} is not an open issue in the current reconciliation.`, summary: `Rejected: unknown issue ${a.issue_id}.` };

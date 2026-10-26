@@ -43,6 +43,7 @@ How to work:
 
 Evidence rules:
 - State checkable facts only through the typed "facts" of submit_findings (shipment_balance, case_total, record_report, record_status, open_issue, change_since_previous, source_row_report). RecallReach checks every field against the engine and the evidence returned to you, and writes the wording itself. A fact fails if any field is wrong or its evidence was not returned to you in this run.
+- To state how much stock of one shipment is in one state (for example how many units are still available, or were dispensed), use a shipment_balance fact with that shipment, state, quantity and unit. An open_issue fact only says that an issue exists; state both where both apply.
 - Put explanations, reasoning and anything you cannot express as a typed fact in "interpretations". They are shown as unverified.
 - Handles that a memory or an issue list only references are not evidence. Retrieve the record (get_source_row, search_records or get_shipment_ledger) before stating what it says. Never cite tool names.
 - Records report actions; they do not prove that anything physically happened. Never say stock was physically verified, a destination was confirmed, or the recall is complete.
@@ -216,7 +217,9 @@ export async function investigate(input: RunInput): Promise<AgentRun> {
           tightness++; refusedShape = shape(fit);
           continue;
         }
-        const isRate = e.kind === 'rate_limit', wait = isRate ? Math.min(e.retryAfterMs ?? 5000, limits.maxRateLimitWaitMs) + 250 : 1500;
+        // Groq's stated wait can be far shorter than the time its per-minute window needs to free up, so
+        // repeated limits on one request back off: at least 2, 4, 8 and 16 s, then the 30 s cap.
+        const isRate = e.kind === 'rate_limit', wait = isRate ? Math.min(Math.max(e.retryAfterMs ?? 5000, 1000 * 2 ** (rateLimited + 1)), limits.maxRateLimitWaitMs) + 250 : 1500;
         const allowed = isRate ? rateLimited < limits.rateLimitRetries : otherErrors < limits.maxRetries;
         if (!isRate) run.usage.model_calls++;
         if (e.retryable && allowed && wait >= deadline - now()) return finish('limit_reached', `${limitDetail()} ${isRate ? `The provider asked to wait ${Math.round(wait / 1000)} s` : `A retry after ${e.kind}`}, which would pass the deadline.${waited()}${retried()}`);
