@@ -87,17 +87,15 @@ function RunView({ run, data, open, onQueue }: { run: AgentRun; data: Payload; o
       </div>
       {a && a.version === 2 && <>
         <div className="run-summary"><span className="eyebrow">CHECKED SUMMARY · GENERATED FROM {validated.length} VALIDATED FACT{validated.length === 1 ? '' : 'S'}</span>
-          {validated.length ? <ul className="checked-summary">{validated.map((f, i) => <li key={i}>{f.statement}</li>)}</ul> : <p>No fact could be validated in this run.</p>}
+          {validated.length ? <ul className="checked-summary">{validated.map((f, i) => <li key={i}>{f.statement} <button type="button" className="text-button why-button" onClick={() => why(f)}>Why this finding?</button>{f.evidence.length > 0 && <CiteChips ids={f.evidence.slice(0, 8)} c={c} r={r} onOpen={open} />}</li>)}</ul> : <p>No fact could be validated in this run.</p>}
         </div>
         <div className="run-section"><h3><CircleHelp size={15} />{run.mode === 'live' ? 'The model’s own summary' : 'Summary composed by rules'} <span className="subtle">interpretation, not verified</span></h3>
           <article className="claim unverified"><p>{a.summary}</p>{a.summary_problems.length > 0 && <p className="problem-text"><AlertTriangle size={13} />{a.summary_problems.join(' ')}</p>}</article>
         </div>
-        <div className="run-section"><h3><Check size={15} />Typed facts <span className="subtle">{validated.length} of {facts.length} validated field by field against the engine and the evidence returned in this run</span></h3>
+        <div className="run-section"><h3><Check size={15} />Typed facts as submitted <span className="subtle">{validated.length} of {facts.length} validated field by field against the engine and the evidence returned in this run; the wording above is generated from the validated ones</span></h3>
           {facts.map((f, i) => <article key={i} className={`claim ${f.status === 'validated' ? 'verified' : 'unverified'}`}>
-            <div className="claim-head"><Tag tone={f.status === 'validated' ? 'teal' : 'red'}>{f.status === 'validated' ? 'VALIDATED' : 'REJECTED'}</Tag><span className="subtle">{FACT_LABELS[f.type]} · {f.basis === 'engine_calculated' ? 'calculated by the engine' : 'reported by a source, not proof of handling'}</span>
-              {f.status === 'validated' && <button type="button" className="text-button why-button" onClick={() => why(f)}>Why this finding?</button>}</div>
-            {f.status === 'validated' ? <p>{f.statement}</p> : <p className="subtle">Submitted: {claimedText(f)}</p>}
-            {f.status === 'validated' && f.evidence.length > 0 && <CiteChips ids={f.evidence.slice(0, 8)} c={c} r={r} onOpen={open} />}
+            <div className="claim-head"><Tag tone={f.status === 'validated' ? 'teal' : 'red'}>{f.status === 'validated' ? 'VALIDATED' : 'REJECTED'}</Tag><span className="subtle">{FACT_LABELS[f.type]} · {f.basis === 'engine_calculated' ? 'calculated by the engine' : 'reported by a source, not proof of handling'}</span></div>
+            <p className="subtle">Submitted: {claimedText(f)}</p>
             {f.problems.length > 0 && <ul className="problems">{f.problems.map(p => <li key={p}>{p}</li>)}</ul>}
             {f.note && <p className="subtle">Agent note (unverified): {f.note}</p>}
           </article>)}
@@ -133,7 +131,7 @@ function RunView({ run, data, open, onQueue }: { run: AgentRun; data: Payload; o
         <div><div className="step-title"><strong>{TOOL_LABELS[s.tool] ?? s.tool}</strong><code>{s.tool}</code>{!s.ok && <Tag tone="red">REJECTED</Tag>}<span className="subtle">{s.duration_ms} ms</span></div>
           {s.purpose && <p className="step-purpose">“{s.purpose}”</p>}
           <p>{s.ok ? s.summary : s.error}</p>
-          {s.record_ids.length > 0 && <button className="text-button" onClick={() => open(null, s.record_ids)}>{s.record_ids.length} records retrieved<ArrowRight size={13} /></button>}
+          {s.record_ids.length > 0 && <button className="text-button" onClick={() => open(null, s.record_ids)}>{s.record_ids.length} record{s.record_ids.length === 1 ? '' : 's'} retrieved<ArrowRight size={13} /></button>}
           <details><summary>Arguments</summary><pre>{JSON.stringify(s.args, null, 2)}</pre></details></div>
       </li>)}</ol>
       <p className="panel-note"><Brain size={14} />Memory in this run: {run.memory.recalled} recalled, {run.memory.stored} stored, {run.memory.invalidated} marked for recheck. Evidence fingerprint {run.evidence_fingerprint}.</p>

@@ -83,4 +83,8 @@ export class CaseRepository {
   listChecks(owner: string, limit = 20) {
     return this.db.prepare('SELECT * FROM integration_checks WHERE owner_id = ? ORDER BY at DESC LIMIT ?').bind(owner, limit).all<IntegrationCheckRow>().then(r => r.results);
   }
+  /** The newest check of one kind, however many other checks came after it. */
+  lastCheck(owner: string, integration: string, mode: string, operation: string) {
+    return this.db.prepare('SELECT * FROM integration_checks WHERE owner_id = ? AND integration = ? AND mode = ? AND operation = ? ORDER BY at DESC LIMIT 1').bind(owner, integration, mode, operation).first<IntegrationCheckRow>();
+  }
 }

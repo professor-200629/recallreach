@@ -184,7 +184,8 @@ export function createHandlers(deps: Deps) {
     async integrations(request: Request) {
       const identity = await user(request), { settings } = deps.provider(), ext = deps.external(() => {});
       const checks = await deps.repo.listChecks(identity.userId, 20);
-      const lastLive = checks.find(c => c.integration === 'zetaris' && c.mode === 'live' && c.operation === 'health');
+      // Looked up on its own: queries after the health check can push it out of the recent list.
+      const lastLive = await deps.repo.lastCheck(identity.userId, 'zetaris', 'live', 'health');
       return json({
         agent: settings,
         zetaris: { mode: ext.mode, detail: ext.detail, tables: ext.tables ?? null, connected: ext.mode === 'live' && !!lastLive?.ok, last_live_check: lastLive ?? null },

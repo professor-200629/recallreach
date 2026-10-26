@@ -201,6 +201,17 @@ test('an unreachable Zetaris instance is reported as a failure, not as connected
   assert.equal(JSON.stringify(status).includes('test-key'), false, 'secrets are never returned');
 });
 
+test('the last live Zetaris health check is still found after many later queries', async () => {
+  const live = (onEvent: Parameters<Deps['external']>[0]): ExternalSetup => ({ source: new MockZetarisSource(onEvent), mode: 'live', detail: 'test stand-in for a live instance' });
+  const a = app(':memory:', live), at = (s: number) => new Date(Date.UTC(2026, 9, 25, 12, 0, s)).toISOString();
+  await a.repo.recordCheck({ id: 'chk-health', owner_id: 'u-alice', integration: 'zetaris', mode: 'live', operation: 'health', ok: 1, latency_ms: 198, detail: 'SELECT 1', at: at(0) });
+  for (let i = 1; i <= 25; i++) await a.repo.recordCheck({ id: `chk-q${i}`, owner_id: 'u-alice', integration: 'zetaris', mode: 'live', operation: 'query', ok: 1, latency_ms: 40, detail: 'page', at: at(i) });
+  const status = (await a.call('GET', '/api/integrations', { user: 'alice' })).data;
+  assert.equal(status.checks.length, 20, 'the recent list stays bounded');
+  assert.equal(status.checks.some((c: { operation: string }) => c.operation === 'health'), false, 'the health check is no longer in the recent list');
+  assert.equal(status.zetaris.last_live_check?.id, 'chk-health'); assert.equal(status.zetaris.connected, true);
+});
+
 test('operators can mark a memory wrong; it is kept, flagged, and the agent is told not to rely on it', async () => {
   const a = app(), { data } = await a.call('POST', '/api/cases', { user: 'alice', body: { action: 'sample' } }), id = data.case.id;
   const run = await change(a, id, 1, { action: 'agent', question: 'Why are 40 bottles still unresolved, and what evidence would resolve this?', mode: 'rules' });
