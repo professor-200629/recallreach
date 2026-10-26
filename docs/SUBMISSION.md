@@ -8,7 +8,7 @@ RecallReach is my entry to the [Open Agent Hackathon 2026](https://hackathon.gen
 
 - Repository: <https://github.com/professor-200629/recallreach>
 - Slide deck: submitted as a PDF with the entry
-- Demo video: submitted with the entry
+- Demo video (3:35, unlisted on YouTube): <https://youtu.be/EU9kqHnXcvg>
 - How to reproduce the results: [JUDGE_GUIDE.md](JUDGE_GUIDE.md)
 
 ## Short description

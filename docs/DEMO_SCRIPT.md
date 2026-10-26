@@ -1,6 +1,6 @@
 # Demo video script
 
-The demo video (rule 6.1: 1–4 minutes) shows the main workflow, how the agent works, the key features, and how Zetaris and Meterless are used. Everything in it is fictional data on a local machine.
+The demo video (<https://youtu.be/EU9kqHnXcvg>, 3:35; rule 6.1 allows 1–4 minutes) shows the main workflow, how the agent works, the key features, and how Zetaris and Meterless are used. Everything in it is fictional data on a local machine.
 
 ## How it was recorded
 

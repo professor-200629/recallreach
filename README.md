@@ -6,6 +6,8 @@
 
 Built solo by Balu for the [Open Agent Hackathon 2026](https://hackathon.genai.works/event/open-agent-hackathon-2026) (GenAI.Works), track *The Agent That Can Explain Why*. All data in this repository is fictional.
 
+**Demo video (3:35):** <https://youtu.be/EU9kqHnXcvg>
+
 > Status: hackathon prototype. Tested on fictional fixtures only. Not validated with real recall coordinators or pharmacists, and not ready for operational use. See [Known limitations](#known-limitations).
 
 ![“Why this finding?” for shipment RR-104: a one-line answer, the engine’s calculation, and what each source system says about the shipment](docs/images/why-this-finding.png)
