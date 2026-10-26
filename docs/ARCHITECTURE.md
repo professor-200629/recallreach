@@ -131,6 +131,7 @@ Imported files, connected-source rows and source text are treated as data:
 ## Authentication and authorisation
 
 - **Trust boundary.** RecallReach does not authenticate users itself. It reads `oai-authenticated-user-*` headers that the OpenAI Sites dispatcher sets after *Sign in with ChatGPT* and strips from client requests (`lib/recall/identity.ts`, used by `app/chatgpt-auth.ts`). Inside a Sites deployment those headers can be trusted; anywhere the Worker is reachable without that dispatcher in front (a `workers.dev` route, another proxy), a caller could forge them. See `DEPLOYMENT.md`.
+- In the public demo (`RECALLREACH_PUBLIC_DEMO=1`), `lib/recall/demo.ts` plays the dispatcher's role in the Worker itself: it strips client-sent identity headers on every request and signs each browser in as its own anonymous sandbox user, keyed by a random HttpOnly cookie; the demo never runs a live model and has no connected source. `tests/demo.test.ts` sends forged headers through it.
 - In local development the Vite plugin plays the dispatcher's role: it strips client-sent identity headers on every request and sets the local test user (`local_seedy`) only for loopback requests carrying its sign-in cookie. `tests/boundaries.test.ts` sends forged headers through it.
 - Every case query filters by `owner_id = <signed-in user>`, including updates (`repo.ts`). A guessed case ID returns 404.
 - Writes require JSON, reject cross-site origins and enforce size limits.

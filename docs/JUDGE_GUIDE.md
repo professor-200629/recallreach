@@ -1,5 +1,7 @@
 # Reproducing RecallReach's results (for judges and reviewers)
 
+**Fastest: no install.** Open the public demo at <https://recallreach-demo.balu04t.workers.dev>, choose **Explore a mock recall**, then try **Why this finding?** on the 40 bottles and **Agent → Investigate** (rules mode). It has no live model and no Zetaris connection; each browser gets its own sandbox with fictional data.
+
 Everything below runs locally on fictional data. Steps 1–4 need only Node.js (≥ 22.13) and about 10 minutes; nothing is sent over the network. Steps 5–6 are optional and need a model key or a Zetaris instance.
 
 **Verified from a fresh clone** on 26 Oct 2026 (Windows 11, Node 24.14, commit `fa2b1be`, no `.dev.vars`): `npm ci`, `npm test` (144 of 144 pass), `npm run typecheck`, `npm run lint`, `npm run build`, `npm run db:migrate:local`, then `npm run dev`. In the app, the drill case was created and a rules-mode investigation completed with 6 of 6 typed facts validated (1,000 accepted, 40 available, 60 dispensed); Zetaris showed as not configured, as expected without settings.
@@ -76,5 +78,5 @@ The Zetaris integration was verified on a local Zetaris 2.4.3 instance with thre
 
 ## What cannot be reproduced here
 
-- A hosted deployment: the app is not deployed (see DEPLOYMENT.md).
+- The full app hosted with sign-in, a live model or Zetaris: only the public demo (rules mode) is hosted (see DEPLOYMENT.md).
 - Real recall data or real users: none were used.

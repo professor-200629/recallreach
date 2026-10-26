@@ -1,17 +1,17 @@
 # Evaluation
 
-Everything here is **automated testing on fictional fixtures** or **observed live runs** recorded on 24–25 Oct 2026. There has been **no evaluation with real users or real recall data**, and nothing here measures time saved or real-world outcomes.
+Everything here is **automated testing on fictional fixtures** or **observed live runs** recorded on 24–26 Oct 2026. There has been **no evaluation with real users or real recall data**, and nothing here measures time saved or real-world outcomes.
 
-**Caveat:** the same developer wrote the engine, the rules procedure, the fixtures and the answer keys, including the held-out case. The held-out key was committed before any run, so it was not tuned to results, but it was not written independently. Treat every score below as "behaves as designed on cases built to exercise it", not as independent accuracy.
+**Caveat:** the same developer wrote the engine, the rules procedure, the fixtures and the answer keys, including both held-out cases. Each held-out key was committed before any run on its case, so it was not tuned to results, but neither was written independently. Treat every score below as "behaves as designed on cases built to exercise it", not as independent accuracy.
 
-## 1. Automated tests: 144 passing
+## 1. Automated tests: 150 passing
 
-`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 26 Oct 2026: **144 tests, 144 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
+`npm test` (Node 24 test runner; server tests use Node's built-in SQLite with the real migration files). Result on 27 Oct 2026: **150 tests, 150 pass, 0 fail.** Also clean: `npm run typecheck` (tsc) and `npm run lint` (ESLint; the vendored H-MEM code is excluded).
 
 | Suite | Tests | Covers |
 | --- | --- | --- |
 | `tests/recall.test.ts` | 24 | Engine: conservation (total and per shipment), quarantine→return without double counting, duplicates, conflicting versions, reused references, double openings, overspend, release/reversal attempts, identity, near-miss batches, units, bad quantities, chronology, location, timestamps, corrections, CSV parsing, original rows, formula neutralisation, audit tamper detection, snapshots |
-| `tests/agent.test.ts` | 21 | Agent loop with typed facts: scripted investigation, fabricated handles and wrong quantities, old free-text submissions rejected, invalid arguments, malformed JSON, missing answer, timeout, rate limits and auth, tool limit, prompt injection, rules mode on both development scenarios, unavailable source, forced final submission, follow-up citations, changes since the previous run, memory context, provider error mapping, follow-up checklist |
+| `tests/agent.test.ts` | 22 | Agent loop with typed facts: scripted investigation, fabricated handles and wrong quantities, old free-text submissions rejected, invalid arguments, malformed JSON, missing answer, timeout, rate limits and auth, repeated rate limits backing off past a too-short stated wait, tool limit, prompt injection, rules mode on both development scenarios, unavailable source, forced final submission, follow-up citations, changes since the previous run, memory context, provider error mapping, follow-up checklist |
 | `tests/facts.test.ts` | 12 | Typed-fact validator counterexamples: wrong shipment, state, unit, scope, stale snapshot, not delivered, mixed clauses and unsupported summaries, record facts, referenced-but-not-delivered handles, connected-source rows (MOCK label, external dependency), evidence-request linking, and valid facts with generated wording |
 | `tests/trust.test.ts` | 6 | Regressions from the external review: the false "RR-104 60 dispensed" claim, the memory-reference bypass, connected-source-only memory (unknown → current → stale), legacy memories with no dependencies, bounded retention with dropped counts, oversized tool output (valid JSON, omitted counts, not delivered) |
 | `tests/import.test.ts` | 11 | Connected-source import: keyset SQL and literal binding, 1,200 rows over 7 pages with shared timestamps, unchanged re-import, same-key correction (twice), operator-corrected conflict, page failure, count mismatch, repeated row, too large, zero rows vs failed query, equal keys from two instances, a disappeared row, legacy imports |
@@ -20,6 +20,7 @@ Everything here is **automated testing on fictional fixtures** or **observed liv
 | `tests/budget.test.ts` | 21 | Groq free-tier fitting with a simulated provider: token estimate and calibration; fitting order (results already read go first, results not yet read last); a long run kept under 8,000 tokens per request (and over it without fitting); several large results in one turn all sent in full; a submission in the same turn as new results sent back once to read them; results sent only as a summary retired and never resent in full; rejections that say why evidence was not read (same turn or summary only); smaller resends after a too-large refusal, never an identical one, and the learned ceiling recorded (stated, count-only or silent refusals); malformed tool calls retried without using the budget, then counted, still reaching the forced final answer; unique tool-call IDs; daily quota ending the run; provider error classification; settings and a ceiling too small for the fixed instructions |
 | `tests/memory.test.ts` | 5 | Vendored H-MEM hashes, save/reload round trip, invalidation after new evidence, operator decisions, contradiction detection |
 | `tests/http.test.ts` | 14 | Unauthenticated access, owner-only access, cross-site/non-JSON/oversized writes, concurrent updates, the demo flow over HTTP, corrections, exports, persistence after reopening, mock labelling, versioned re-import over HTTP (response read back from storage), unreachable Zetaris, the last live health check found after many later queries, the cross-source query (live only, never the mock; recorded), memory feedback |
+| `tests/demo.test.ts` | 5 | Public demo: forged identity headers removed and a new sandbox identity per browser, a returning browser keeps its sandbox and a malformed cookie gets a new one, request bodies pass through, the shared page rendered once and reused (never API or RSC responses, never another response's cookies), sign-in and sign-out redirect only within the site |
 | `tests/zetaris.test.ts` | 9 | REST request shape and row mapping, failure classification, health check, SQL-injection resistance, configuration, read-only probes, datasource setup SQL and runner, the cross-source gap query (one statement over the three tables, unsafe batch refused) |
 
 [JUDGE_GUIDE.md](JUDGE_GUIDE.md) maps each reported counterexample to its test.
@@ -90,6 +91,29 @@ What this shows, plainly:
 - **Conclusion:** engine correctness is shown on this case; live-agent reliability is still not established on Groq's free tier. The numbers that hold up are the engine's and rules mode's.
 
 In total the live model has had ten runs on the held-out case (three at 240 s, three at 480 s, one unplanned at 240 s, three after the request-fitting changes). None stated a key fact in the form the scorer counts; one (§2c, run 3) named all three unresolved shipments with the right quantities as validated open-issue facts.
+
+### 2d. A second held-out case (Halvex tablets), written after the first series
+
+Because the changes in §2b and §2c were made in response to the Corvel runs, Corvel can no longer show whether they generalise. So a second fictional case, `eval/heldout/halvex-tablets.ts`, was written by hand with its answer key and follow-up rubric (same scheme as Corvel's) and committed alone in **`9237cc1`** (26 Oct 2026), before the engine, rules mode or any model was run on it and before the next runner changes. Its traps differ from Corvel's: two conflicting versions of one hold record, a timestamp without a timezone, a release from hold back to available, a return larger than the quantity on hold, a record dated in 2030, a look-alike batch (`HX-2O40`, letter O), the same batch number on a different product, an unconfirmed destination, and an instruction planted in a reference field. It is the same developer's work, so it is held out from tuning, not independent.
+
+The runner changes made after that freeze (`500a795`): repeated per-minute rate limits on one request now back off (at least 2, 4, 8, 16, then 30 s) instead of retrying six times within seconds; waits stated in milliseconds are read; the prompt says a quantity of one shipment in one state is stated as a `shipment_balance` fact; and the follow-up tool states who owns which follow-up, the same policy rules mode already applied. The agent code is frozen from that commit until the live series below.
+
+**Offline results (first run of anything on the case, `eval/results.json`, commit `77ab181`):**
+
+| Measure | Baseline | Engine | Agent, rules mode |
+| --- | --- | --- | --- |
+| Questions correct (of 7) | 2 | 7 | – |
+| Unresolved shipments with the right quantity | 0 / 3 (flags a different product's 60 packs) | 3 / 3 (HX-401 30, HX-402 150, HX-404 80) | 3 / 3 |
+| Records wrongly counted | 7 | 0 | 0 |
+| Totals | 690 shipped, -450 available | 630 shipped, 260 available (correct) | – |
+| Key facts stated as validated facts (of 5) | – | – | 5 |
+| Facts submitted / validated / rejected | – | – | 12 / 12 / 0 |
+| Missing evidence identified | – | – | 3 / 3 |
+| Follow-up rubric points (of 12) | – | – | 11 |
+
+The engine, unchanged since before the first held-out case, answers all seven questions on a case written after it. Rules mode loses one rubric point: its follow-up for HX-401 asks for the corrected HOLD-L2 record (the 30-pack hold rejected for its missing timezone) but does not name the 30 packs.
+
+**Live series (planned before it runs):** 3 runs on this case at the 480 s limit, `--tag after-fixes`, starting at 17:25 UTC on 27 Oct 2026, when Groq's daily allowance is certainly full again, recorded in `eval/results-live-halvex-tablets-after-fixes.json` whatever the result.
 
 ## 3. Development fixtures
 

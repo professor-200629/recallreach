@@ -8,6 +8,8 @@ Built solo by Balu for the [Open Agent Hackathon 2026](https://hackathon.genai.w
 
 **Demo video (3:35):** <https://youtu.be/EU9kqHnXcvg>
 
+**Try it online, no sign-in:** <https://recallreach-demo.balu04t.workers.dev> (public demo: rules mode only, no AI model online, no Zetaris connection, fictional data, each browser gets its own sandbox)
+
 > Status: hackathon prototype. Tested on fictional fixtures only. Not validated with real recall coordinators or pharmacists, and not ready for operational use. See [Known limitations](#known-limitations).
 
 ![“Why this finding?” for shipment RR-104: a one-line answer, the engine’s calculation, and what each source system says about the shipment](docs/images/why-this-finding.png)
@@ -26,6 +28,8 @@ On the **held-out case** (`eval/heldout/corvel-vials.ts`; its answer key was com
 \* In the latest run that completed, the live model named all 3 shipments with the right quantities, but as open-issue facts; the scorer, fixed before the runs, counts only balance facts. It has not been re-scored.
 
 The live model is the weak part. In 10 held-out runs it submitted 6 facts in total: all 6 were true, none was a key fact as scored, and no false fact was accepted. Eight of the ten runs ended before submitting anything: two at the time limit while waiting on Groq's free-tier rate limits, two on malformed tool calls, one on a request too large for the free tier, one on the daily token cap and, in the latest series (run after changes made in response to the earlier runs), two on the per-minute token limit. On the drill used in the demo ("the missing 40 bottles"), the filter does find RR-104's 40 bottles but gets the totals wrong: -219 bottles available, 5 records miscounted, 3 of 7 questions right. The engine gets 7 of 7. The same developer wrote the engine, the fixtures and the answer keys, so these numbers show the system behaves as designed, not independent accuracy. In short: engine correctness is shown on this case; live-agent reliability is not yet established. Every run, including the failures, is in [docs/EVALUATION.md](docs/EVALUATION.md).
+
+**A second held-out case** (`eval/heldout/halvex-tablets.ts`), with different traps, was written after those runs and committed in `9237cc1` before anything ran on it. On it the spreadsheet filter finds **0 of 3** unresolved shipments (it flags another product's 60 packs and reports -450 packs available); the **engine finds all 3** (260 packs) and answers 7 of 7 questions; rules mode states 5 of 5 key facts. A live-model series on this case is scheduled for 27 Oct 2026, 17:25 UTC, and will be recorded whatever the result (EVALUATION.md §2d).
 
 ## The problem
 
@@ -70,6 +74,8 @@ Details and setup: [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
 
 ## Quick start
 
+No install needed to look around: use the [online demo](https://recallreach-demo.balu04t.workers.dev). To run everything yourself:
+
 ```bash
 npm ci
 cp .dev.vars.example .dev.vars   # add GROQ_API_KEY for live runs (optional)
@@ -107,7 +113,7 @@ Unknown does not mean safe. A record outside the alert is not a safety clearance
 - **What "validated" means, and does not.** The validator checks the seven typed fact forms field by field; it cannot check free text, so the model's summary and interpretations are always shown as unverified. A validated fact is as good as the engine and the imported records: it says what the records report, not what physically happened.
 - **The evaluation is not independent.** The same developer wrote the engine, the fixtures and the answer keys, including the held-out case (whose key was committed before any run). Results show behaviour on fictional cases, not real-world accuracy.
 - **Memory retention is bounded:** the newest 200 memories and 800 ledger entries per case are kept; older ones are dropped and counted.
-- **Not deployed.** Everything was run locally. Hosting is planned through OpenAI Sites (the existing project identity). Sign-in trusts identity headers set by the Sites dispatcher, so the Worker must not be exposed any other way (DEPLOYMENT.md, *Trust boundary*).
+- **Only a public demo is hosted.** It runs on Cloudflare's free Workers plan in demo mode: rules mode only, no live model, no Zetaris connection, fictional data, and each browser is its own anonymous sandbox (`lib/recall/demo.ts`). Its requests often use more than the free plan's 10 ms CPU guideline (9 to 140 ms measured); Cloudflare has served all of them so far, but heavy use could be refused. The full app with sign-in is not hosted: its sign-in trusts identity headers set by the OpenAI Sites dispatcher, so it must not be exposed any other way (DEPLOYMENT.md, *Trust boundary*).
 - One batch and one unit per case; no transfers between locations; no team sharing; no automated alert ingestion.
 - The audit hash chain checks internal consistency only; it is not tamper-proof storage.
 - H-MEM is a reference implementation ("not a production library") with a deterministic hash embedder.

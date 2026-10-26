@@ -1,9 +1,10 @@
 # Running and deploying RecallReach
 
-## Status (25 Oct 2026)
+## Status (27 Oct 2026)
 
 - **Local:** reproducible and verified on Windows 11, Node 24.14 (steps below).
-- **Hosted:** **not deployed.** There is no live URL. The project keeps its original hosting identity, an OpenAI Sites project (`.openai/hosting.json`, project `appgprj_6adbc4…`). Sites publishing is done from Codex with the Sites plugin, which was not available in this build session.
+- **Public demo:** <https://recallreach-demo.balu04t.workers.dev>, on Cloudflare's free Workers plan with its own D1 database (see *Option C*). Rules mode only, no live model, no Zetaris connection, fictional data, an anonymous sandbox per browser.
+- **Full app with sign-in:** not hosted. The project keeps its original hosting identity, an OpenAI Sites project (`.openai/hosting.json`, project `appgprj_6adbc4…`). Sites publishing is done from Codex with the Sites plugin, which was not available in this build session.
 
 ## Run locally
 
@@ -53,6 +54,18 @@ The Worker builds for Cloudflare (`npm run build` → `dist/server`). **Do not d
 
 Then create a D1 database, set the binding `DB`, apply `drizzle/*.sql` with `wrangler d1 migrations` or `wrangler d1 execute --remote`, and set secrets with `wrangler secret put`. Cloudflare's free Workers plan limits CPU time per request; a large case may need the paid plan. This has not been measured.
 
+## Option C — the public demo on Cloudflare (what is deployed)
+
+The demo avoids the trust problem in Option B by not trusting any client identity at all. With `RECALLREACH_PUBLIC_DEMO=1`, `worker/index.ts` passes every request through `lib/recall/demo.ts`, which removes all `oai-authenticated-user-*` headers a client sends and signs the browser in as its own sandbox user (`demo-<random UUID>`, from an HttpOnly, Secure, SameSite=Lax cookie). A visitor can only reach their own sandbox. The demo never configures a model provider, even if a key were set, and reports Zetaris as not connected. Nothing in it is real.
+
+```bash
+npx wrangler login                 # once, in a browser (the account owner does this)
+npm run build
+node scripts/deploy-demo.mjs       # creates or reuses D1 recallreach-demo, applies drizzle/*.sql, deploys recallreach-demo
+```
+
+Measured on Cloudflare on 26–27 Oct 2026 (`wrangler tail`): rendering the page used 35 to 140 ms of CPU, case requests 9 to 41 ms, a rules-mode investigation 113 ms. That is above the free plan's 10 ms per request; Cloudflare allows occasional overruns and served every request in a 35-request burst. Each Worker instance keeps one rendered copy of the page (identical for every visitor) for ten minutes, which served about half the burst at 0 to 1 ms. Under sustained heavy use the free plan could refuse requests; the paid plan ($5 per month) would remove the limit and has not been bought.
+
 ## Costs
 
 | Item | Cost observed or expected |
@@ -62,4 +75,4 @@ Then create a D1 database, set the binding `DB`, apply `drizzle/*.sql` with `wra
 | Zetaris local Docker | $0 software for a 30-day internal evaluation (per its install guide) |
 | Zetaris on AWS (needed for a hosted demo) | Zetaris's guide estimates about $80 of AWS credit for a Mini cluster running a week; a new AWS account's free credits can cover it |
 | OpenAI Sites hosting | Unknown; check your Sites plan |
-| Cloudflare Workers + D1 | Free tier likely sufficient for a demo; CPU limits unmeasured |
+| Cloudflare Workers + D1 (public demo) | $0 on the free plan; CPU use measured above the 10 ms guideline but served (Option C) |
