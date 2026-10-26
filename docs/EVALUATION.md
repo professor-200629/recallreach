@@ -68,11 +68,28 @@ After the first series, the Groq run time limit was raised from 240 s to 480 s (
 
 **Raising the time limit did not help.** No run came near 480 s. Runs 1 and 2 used all 10 model calls (at the time, the budget also counted calls that returned a malformed tool call) and ended on another malformed call; run 3 could not start because the day's free-tier allowance was used up. No run accepted a false fact or changed stock. The binding limits were the model-call budget with malformed tool calls, the 8,000-token per-request ceiling and the daily token cap, not time.
 
-**What changed after this series (25–26 Oct 2026):** the runner now keeps every Groq request under 8,000 tokens and resends a smaller one if Groq still refuses it, gives malformed tool calls 3 retries per run that do not use the model-call budget, asks the model once to read results it has not seen before it submits, and ends a run at once when the daily allowance is used up (ARCHITECTURE.md). This is covered by the 21 tests in `tests/budget.test.ts` with a simulated provider. **No live run has been made with this code yet:** Groq's daily allowance was used up, so whether it improves live results on the held-out case is not known. Any such runs will be recorded as their own series.
+**What changed after this series (25–26 Oct 2026):** the runner now keeps every Groq request under 8,000 tokens and resends a smaller one if Groq still refuses it, gives malformed tool calls 3 retries per run that do not use the model-call budget, asks the model once to read results it has not seen before it submits, and ends a run at once when the daily allowance is used up (ARCHITECTURE.md). This is covered by the 21 tests in `tests/budget.test.ts` with a simulated provider. Its first live series is §2c.
 
 **One unplanned run.** While the overwrite guard was being tested, a command ran the earlier evaluation script before the guard existed. It made one extra live run (240 s limit) and overwrote the first series' file; the file was restored from git and the extra run is kept in `eval/results-live-corvel-vials-unplanned-240s.json`. It ended as a provider error after 140.8 s (124 s waiting), 9 model calls and 8 tool calls, 40.9k / 2.3k tokens: Groq refused a request of 8,333 tokens as larger than the 8,000 tokens-per-minute limit (HTTP 413). 0 facts submitted.
 
-In total the live model has had seven runs on the held-out case (three at 240 s, three at 480 s, one unplanned at 240 s); none stated a key fact.
+### 2c. Live model after changes made in response to earlier held-out runs (26 Oct 2026)
+
+The request-fitting changes described above (`a07e5a2`) were made because of the runs in §2 and §2b, so this series does not test an untouched system: it tests whether those changes helped on the same case. The answer key and follow-up rubric are unchanged (`1313452`), and so are the scoring rules for key facts and rubric points (`962f15c`; later commits only added recorded fields, such as each run's trace). The series was planned before it ran, as 3 runs at the 480 s limit, started at 17:05 UTC when Groq's daily allowance was full, and is recorded whatever the result. It ran on commit `a1da0eb` with a clean working tree (both recorded in the file); the agent, engine and investigation code are as of `a07e5a2`. File: `eval/results-live-corvel-vials-budget-fit.json`, which also keeps each run's tool steps, submitted facts, follow-ups and evidence requests.
+
+| Run | Status | Time (waiting) | Tool / model calls | Malformed calls (all retried) | Tokens in / out | Key facts | Facts submitted / validated | Missing evidence identified | Follow-up rubric points |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | provider error: one model call refused for the per-minute token limit more often than the 6 retries per call allow | 435.1 s (405 s) | 9 / 9 | 2 | 44.6k / 1.9k | 0 / 5 | 0 / 0 | 0 / 3 | 0 / 12 |
+| 2 | provider error: the same | 352.4 s (318 s) | 8 / 9 | 3 | 43.9k / 2.4k | 0 / 5 | 0 / 0 | 0 / 3 | 0 / 12 |
+| 3 | completed | 178.3 s (155 s) | 7 / 8 | 0 | 39.2k / 3.4k | 0 / 5 | 3 / 3 | 3 / 3 | 4 / 12 |
+
+What this shows, plainly:
+
+- **Still 0 of 5 key facts in every run, as scored.** No run ended on an oversized request or a malformed tool call, the failures the changes targeted: no request was refused as too large (4 to 6 per run were shortened to fit), and all 5 malformed calls were retried. Two of the three runs ended on Groq's per-minute token limit instead, before submitting anything.
+- **Run 3 completed, with findings close to the answer but not in the form the scorer counts.** Its 3 validated facts are open-issue facts, one for each unresolved shipment with the right quantity: CV-302 20 vials, CV-303 30 vials, CV-304 60 vials. The scorer counts a key fact only as a balance fact ("CV-302 available 20"), so they score 0. They have not been re-scored: changing the scoring after seeing a result would turn the held-out case into a development fixture. Run 3 did not state CV-301's 30 dispensed vials or CV-304's unconfirmed destination. It linked an evidence request to all three unresolved shipments (3 of 3, the first live run to do so) and proposed follow-ups for CV-302 and CV-303 that name the shipment and quantity but assign them to the recall coordinator rather than pharmacy staff (4 of 12 rubric points).
+- **The checks held.** No false fact was accepted and no run changed stock. Run 1's follow-up citing records it had not read was refused; run 2's submission without follow-ups for the issues it had reviewed was sent back.
+- **Conclusion:** engine correctness is shown on this case; live-agent reliability is still not established on Groq's free tier. The numbers that hold up are the engine's and rules mode's.
+
+In total the live model has had ten runs on the held-out case (three at 240 s, three at 480 s, one unplanned at 240 s, three after the request-fitting changes). None stated a key fact in the form the scorer counts; one (§2c, run 3) named all three unresolved shipments with the right quantities as validated open-issue facts.
 
 ## 3. Development fixtures
 
@@ -145,4 +162,4 @@ One read-only statement joining all three datasources inside Zetaris (`scripts/z
 
 ## 7. Token use and cost
 
-All live calls used Groq's free tier, as in earlier sessions (no cost estimate is configured, and the account's billing page was not checked in this session). Totals so far: about 478k input and 41k output tokens (seven in-app runs, the four earlier evaluation runs, the seven held-out runs, and a few smoke checks). Free-tier limits: 8,000 tokens per minute and 200,000 tokens per day per model; the daily cap was reached on 25 Oct 2026.
+All live calls used Groq's free tier, as in earlier sessions (no cost estimate is configured, and the account's billing page was not checked in this session). Totals so far: about 606k input and 49k output tokens (seven in-app runs, the four earlier evaluation runs, the ten held-out runs, and a few smoke checks); the §2c series used 127.7k in and 7.7k out. Free-tier limits: 8,000 tokens per minute and 200,000 tokens per day per model; the daily cap was reached on 25 Oct 2026.

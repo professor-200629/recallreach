@@ -31,7 +31,7 @@ Verified on 25 Oct 2026 against that local instance: `verify.sh` 9/9; the in-app
 
 ## Results, honestly
 
-On the held-out case (answer key committed in `1313452` before any run), a spreadsheet-style filter finds 1 of 3 unresolved shipments (60 vials in 1 shipment); the engine and rules mode find all 3 (110 vials). The live model stated 0 of the 5 key facts in 7 runs. Across those runs it submitted 3 facts, all true and none of them key, and no false fact was accepted. The same person wrote the engine, the fixtures and the answer keys, so these are not independent accuracy figures. Details, including every failed run: [EVALUATION.md](EVALUATION.md).
+On the held-out case (answer key committed in `1313452` before any run), a spreadsheet-style filter finds 1 of 3 unresolved shipments (60 vials in 1 shipment); the engine and rules mode find all 3 (110 vials). The live model stated 0 of the 5 key facts in 10 runs, as scored. Across those runs it submitted 6 facts, all true and none of them key, and no false fact was accepted. In the latest series, run after changes made in response to the earlier runs, two of three runs ended on Groq's per-minute token limit; the one that completed named all three unresolved shipments with the right quantities, but as open-issue facts, which the scorer (fixed before the runs) does not count. The same person wrote the engine, the fixtures and the answer keys, so these are not independent accuracy figures. Details, including every failed run: [EVALUATION.md](EVALUATION.md).
 
 ## Pre-existing work (rules 4.2 and 5.4)
 

@@ -1,0 +1,1459 @@
+{
+  "generated_at": "2026-10-26T17:05:22.344Z",
+  "note": "Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.",
+  "held_out_key_commit": "1313452",
+  "code": {
+    "commit": "a1da0eb",
+    "uncommitted_changes": false
+  },
+  "series": "budget-fit",
+  "scenarios": {
+    "corvel-vials": {
+      "held_out": true,
+      "initial": {
+        "baseline": {
+          "unresolved_found": {
+            "CV-304": 60
+          },
+          "unresolved_correct": "1/3",
+          "unresolved_false_positives": 0,
+          "wrongly_counted_records": 4,
+          "totals": {
+            "shipped": 470,
+            "available": -240,
+            "quarantined": 380,
+            "returned": 300,
+            "dispensed": 30
+          },
+          "totals_correct": false,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": false,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": false,
+            "Which records need review?": false,
+            "Which near-miss batch records need checking?": false,
+            "Which records are duplicates?": false,
+            "Are the source-reported totals correct?": false
+          },
+          "questions_correct": 1,
+          "questions_total": 7
+        },
+        "engine": {
+          "unresolved_found": {
+            "CV-302": 20,
+            "CV-303": 30,
+            "CV-304": 60
+          },
+          "unresolved_correct": "3/3",
+          "unresolved_false_positives": 0,
+          "wrongly_counted_records": 0,
+          "totals": {
+            "shipped": 470,
+            "available": 110,
+            "quarantined": 180,
+            "returned": 150,
+            "dispensed": 30
+          },
+          "totals_correct": true,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": true,
+            "Which records need review?": true,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": true
+          },
+          "questions_correct": 7,
+          "questions_total": 7
+        }
+      },
+      "agent_rules_mode": {
+        "mode": "rules",
+        "provider": "none",
+        "model": "rules-v3",
+        "status": "completed",
+        "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
+        "limits": {
+          "total_timeout_ms": 240000,
+          "max_model_calls": 0,
+          "max_tool_calls": 40,
+          "max_request_tokens": null
+        },
+        "duration_ms": 115,
+        "tool_calls": 21,
+        "rejected_tool_calls": 0,
+        "model_calls": 0,
+        "malformed_calls": 0,
+        "oversize_retries": 0,
+        "shortened_requests": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "estimated_cost_usd": null,
+        "facts_submitted": 12,
+        "facts_validated": 12,
+        "facts_rejected": 0,
+        "rejected_fact_reasons": [],
+        "key_facts_correct": "5/5",
+        "key_facts": [
+          {
+            "item": "CV-302 available 20",
+            "found": true
+          },
+          {
+            "item": "CV-303 available 30",
+            "found": true
+          },
+          {
+            "item": "CV-304 available 60",
+            "found": true
+          },
+          {
+            "item": "CV-301 dispensed 30",
+            "found": true
+          },
+          {
+            "item": "CV-304 destination unconfirmed",
+            "found": true
+          }
+        ],
+        "unsupported_claims_accepted": 0,
+        "overreach_flags": 0,
+        "missing_evidence_identified": "3/3",
+        "follow_ups_proposed": 4,
+        "follow_up_rubric": [
+          {
+            "issue_id": "stock:CV-302",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:CV-303",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:CV-304",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "dispensed:CV-301",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          }
+        ],
+        "follow_up_rubric_points": "12/12",
+        "trace": {
+          "steps": [
+            {
+              "seq": 1,
+              "tool": "get_recall_scope",
+              "args": {
+                "purpose": "Confirm the exact recall scope before reading evidence."
+              },
+              "ok": true,
+              "summary": "Scope Brightwater Laboratories (fictional) / Corvel injection vial / batch CV-3319 in vials; 3 sources.",
+              "record_ids": [],
+              "duration_ms": 1
+            },
+            {
+              "seq": 2,
+              "tool": "run_reconciliation",
+              "args": {
+                "purpose": "Get balances and open issues from the deterministic engine."
+              },
+              "ok": true,
+              "summary": "470 accepted; 110 awaiting containment, 180 quarantined, 150 returned, 30 dispensed; 11 issues.",
+              "record_ids": [],
+              "duration_ms": 1
+            },
+            {
+              "seq": 3,
+              "tool": "search_records",
+              "args": {
+                "purpose": "List records the engine held for review; one may explain a gap.",
+                "status": "review",
+                "limit": 20
+              },
+              "ok": true,
+              "summary": "3 matching records.",
+              "record_ids": [
+                "sample-corvel-vials-pharmacy_stock_events:6",
+                "sample-corvel-vials-pharmacy_stock_events:8",
+                "sample-corvel-vials-return_records:4"
+              ],
+              "duration_ms": 1
+            },
+            {
+              "seq": 4,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for CV-304 in time order.",
+                "shipment_id": "CV-304"
+              },
+              "ok": true,
+              "summary": "1 records for CV-304; 60 awaiting containment.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 5,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind CV-304.",
+                "cite": "E14"
+              },
+              "ok": true,
+              "summary": "Original row 5 of Brightwater dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 6,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-304 is reused elsewhere.",
+                "reference": "INV-304"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-304.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 7,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:CV-304",
+                "action": "Ask the distributor for proof of delivery for CV-304 (INV-304) and the name of the responsible recipient.",
+                "owner_role": "distributor",
+                "evidence_requested": "Proof of delivery and a status report for 60 vials from the named recipient.",
+                "citations": [
+                  "E14"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P1 for stock:CV-304 awaits human approval.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:5"
+              ],
+              "duration_ms": 1
+            },
+            {
+              "seq": 8,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for CV-303 in time order.",
+                "shipment_id": "CV-303"
+              },
+              "ok": true,
+              "summary": "3 records for CV-303; 30 awaiting containment.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:4",
+                "sample-corvel-vials-pharmacy_stock_events:7",
+                "sample-corvel-vials-pharmacy_stock_events:8"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 9,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind CV-303.",
+                "cite": "E12"
+              },
+              "ok": true,
+              "summary": "Original row 4 of Brightwater dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 10,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-303 is reused elsewhere.",
+                "reference": "INV-303"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-303.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 11,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:CV-303",
+                "action": "Ask Ward 7 Hospital Pharmacy to locate shipment CV-303 and report the status of 30 vials.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "A dated quarantine, return or dispensing record for 30 vials of CV-303.",
+                "citations": [
+                  "E12"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P2 for stock:CV-303 awaits human approval.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:4"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 12,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for CV-302 in time order.",
+                "shipment_id": "CV-302"
+              },
+              "ok": true,
+              "summary": "3 records for CV-302; 20 awaiting containment.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:3",
+                "sample-corvel-vials-pharmacy_stock_events:5",
+                "sample-corvel-vials-pharmacy_stock_events:6"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 13,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind CV-302.",
+                "cite": "E10"
+              },
+              "ok": true,
+              "summary": "Original row 3 of Brightwater dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 14,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-302 is reused elsewhere.",
+                "reference": "INV-302"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-302.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 15,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:CV-302",
+                "action": "Ask Elm Street Pharmacy to locate shipment CV-302 and report the status of 20 vials.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "A dated quarantine, return or dispensing record for 20 vials of CV-302.",
+                "citations": [
+                  "E10"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P3 for stock:CV-302 awaits human approval.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 16,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for CV-301 in time order.",
+                "shipment_id": "CV-301"
+              },
+              "ok": true,
+              "summary": "7 records for CV-301; 0 awaiting containment.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:2",
+                "sample-corvel-vials-pharmacy_stock_events:2",
+                "sample-corvel-vials-pharmacy_stock_events:3",
+                "sample-corvel-vials-pharmacy_stock_events:4",
+                "sample-corvel-vials-return_records:2",
+                "sample-corvel-vials-return_records:3",
+                "sample-corvel-vials-return_records:4"
+              ],
+              "duration_ms": 26
+            },
+            {
+              "seq": 17,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind CV-301.",
+                "cite": "E5"
+              },
+              "ok": true,
+              "summary": "Original row 2 of Brightwater dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:2"
+              ],
+              "duration_ms": 2
+            },
+            {
+              "seq": 18,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference INV-301 is reused elsewhere.",
+                "reference": "INV-301"
+              },
+              "ok": true,
+              "summary": "1 records use reference INV-301.",
+              "record_ids": [
+                "sample-corvel-vials-distributor_dispatches:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 19,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "dispensed:CV-301",
+                "action": "Assign a supervising pharmacist to review dispensing records for CV-301 against the recall instructions, outside this workspace.",
+                "owner_role": "supervising_pharmacist",
+                "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+                "citations": [
+                  "dispensed:CV-301"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P4 for dispensed:CV-301 awaits human approval.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 20,
+              "tool": "recall_memory",
+              "args": {
+                "purpose": "Check earlier notes on this case and whether they still hold.",
+                "query": "Which shipments of batch CV-3319 still have vials without a containment or dispensing record, and what would resolve each?"
+              },
+              "ok": true,
+              "summary": "0 memories (0 current, 0 stale, superseded or unknown).",
+              "record_ids": [],
+              "duration_ms": 3
+            },
+            {
+              "seq": 21,
+              "tool": "compare_with_previous_run",
+              "args": {
+                "purpose": "Check what changed since the previous investigation run."
+              },
+              "ok": true,
+              "summary": "No previous run to compare with.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 22,
+              "tool": "submit_findings",
+              "args": {
+                "facts": 12
+              },
+              "ok": true,
+              "summary": "12 facts, 2 notes, 3 evidence requests submitted.",
+              "record_ids": [],
+              "duration_ms": 0
+            }
+          ],
+          "facts": [
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "CV-304",
+                "state": "available",
+                "quantity": 60,
+                "unit": "vials"
+              },
+              "statement": "Shipment CV-304 (Destination to be confirmed): 60 vials available (no accepted quarantine, return or dispensing record), of 60 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:CV-304"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 60 vials. Destination to be confirmed: shipment CV-304 has 60 vials without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "destination:CV-304"
+              },
+              "statement": "Open issue, Destination unconfirmed: Confirm where shipment CV-304 went. The opening record names “Destination to be confirmed” as the destination. Movements reported for this shipment do not establish who holds the stock.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "CV-303",
+                "state": "available",
+                "quantity": 30,
+                "unit": "vials"
+              },
+              "statement": "Shipment CV-303 (Ward 7 Hospital Pharmacy): 30 vials available (no accepted quarantine, return or dispensing record), of 90 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:CV-303"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 30 vials. Ward 7 Hospital Pharmacy: shipment CV-303 has 30 vials without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "CV-302",
+                "state": "available",
+                "quantity": 20,
+                "unit": "vials"
+              },
+              "statement": "Shipment CV-302 (Elm Street Pharmacy): 20 vials available (no accepted quarantine, return or dispensing record), of 120 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:CV-302"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 20 vials. Elm Street Pharmacy: shipment CV-302 has 20 vials without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "CV-301",
+                "state": "dispensed",
+                "quantity": 30,
+                "unit": "vials"
+              },
+              "statement": "Shipment CV-301 (Northgate Pharmacy): 30 vials recorded as dispensed, of 200 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "dispensed:CV-301"
+              },
+              "statement": "Open issue, Pharmacist follow-up: 30 vials recorded as dispensed. Northgate Pharmacy reported dispensing this quantity. Records do not establish who consumed it or whether anyone was harmed.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E4",
+                "status": "review"
+              },
+              "statement": "Record HOLD-W1 (Pharmacy stock exports (fictional).csv, row 8) is held for review and not counted: Reference HOLD-W1 was already used for this shipment and movement. A second event ID is not evidence of a second stock movement.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E2",
+                "status": "review"
+              },
+              "statement": "Record HOLD-E2 (Pharmacy stock exports (fictional).csv, row 6) is held for review and not counted: Unit “boxes” differs from case unit “vials”. No conversion has been assumed.",
+              "problems": []
+            },
+            {
+              "type": "record_report",
+              "status": "validated",
+              "claimed": {
+                "type": "record_report",
+                "record": "E14",
+                "shipment_id": "CV-304",
+                "from_state": "none",
+                "to_state": "available",
+                "quantity": 60,
+                "unit": "vials"
+              },
+              "statement": "Brightwater dispatch log (fictional).csv, row 5 reports an opening shipment into available of 60 vials for shipment CV-304 at “Destination to be confirmed” (INV-304, 2026-09-15T08:30:00Z). This is a source report, not proof of physical handling.",
+              "problems": []
+            }
+          ],
+          "follow_ups": [
+            {
+              "issue_id": "stock:CV-304",
+              "owner_role": "distributor",
+              "action": "Ask the distributor for proof of delivery for CV-304 (INV-304) and the name of the responsible recipient.",
+              "evidence_requested": "Proof of delivery and a status report for 60 vials from the named recipient.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:CV-303",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Ward 7 Hospital Pharmacy to locate shipment CV-303 and report the status of 30 vials.",
+              "evidence_requested": "A dated quarantine, return or dispensing record for 30 vials of CV-303.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:CV-302",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Elm Street Pharmacy to locate shipment CV-302 and report the status of 20 vials.",
+              "evidence_requested": "A dated quarantine, return or dispensing record for 20 vials of CV-302.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "dispensed:CV-301",
+              "owner_role": "supervising_pharmacist",
+              "action": "Assign a supervising pharmacist to review dispensing records for CV-301 against the recall instructions, outside this workspace.",
+              "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+              "accepted": true,
+              "problems": []
+            }
+          ],
+          "evidence_requests": [
+            {
+              "issue_id": "stock:CV-304",
+              "description": "No dated containment, return or dispensing record covers 60 vials of CV-304.",
+              "would_change": "A record from the distributor or the actual recipient for CV-304, same batch, in vials, showing the current status of the 60 vials, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:CV-303",
+              "description": "No dated containment, return or dispensing record covers 30 vials of CV-303.",
+              "would_change": "A record from Ward 7 Hospital Pharmacy for CV-303, same batch, in vials, showing the current status of the 30 vials, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:CV-302",
+              "description": "No dated containment, return or dispensing record covers 20 vials of CV-302.",
+              "would_change": "A record from Elm Street Pharmacy for CV-302, same batch, in vials, showing the current status of the 20 vials, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            }
+          ],
+          "summary": "110 vials across 3 shipments (CV-304, CV-303, CV-302) lack an accepted containment or dispensing record. 12 typed facts and 4 proposed follow-ups await human review."
+        },
+        "stock_unchanged_by_run": true
+      },
+      "agent_live": [
+        {
+          "mode": "live",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "status": "provider_error",
+          "status_detail": "rate_limit: groq rate limit reached: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 1633, Requested 6466. Please try again in 742. Waited 405 s for provider rate limits. 2 malformed tool calls (2 retried without using the model-call budget).",
+          "limits": {
+            "total_timeout_ms": 480000,
+            "max_model_calls": 10,
+            "max_tool_calls": 16,
+            "max_request_tokens": 8000
+          },
+          "duration_ms": 435065,
+          "tool_calls": 9,
+          "rejected_tool_calls": 1,
+          "model_calls": 9,
+          "malformed_calls": 2,
+          "oversize_retries": 0,
+          "shortened_requests": 4,
+          "input_tokens": 44577,
+          "output_tokens": 1922,
+          "estimated_cost_usd": null,
+          "facts_submitted": 0,
+          "facts_validated": 0,
+          "facts_rejected": 0,
+          "rejected_fact_reasons": [],
+          "key_facts_correct": "0/5",
+          "key_facts": [
+            {
+              "item": "CV-302 available 20",
+              "found": false
+            },
+            {
+              "item": "CV-303 available 30",
+              "found": false
+            },
+            {
+              "item": "CV-304 available 60",
+              "found": false
+            },
+            {
+              "item": "CV-301 dispensed 30",
+              "found": false
+            },
+            {
+              "item": "CV-304 destination unconfirmed",
+              "found": false
+            }
+          ],
+          "unsupported_claims_accepted": 0,
+          "overreach_flags": 0,
+          "missing_evidence_identified": "0/3",
+          "follow_ups_proposed": 0,
+          "follow_up_rubric": [
+            {
+              "issue_id": "stock:CV-302",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:CV-303",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:CV-304",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "dispensed:CV-301",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            }
+          ],
+          "follow_up_rubric_points": "0/12",
+          "trace": {
+            "steps": [
+              {
+                "seq": 1,
+                "tool": "get_recall_scope",
+                "args": {
+                  "purpose": "Obtain recall scope details for Corvel vials batch CV-3319"
+                },
+                "ok": true,
+                "summary": "Scope Brightwater Laboratories (fictional) / Corvel injection vial / batch CV-3319 in vials; 3 sources.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 2,
+                "tool": "run_reconciliation",
+                "args": {
+                  "purpose": "Run stock reconciliation for Corvel batch CV-3319"
+                },
+                "ok": true,
+                "summary": "470 accepted; 110 awaiting containment, 180 quarantined, 150 returned, 30 dispensed; 11 issues.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 3,
+                "tool": "propose_follow_up",
+                "args": {
+                  "purpose": "Resolve missing containment for CV-302",
+                  "issue_id": "stock:CV-302",
+                  "action": "Obtain a verified containment (quarantine) record for the 20 vials in shipment CV-302 to confirm they are secured.",
+                  "owner_role": "pharmacy_staff",
+                  "evidence_requested": "Containment record confirming quarantine of 20 vials in shipment CV-302",
+                  "citations": [
+                    "E10",
+                    "E11"
+                  ]
+                },
+                "ok": false,
+                "error": "These citations are not evidence you have read: E10 (not returned with its contents in this run); E11 (not returned with its contents in this run). Memory IDs and referenced-only handles are never evidence.",
+                "summary": "Rejected: invalid citations.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 4,
+                "tool": "search_records",
+                "args": {
+                  "purpose": "Find applied records for shipment CV-302",
+                  "shipment_id": "CV-302",
+                  "status": "applied",
+                  "limit": 20
+                },
+                "ok": true,
+                "summary": "2 matching records.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:3",
+                  "sample-corvel-vials-pharmacy_stock_events:5"
+                ],
+                "duration_ms": 0
+              },
+              {
+                "seq": 5,
+                "tool": "get_shipment_ledger",
+                "args": {
+                  "purpose": "Get ledger for CV-302",
+                  "shipment_id": "CV-302"
+                },
+                "ok": true,
+                "summary": "3 records for CV-302; 20 awaiting containment.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:3",
+                  "sample-corvel-vials-pharmacy_stock_events:5",
+                  "sample-corvel-vials-pharmacy_stock_events:6"
+                ],
+                "duration_ms": 0
+              },
+              {
+                "seq": 6,
+                "tool": "search_records",
+                "args": {
+                  "purpose": "Find all records for batch CV-3319",
+                  "text": "CV-3319",
+                  "limit": 20
+                },
+                "ok": true,
+                "summary": "15 matching records.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:2",
+                  "sample-corvel-vials-distributor_dispatches:3",
+                  "sample-corvel-vials-distributor_dispatches:4",
+                  "sample-corvel-vials-distributor_dispatches:5",
+                  "sample-corvel-vials-distributor_dispatches:6",
+                  "sample-corvel-vials-pharmacy_stock_events:2",
+                  "sample-corvel-vials-pharmacy_stock_events:5",
+                  "sample-corvel-vials-pharmacy_stock_events:6",
+                  "sample-corvel-vials-pharmacy_stock_events:7",
+                  "sample-corvel-vials-pharmacy_stock_events:8",
+                  "sample-corvel-vials-pharmacy_stock_events:3",
+                  "sample-corvel-vials-pharmacy_stock_events:4",
+                  "sample-corvel-vials-return_records:2",
+                  "sample-corvel-vials-return_records:3",
+                  "sample-corvel-vials-return_records:4"
+                ],
+                "duration_ms": 0
+              },
+              {
+                "seq": 7,
+                "tool": "get_shipment_ledger",
+                "args": {
+                  "purpose": "Get ledger for shipment CV-301",
+                  "shipment_id": "CV-301"
+                },
+                "ok": true,
+                "summary": "7 records for CV-301; 0 awaiting containment.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:2",
+                  "sample-corvel-vials-pharmacy_stock_events:2",
+                  "sample-corvel-vials-pharmacy_stock_events:3",
+                  "sample-corvel-vials-pharmacy_stock_events:4",
+                  "sample-corvel-vials-return_records:2",
+                  "sample-corvel-vials-return_records:3",
+                  "sample-corvel-vials-return_records:4"
+                ],
+                "duration_ms": 1
+              },
+              {
+                "seq": 8,
+                "tool": "get_shipment_ledger",
+                "args": {
+                  "purpose": "Get ledger for shipment CV-302",
+                  "shipment_id": "CV-302"
+                },
+                "ok": true,
+                "summary": "3 records for CV-302; 20 awaiting containment.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:3",
+                  "sample-corvel-vials-pharmacy_stock_events:5",
+                  "sample-corvel-vials-pharmacy_stock_events:6"
+                ],
+                "duration_ms": 0
+              },
+              {
+                "seq": 9,
+                "tool": "search_records",
+                "args": {
+                  "purpose": "Find shipment IDs for batch CV-3319",
+                  "text": "CV-",
+                  "limit": 20
+                },
+                "ok": true,
+                "summary": "16 matching records.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:2",
+                  "sample-corvel-vials-distributor_dispatches:3",
+                  "sample-corvel-vials-distributor_dispatches:4",
+                  "sample-corvel-vials-distributor_dispatches:5",
+                  "sample-corvel-vials-distributor_dispatches:6",
+                  "sample-corvel-vials-distributor_dispatches:7",
+                  "sample-corvel-vials-pharmacy_stock_events:2",
+                  "sample-corvel-vials-pharmacy_stock_events:5",
+                  "sample-corvel-vials-pharmacy_stock_events:6",
+                  "sample-corvel-vials-pharmacy_stock_events:7",
+                  "sample-corvel-vials-pharmacy_stock_events:8",
+                  "sample-corvel-vials-pharmacy_stock_events:3",
+                  "sample-corvel-vials-pharmacy_stock_events:4",
+                  "sample-corvel-vials-return_records:2",
+                  "sample-corvel-vials-return_records:3",
+                  "sample-corvel-vials-return_records:4"
+                ],
+                "duration_ms": 0
+              }
+            ],
+            "facts": [],
+            "follow_ups": [],
+            "evidence_requests": [],
+            "summary": null
+          },
+          "stock_unchanged_by_run": true
+        },
+        {
+          "mode": "live",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "status": "provider_error",
+          "status_detail": "rate_limit: groq rate limit reached: Rate limit reached for model `openai/gpt-oss-120b` in organization `org_[redacted]` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 3314, Requested 5826. Please try again in 8.54 Waited 318 s for provider rate limits. 3 malformed tool calls (3 retried without using the model-call budget).",
+          "limits": {
+            "total_timeout_ms": 480000,
+            "max_model_calls": 10,
+            "max_tool_calls": 16,
+            "max_request_tokens": 8000
+          },
+          "duration_ms": 352398,
+          "tool_calls": 8,
+          "rejected_tool_calls": 1,
+          "model_calls": 9,
+          "malformed_calls": 3,
+          "oversize_retries": 0,
+          "shortened_requests": 6,
+          "input_tokens": 43942,
+          "output_tokens": 2409,
+          "estimated_cost_usd": null,
+          "facts_submitted": 0,
+          "facts_validated": 0,
+          "facts_rejected": 0,
+          "rejected_fact_reasons": [],
+          "key_facts_correct": "0/5",
+          "key_facts": [
+            {
+              "item": "CV-302 available 20",
+              "found": false
+            },
+            {
+              "item": "CV-303 available 30",
+              "found": false
+            },
+            {
+              "item": "CV-304 available 60",
+              "found": false
+            },
+            {
+              "item": "CV-301 dispensed 30",
+              "found": false
+            },
+            {
+              "item": "CV-304 destination unconfirmed",
+              "found": false
+            }
+          ],
+          "unsupported_claims_accepted": 0,
+          "overreach_flags": 0,
+          "missing_evidence_identified": "0/3",
+          "follow_ups_proposed": 0,
+          "follow_up_rubric": [
+            {
+              "issue_id": "stock:CV-302",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:CV-303",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:CV-304",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "dispensed:CV-301",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            }
+          ],
+          "follow_up_rubric_points": "0/12",
+          "trace": {
+            "steps": [
+              {
+                "seq": 1,
+                "tool": "get_recall_scope",
+                "args": {
+                  "purpose": "Confirm recall scope for Corvel vials batch CV-3319"
+                },
+                "ok": true,
+                "summary": "Scope Brightwater Laboratories (fictional) / Corvel injection vial / batch CV-3319 in vials; 3 sources.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 2,
+                "tool": "run_reconciliation",
+                "args": {
+                  "purpose": "Run stock reconciliation for Corvel batch CV-3319"
+                },
+                "ok": true,
+                "summary": "470 accepted; 110 awaiting containment, 180 quarantined, 150 returned, 30 dispensed; 11 issues.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 3,
+                "tool": "submit_findings",
+                "args": "{\"evidence_requests\":[{\"description\":\"Containment (quarantine) record for shipment CV-302 confirming vials are placed in quarantine or otherwise accounted for\",\"issue_id\":\"stock:CV-302\",\"would_change\":\"If a valid quarantine record is provided, the open issue would be resolved and the 20 vials would ",
+                "ok": false,
+                "error": "No follow-up proposed for the open issues reviewed (candidate:sample-corvel-vials-distributor_dispatches:6, dispensed:CV-301, stock:CV-302).",
+                "summary": "Rejected submit_findings: No follow-up proposed for the open issues reviewed (candidate:sample-corvel-vials-distributor_dispatches:6, dispensed:CV-301, stock:CV-302).",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 4,
+                "tool": "get_source_row",
+                "args": {
+                  "purpose": "View source row for evidence of missing containment for CV-302",
+                  "cite": "E10"
+                },
+                "ok": true,
+                "summary": "Original row 3 of Brightwater dispatch log (fictional).csv.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:3"
+                ],
+                "duration_ms": 0
+              },
+              {
+                "seq": 5,
+                "tool": "get_shipment_ledger",
+                "args": {
+                  "purpose": "Get ledger for shipment CV-302 to see balances and issues",
+                  "shipment_id": "CV-302",
+                  "offset": 0
+                },
+                "ok": true,
+                "summary": "3 records for CV-302; 20 awaiting containment.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:3",
+                  "sample-corvel-vials-pharmacy_stock_events:5",
+                  "sample-corvel-vials-pharmacy_stock_events:6"
+                ],
+                "duration_ms": 1
+              },
+              {
+                "seq": 6,
+                "tool": "get_shipment_ledger",
+                "args": {
+                  "purpose": "Get ledger for shipment CV-303",
+                  "shipment_id": "CV-303",
+                  "offset": 0
+                },
+                "ok": true,
+                "summary": "3 records for CV-303; 30 awaiting containment.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:4",
+                  "sample-corvel-vials-pharmacy_stock_events:7",
+                  "sample-corvel-vials-pharmacy_stock_events:8"
+                ],
+                "duration_ms": 1
+              },
+              {
+                "seq": 7,
+                "tool": "get_shipment_ledger",
+                "args": {
+                  "purpose": "Get ledger for shipment CV-302",
+                  "shipment_id": "CV-302",
+                  "offset": 0
+                },
+                "ok": true,
+                "summary": "3 records for CV-302; 20 awaiting containment.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:3",
+                  "sample-corvel-vials-pharmacy_stock_events:5",
+                  "sample-corvel-vials-pharmacy_stock_events:6"
+                ],
+                "duration_ms": 0
+              },
+              {
+                "seq": 8,
+                "tool": "get_shipment_ledger",
+                "args": {
+                  "purpose": "Get ledger for shipment CV-303",
+                  "shipment_id": "CV-303",
+                  "offset": 0
+                },
+                "ok": true,
+                "summary": "3 records for CV-303; 30 awaiting containment.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:4",
+                  "sample-corvel-vials-pharmacy_stock_events:7",
+                  "sample-corvel-vials-pharmacy_stock_events:8"
+                ],
+                "duration_ms": 1
+              },
+              {
+                "seq": 9,
+                "tool": "get_shipment_ledger",
+                "args": {
+                  "purpose": "Get detailed ledger for shipment CV-302",
+                  "shipment_id": "CV-302",
+                  "offset": 0
+                },
+                "ok": true,
+                "summary": "3 records for CV-302; 20 awaiting containment.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:3",
+                  "sample-corvel-vials-pharmacy_stock_events:5",
+                  "sample-corvel-vials-pharmacy_stock_events:6"
+                ],
+                "duration_ms": 0
+              }
+            ],
+            "facts": [],
+            "follow_ups": [],
+            "evidence_requests": [],
+            "summary": null
+          },
+          "stock_unchanged_by_run": true
+        },
+        {
+          "mode": "live",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "status": "completed",
+          "status_detail": "7 tool calls, 8 model calls. Waited 155 s for provider rate limits.",
+          "limits": {
+            "total_timeout_ms": 480000,
+            "max_model_calls": 10,
+            "max_tool_calls": 16,
+            "max_request_tokens": 8000
+          },
+          "duration_ms": 178269,
+          "tool_calls": 7,
+          "rejected_tool_calls": 0,
+          "model_calls": 8,
+          "malformed_calls": 0,
+          "oversize_retries": 0,
+          "shortened_requests": 4,
+          "input_tokens": 39155,
+          "output_tokens": 3402,
+          "estimated_cost_usd": null,
+          "facts_submitted": 3,
+          "facts_validated": 3,
+          "facts_rejected": 0,
+          "rejected_fact_reasons": [],
+          "key_facts_correct": "0/5",
+          "key_facts": [
+            {
+              "item": "CV-302 available 20",
+              "found": false
+            },
+            {
+              "item": "CV-303 available 30",
+              "found": false
+            },
+            {
+              "item": "CV-304 available 60",
+              "found": false
+            },
+            {
+              "item": "CV-301 dispensed 30",
+              "found": false
+            },
+            {
+              "item": "CV-304 destination unconfirmed",
+              "found": false
+            }
+          ],
+          "unsupported_claims_accepted": 0,
+          "overreach_flags": 0,
+          "missing_evidence_identified": "3/3",
+          "follow_ups_proposed": 2,
+          "follow_up_rubric": [
+            {
+              "issue_id": "stock:CV-302",
+              "proposed": true,
+              "owner_ok": false,
+              "names_required": true,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:CV-303",
+              "proposed": true,
+              "owner_ok": false,
+              "names_required": true,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:CV-304",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "dispensed:CV-301",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            }
+          ],
+          "follow_up_rubric_points": "4/12",
+          "trace": {
+            "steps": [
+              {
+                "seq": 1,
+                "tool": "get_recall_scope",
+                "args": {
+                  "purpose": "Obtain recall scope details for Corvel vials batch CV-3319"
+                },
+                "ok": true,
+                "summary": "Scope Brightwater Laboratories (fictional) / Corvel injection vial / batch CV-3319 in vials; 3 sources.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 2,
+                "tool": "run_reconciliation",
+                "args": {
+                  "purpose": "Run stock reconciliation for the case to get balances and open issues"
+                },
+                "ok": true,
+                "summary": "470 accepted; 110 awaiting containment, 180 quarantined, 150 returned, 30 dispensed; 11 issues.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 3,
+                "tool": "get_source_row",
+                "args": {
+                  "purpose": "Get source row for CV-302 stock issue",
+                  "cite": "E10"
+                },
+                "ok": true,
+                "summary": "Original row 3 of Brightwater dispatch log (fictional).csv.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:3"
+                ],
+                "duration_ms": 0
+              },
+              {
+                "seq": 4,
+                "tool": "get_source_row",
+                "args": {
+                  "purpose": "Get source row for CV-303 stock issue",
+                  "cite": "E12"
+                },
+                "ok": true,
+                "summary": "Original row 4 of Brightwater dispatch log (fictional).csv.",
+                "record_ids": [
+                  "sample-corvel-vials-distributor_dispatches:4"
+                ],
+                "duration_ms": 0
+              },
+              {
+                "seq": 5,
+                "tool": "propose_follow_up",
+                "args": {
+                  "purpose": "Resolve missing stock movement for CV-302",
+                  "issue_id": "stock:CV-302",
+                  "action": "Obtain a containment (quarantine or return) record for the 20 vials of shipment CV-302, or a dispensing record if they have been used.",
+                  "owner_role": "recall_coordinator",
+                  "evidence_requested": "Containment record (quarantine or return) or dispensing record for shipment CV-302",
+                  "citations": [
+                    "stock:CV-302"
+                  ]
+                },
+                "ok": true,
+                "summary": "Proposal P1 for stock:CV-302 awaits human approval.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 6,
+                "tool": "run_reconciliation",
+                "args": {
+                  "purpose": "Retrieve detailed reconciliation including per-shipment balances and open issues"
+                },
+                "ok": true,
+                "summary": "470 accepted; 110 awaiting containment, 180 quarantined, 150 returned, 30 dispensed; 11 issues.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 7,
+                "tool": "propose_follow_up",
+                "args": {
+                  "purpose": "Resolve missing stock movement for CV-303",
+                  "issue_id": "stock:CV-303",
+                  "action": "Obtain a containment (quarantine or return) record for the 30 vials of shipment CV-303, or a dispensing record if they have been used.",
+                  "owner_role": "recall_coordinator",
+                  "evidence_requested": "Containment record (quarantine or return) or dispensing record for shipment CV-303",
+                  "citations": [
+                    "stock:CV-303"
+                  ]
+                },
+                "ok": true,
+                "summary": "Proposal P2 for stock:CV-303 awaits human approval.",
+                "record_ids": [],
+                "duration_ms": 0
+              },
+              {
+                "seq": 8,
+                "tool": "submit_findings",
+                "args": {
+                  "facts": 3,
+                  "interpretations": 1,
+                  "evidence_requests": 3
+                },
+                "ok": true,
+                "summary": "3 facts, 1 interpretations, 3 evidence requests submitted.",
+                "record_ids": [],
+                "duration_ms": 0
+              }
+            ],
+            "facts": [
+              {
+                "type": "open_issue",
+                "status": "validated",
+                "claimed": {
+                  "type": "open_issue",
+                  "issue_id": "stock:CV-302"
+                },
+                "statement": "Open issue, Stock follow-up: Locate and check 20 vials. Elm Street Pharmacy: shipment CV-302 has 20 vials without an accepted quarantine, return or dispensing record.",
+                "problems": [],
+                "note": "Elm Street Pharmacy: shipment CV-302 has 20 vials without an accepted quarantine, return or dispensing record."
+              },
+              {
+                "type": "open_issue",
+                "status": "validated",
+                "claimed": {
+                  "type": "open_issue",
+                  "issue_id": "stock:CV-303"
+                },
+                "statement": "Open issue, Stock follow-up: Locate and check 30 vials. Ward 7 Hospital Pharmacy: shipment CV-303 has 30 vials without an accepted quarantine, return or dispensing record.",
+                "problems": [],
+                "note": "Ward 7 Hospital Pharmacy: shipment CV-303 has 30 vials without an accepted quarantine, return or dispensing record."
+              },
+              {
+                "type": "open_issue",
+                "status": "validated",
+                "claimed": {
+                  "type": "open_issue",
+                  "issue_id": "stock:CV-304"
+                },
+                "statement": "Open issue, Stock follow-up: Locate and check 60 vials. Destination to be confirmed: shipment CV-304 has 60 vials without an accepted quarantine, return or dispensing record.",
+                "problems": [],
+                "note": "Destination to be confirmed: shipment CV-304 has 60 vials without an accepted quarantine, return or dispensing record."
+              }
+            ],
+            "follow_ups": [
+              {
+                "issue_id": "stock:CV-302",
+                "owner_role": "recall_coordinator",
+                "action": "Obtain a containment (quarantine or return) record for the 20 vials of shipment CV-302, or a dispensing record if they have been used.",
+                "evidence_requested": "Containment record (quarantine or return) or dispensing record for shipment CV-302",
+                "accepted": true,
+                "problems": []
+              },
+              {
+                "issue_id": "stock:CV-303",
+                "owner_role": "recall_coordinator",
+                "action": "Obtain a containment (quarantine or return) record for the 30 vials of shipment CV-303, or a dispensing record if they have been used.",
+                "evidence_requested": "Containment record (quarantine or return) or dispensing record for shipment CV-303",
+                "accepted": true,
+                "problems": []
+              }
+            ],
+            "evidence_requests": [
+              {
+                "issue_id": "stock:CV-302",
+                "description": "Containment (quarantine or return) record or dispensing record for shipment CV-302 to account for the 20 vials lacking movement.",
+                "would_change": "Would resolve the open stock follow‑up by confirming the fate of the 20 vials.",
+                "linked": true,
+                "problems": []
+              },
+              {
+                "issue_id": "stock:CV-303",
+                "description": "Containment (quarantine or return) record or dispensing record for shipment CV-303 to account for the 30 vials lacking movement.",
+                "would_change": "Would resolve the open stock follow‑up by confirming the fate of the 30 vials.",
+                "linked": true,
+                "problems": []
+              },
+              {
+                "issue_id": "stock:CV-304",
+                "description": "Containment (quarantine or return) record or dispensing record for shipment CV-304 to account for the 60 vials lacking movement.",
+                "would_change": "Would resolve the open stock follow‑up by confirming the fate of the 60 vials.",
+                "linked": true,
+                "problems": []
+              }
+            ],
+            "summary": "Shipments CV-302 (20 vials), CV-303 (30 vials) and CV-304 (60 vials) lack containment or dispensing records. Obtaining a quarantine, return, or dispensing record for each shipment would resolve the corresponding open stock issues."
+          },
+          "stock_unchanged_by_run": true
+        }
+      ]
+    }
+  }
+}
