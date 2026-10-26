@@ -2,6 +2,8 @@
 
 Everything below runs locally on fictional data. Steps 1–4 need only Node.js (≥ 22.13) and about 10 minutes; nothing is sent over the network. Steps 5–6 are optional and need a model key or a Zetaris instance.
 
+**Verified from a fresh clone** on 26 Oct 2026 (Windows 11, Node 24.14, commit `fa2b1be`, no `.dev.vars`): `npm ci`, `npm test` (144 of 144 pass), `npm run typecheck`, `npm run lint`, `npm run build`, `npm run db:migrate:local`, then `npm run dev`. In the app, the drill case was created and a rules-mode investigation completed with 6 of 6 typed facts validated (1,000 accepted, 40 available, 60 dispensed); Zetaris showed as not configured, as expected without settings.
+
 ## 1. Install and run the checks
 
 ```bash
