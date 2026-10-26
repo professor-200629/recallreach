@@ -1,10 +1,25 @@
 # RecallReach
 
-**RecallReach helps a medicine recall coordinator investigate fragmented distribution records, find affected stock that is still unresolved, explain every finding with its evidence, and coordinate accountable human follow-up.**
+**When a medicine batch is recalled, RecallReach finds the stock that may still reach a patient, shows exactly which records every number comes from, and hands the follow-up to the people who must act.**
 
-Built for the [Open Agent Hackathon 2026](https://hackathon.genai.works/event/open-agent-hackathon-2026) (GenAI.Works), track *The Agent That Can Explain Why*. All data in this repository is fictional.
+> The engine owns every number. The agent explains it. People decide what happens next.
+
+Built solo by Balu for the [Open Agent Hackathon 2026](https://hackathon.genai.works/event/open-agent-hackathon-2026) (GenAI.Works), track *The Agent That Can Explain Why*. All data in this repository is fictional.
 
 > Status: hackathon prototype. Tested on fictional fixtures only. Not validated with real recall coordinators or pharmacists, and not ready for operational use. See [Known limitations](#known-limitations).
+
+## Results at a glance (fictional fixtures)
+
+On the **held-out case** (`eval/heldout/corvel-vials.ts`; its answer key was committed in `1313452` before anything was run on it), a spreadsheet-style filter flags **60 vials in 1 shipment**. The engine finds **110 vials across 3 shipments**. Of the 50 the filter misses, 20 are hidden by a record kept in boxes instead of vials and 30 by a reused hold reference.
+
+| Method | Unresolved shipments found, with the right quantity (of 3) | Key facts stated as validated facts (of 5) |
+| --- | --- | --- |
+| Spreadsheet filter (exact batch + SUMIF; baseline) | 1 | – |
+| Engine (deterministic reconciliation, no model) | 3 | – |
+| Agent in **rules mode** (fixed procedure, **no language model**) | 3 | 5 |
+| Agent with a **live model** (Groq free tier, `openai/gpt-oss-120b`), 7 runs | 0 in every run | 0 in every run |
+
+The live model is the weak part. In 7 held-out runs it submitted 3 facts in total: all 3 were true, none was a key fact, and no false fact was accepted. Six of the seven runs ended before submitting anything: two at the time limit while waiting on Groq's free-tier rate limits, two on malformed tool calls, one on a request too large for the free tier and one on the daily token cap. On the drill used in the demo ("the missing 40 bottles"), the filter does find RR-104's 40 bottles but gets the totals wrong: -219 bottles available, 5 records miscounted, 3 of 7 questions right. The engine gets 7 of 7. The same developer wrote the engine, the fixtures and the answer keys, so these numbers show the system behaves as designed, not independent accuracy. Every run, including the failures, is in [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## The problem
 
@@ -27,10 +42,17 @@ Without model credentials, **rules mode** runs a fixed procedure with the same t
 
 | | How it is used | Status |
 | --- | --- | --- |
-| **Zetaris** | Read-only federated queries across three separately owned source systems (distributor ERP, pharmacy stock, returns desk), each with native columns mapped by code-owned SQL. Imports are complete, counted, paged reads; a row changed at the source becomes a new version, never a double count. Every query's latency and result is recorded. | **Connected** to a local Zetaris 2.4.3 instance (the hackathon's local download) and verified with real queries on 25 Oct 2026: imports, a live agent run and a follow-up update all went through Zetaris. The source systems hold fictional data. A labelled mock remains for machines without Zetaris. |
+| **Zetaris** | The three separately owned source systems (distributor ERP, pharmacy stock, returns desk) are registered as Zetaris datasources. RecallReach reads them through the Zetaris REST SQL endpoint with code-owned, read-only SELECTs that map each system's native columns, one source table per query. Imports are complete, counted, paged reads; a row changed at the source becomes a new version, never a double count. Every query's latency and result is recorded. | **Connected** to a local Zetaris 2.4.3 instance (the hackathon's local download; local instance, fictional data) and verified with real queries on 25 Oct 2026: the connection check, case imports, and a follow-up re-import (900 → 940 contained) all went through Zetaris. One live agent run (earlier answer format) queried Zetaris once; the row it read was already in the case. A labelled mock remains for machines without Zetaris. |
 | **Meterless H-MEM** | Investigation memory across runs: validated facts and operator decisions with their evidence dependencies, provenance, trust ledger, supersession and contradiction detection. | **In use.** Unmodified reference engine (Apache-2.0); upstream conformance suite 13/13. Retention: newest 200 memories and 800 ledger entries per case, with the dropped counts shown. |
 
 Details and setup: [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
+
+## Requirements
+
+- Node.js **22.13 or later** (developed on Node 24.14 on Windows 11) and npm.
+- Nothing else for rules mode, the tests and the offline evaluation.
+- Optional: a Groq API key for live model runs (free tier used; see [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md)).
+- Optional: Docker and the hackathon's local Zetaris 2.4.3 download, to read the fictional source systems through Zetaris.
 
 ## Quick start
 
@@ -41,11 +63,11 @@ npm run build && npm run db:migrate:local
 npm run dev
 ```
 
-Open `http://localhost:5173/signin-with-chatgpt?return_to=/` (local test sign-in), then **Explore a mock recall**. Full instructions: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Open `http://127.0.0.1:5173/signin-with-chatgpt?return_to=/` (a local test sign-in that only works on your own machine; the dev server listens on 127.0.0.1, so `localhost` may not connect), then **Explore a mock recall**. Full instructions: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ```bash
 npm test          # automated tests (count in docs/EVALUATION.md)
-npm run eval      # baseline vs engine vs rules-mode agent, including a held-out case
+npm run eval      # baseline vs engine vs rules-mode agent, including the held-out case; rewrites eval/results.json
 ```
 
 ## Documentation

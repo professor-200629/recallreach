@@ -14,10 +14,10 @@ npm ci
 cp .dev.vars.example .dev.vars        # then edit: GROQ_API_KEY is optional
 npm run build                         # once, creates dist/server/wrangler.json
 npm run db:migrate:local              # applies drizzle/*.sql to the local D1 (idempotent)
-npm run dev                           # http://localhost:5173
+npm run dev                           # http://127.0.0.1:5173
 ```
 
-Open `http://localhost:5173/signin-with-chatgpt?return_to=/`. In development this signs you in as the local test user `Seedy` (loopback only, not in production builds). Then choose **Explore a mock recall**, or **New case → Fictional training drills**.
+Open `http://127.0.0.1:5173/signin-with-chatgpt?return_to=/`. In development this signs you in as the local test user `Seedy` (loopback only, not in production builds). Then choose **Explore a mock recall**, or **New case → Fictional training drills**.
 
 Checks:
 

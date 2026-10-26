@@ -26,7 +26,7 @@ Everything here is **automated testing on fictional fixtures** or **observed liv
 
 ## 2. Held-out evaluation (Corvel vials)
 
-`eval/heldout/corvel-vials.ts` is a fictional case written for evaluation only: a unit mismatch (20 boxes recorded against vials), a reused hold reference, a duplicated return, an unconfirmed destination, a near-miss batch (`CV-3319B`), a different batch (`CV-3391`), and an instruction planted in a reference field. It is not in the app's scenario list. Its answer key and a follow-up rubric were committed alone in **`1313452`**, before the engine, rules mode or any model was run on it, and nothing was changed after seeing results.
+`eval/heldout/corvel-vials.ts` is a fictional case written for evaluation only: a unit mismatch (20 boxes recorded against vials), a reused hold reference, a duplicated return, an unconfirmed destination, a near-miss batch (`CV-3319B`), a different batch (`CV-3391`), and an instruction planted in a reference field. It is not in the app's scenario list. Its answer key and a follow-up rubric were committed alone in **`1313452`**, before the engine, rules mode or any model was run on it, and the fixture and key have not been changed since (`git log -- eval/heldout/corvel-vials.ts` shows only that commit; `lib/recall/engine.ts` is also unchanged since). Other code did change after results were seen, and is labelled where it matters: the port of rules mode to typed facts and the scoring code landed in `962f15c` together with the first held-out results; the 480 s limit (`6ea93a9`) and the Groq free-tier fitting (`a07e5a2`) were made in response to the live runs below.
 
 Results: `eval/results.json` (offline) and `eval/results-live-corvel-vials.json` (live). Methods:
 
@@ -52,9 +52,9 @@ Results: `eval/results.json` (offline) and `eval/results-live-corvel-vials.json`
 
 What this shows, plainly:
 
-- The **engine** answers all seven questions on a case it was not tuned to; the spreadsheet baseline gets one, because the boxes record, the reused reference and the duplicated return hide two of the three gaps.
+- The **engine** answers all seven questions on a case it was not tuned to; the spreadsheet baseline gets one. The baseline flags 60 vials in 1 shipment (CV-304); the engine finds 110 across 3. Of the 50 vials the baseline misses, 20 are hidden by a record kept in boxes instead of vials (CV-302) and 30 by a reused hold reference (CV-303). The duplicated return hides none of them.
 - **Rules mode** turns the engine's answer into validated facts and well-formed follow-ups. It is a fixed procedure written by the same developer, so its score mostly confirms that procedure works on this kind of case.
-- **The live model did poorly on the held-out case.** Two of three runs spent about 200 s waiting on Groq's free-tier limit (8,000 tokens per minute) and stopped at the 240 s deadline without submitting anything; the deadline handling reported them as *limit reached*, not as completed. The one completed run used only 3 tools and submitted 3 facts, all validated, but none of them was one of the 5 key facts. The validator accepted nothing false in any run. With this provider tier the live agent is not reliable enough to quote as a result; rules mode and the engine are what the numbers support.
+- **The live model did poorly on the held-out case.** Two of three runs spent about 200 s waiting on Groq's free-tier limit (8,000 tokens per minute) and stopped at the 240 s deadline without submitting anything; the deadline handling reported them as *limit reached*, not as completed. The one completed run used only 3 tools and submitted 3 facts, all validated, but none of them was one of the 5 key facts. The validator accepted nothing false in any run, but that is a small denominator: only those 3 facts were submitted. With this provider tier the live agent is not reliable enough to quote as a result; rules mode and the engine are what the numbers support.
 
 ### 2b. Live model again, after raising the time limit to 480 s
 
@@ -105,7 +105,7 @@ In-app runs on 24 Oct found defects that were fixed then: rate-limited retries c
 
 ## 5. Through a real Zetaris instance (25 Oct 2026)
 
-A local Zetaris 2.4.3 instance (the hackathon's local download) federated three fictional PostgreSQL source databases. The full record is in [INTEGRATIONS.md](INTEGRATIONS.md#verification-record-25-oct-2026); `eval/zetaris-check-2026-10-25.txt` is the saved command-line check.
+A local Zetaris 2.4.3 instance (the hackathon's local download; local instance, fictional data) had three fictional PostgreSQL source databases registered as datasources; each RecallReach query reads one source table through it. The full record is in [INTEGRATIONS.md](INTEGRATIONS.md#verification-record-25-oct-2026); `eval/zetaris-check-2026-10-25.txt` is the saved command-line check.
 
 | Step | Observed |
 | --- | --- |

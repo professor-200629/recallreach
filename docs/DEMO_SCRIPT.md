@@ -13,7 +13,7 @@ Rule 6.1 asks the video to show the main workflow, how the agent solves the chal
 ## Before recording
 
 - Zetaris: start Docker (`scripts\windows\start-docker-desktop.ps1`), run `bring-up.sh` in Ubuntu (it re-runs `verify.sh`), and reset the follow-up row with `integrations/zetaris/fixtures/03-reset-followup.sql` (see INTEGRATIONS.md).
-- `npm run dev`, then sign in at `http://localhost:5173/signin-with-chatgpt?return_to=/`.
+- `npm run dev`, then sign in at `http://127.0.0.1:5173/signin-with-chatgpt?return_to=/`.
 - **Zetaris path (recommended):** New case → Example Pharma (fictional) / Nivara oral solution / DEMO-042 / bottles → **Import records → From a connected source** for all three sources. **Drill path:** New case → *The missing 40 bottles*.
 - Start the live investigation before you begin talking over beat 3, so the wait can be sped up.
 

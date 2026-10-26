@@ -4,7 +4,7 @@ RecallReach uses three external pieces. Each one is optional at runtime, and the
 
 | Piece | Role | Status on 25 Oct 2026 |
 | --- | --- | --- |
-| Zetaris | Federated, read-only access to separately owned source systems | **Connected to a local instance** (the hackathon's local download, Zetaris 2.4.3, on this laptop) and verified with real queries on 25 Oct 2026; see [Verification record](#verification-record-25-oct-2026). The three source systems behind it hold fictional fixture data. |
+| Zetaris | Read-only access, through one Zetaris instance, to separately owned source systems registered as its datasources (each query reads one source table) | **Connected to a local instance** (the hackathon's local download, Zetaris 2.4.3, on this laptop) and verified with real queries on 25 Oct 2026; see [Verification record](#verification-record-25-oct-2026). The three source systems behind it hold fictional fixture data. |
 | Meterless H-MEM | Investigation memory across runs | **In use**: vendored, unmodified reference engine; upstream conformance suite 13/13. |
 | Language model (Groq, OpenAI-compatible) | Chooses tools and explains evidence | **Working** with Groq free tier, `openai/gpt-oss-120b`. Rules mode works with no model. |
 
@@ -130,7 +130,7 @@ All against the local Zetaris 2.4.3 instance on this laptop, with the fictional 
 | `npm run zetaris:check` | All passed: `SELECT 1` in 272–282 ms; `SHOW DATASOURCES` lists the three; 12 / 18 / 6 rows in the three tables; the mapped DEMO-042 queries return 4 / 6 / 4 rows. Saved output: [`eval/zetaris-check-2026-10-25.txt`](../eval/zetaris-check-2026-10-25.txt) |
 | Integrations → Run connection check | `CONNECTED · LAST CHECK PASSED`, live `SELECT 1` in 198 ms |
 | New case, all three sources imported through Zetaris | 4 + 6 + 4 rows; 1,000 accepted; 900 contained (800 quarantined, 100 returned); 60 dispensed; **40 awaiting containment (RR-104)**; 4 records to review; 1 duplicate counted once. Matches the scenario's answer key |
-| Live-model investigation (Groq, `openai/gpt-oss-120b`) on the imported case | Completed in 140 s: 9 tool steps, including `query_connected_source` against `recall_distributor.dispatches` (1 row, 401 ms); 2 of 2 findings verified; 1 follow-up proposed for approval; 3 memories stored |
+| Live-model investigation (Groq, `openai/gpt-oss-120b`) on the imported case | Completed in 140 s: 9 tool steps, including `query_connected_source` against `recall_distributor.dispatches` (1 row, 401 ms; that row was already in the case from the import); 2 of 2 findings "verified" under the earlier free-text validator, which EVALUATION.md §4 says not to quote; 1 follow-up proposed for approval; 3 memories stored |
 | Re-import with no new evidence | "no new rows. All 6 rows from Zetaris are already in this case"; nothing changed |
 | Follow-up quarantine added to the pharmacy source, then re-imported | "1 new row imported from Zetaris; 6 already in this case skipped"; **940 contained (94%)**, 0 awaiting containment, 840 quarantined; review and duplicate counts unchanged (4 and 1); earlier memory notes marked for recheck |
 

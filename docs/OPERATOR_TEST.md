@@ -2,7 +2,7 @@
 
 A manual check of the main workflow by a person, in about 20 minutes, with fictional data. Record each result as **Pass**, **Fail** (with what you saw) or **Not run**. The expected results below are for the *missing 40 bottles* drill.
 
-Setup: `npm run dev`, sign in at `http://localhost:5173/signin-with-chatgpt?return_to=/`, then **New case → The missing 40 bottles**. Rules mode needs nothing else; a live run needs `GROQ_API_KEY` in `.dev.vars`.
+Setup: `npm run dev`, sign in at `http://127.0.0.1:5173/signin-with-chatgpt?return_to=/`, then **New case → The missing 40 bottles**. Rules mode needs nothing else; a live run needs `GROQ_API_KEY` in `.dev.vars`.
 
 | # | Do this | Expect | Result |
 | --- | --- | --- | --- |

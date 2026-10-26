@@ -4,7 +4,7 @@
 - Upstream commit: `1742dec56a66e58eef9dda2d2b865823758ca8cd` (2026-10-19)
 - Licence: Apache-2.0 (see `LICENSE` in this folder)
 - Copied on: 2026-10-24
-- Changes: none. `SHA256SUMS` lists the upstream file hashes; `npm run verify:hmem` checks them.
+- Changes: none. `SHA256SUMS` lists the upstream file hashes; the first test in `tests/memory.test.ts` checks them (`npm test`).
 
 Upstream describes this as "a minimal deterministic reference implementation" that
 "makes the spec executable. It is not a production library." It uses a deterministic
