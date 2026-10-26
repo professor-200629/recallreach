@@ -25,6 +25,12 @@ The live model is the weak part. In 7 held-out runs it submitted 3 facts in tota
 
 When a batch of medicine is recalled, the distributor's dispatch log, each pharmacy's stock system and the returns desk all hold part of the picture. They disagree, duplicate each other, use different units, and sometimes omit the one record that matters. A coordinator must find out quickly which stock may still reach a patient, and must be able to show why they believe it.
 
+It is a routine job, not a rare one. FDA's public openFDA data lists **765 drug recall enforcement report records dated 2025** (49 Class I, 655 Class II, 61 Class III; [query](https://api.fda.gov/drug/enforcement.json?search=report_date:[20250101+TO+20251231]&limit=1) run on 26 Oct 2026; one recall can produce several records). FDA's recall guidance, [21 CFR 7.42](https://www.ecfr.gov/current/title-21/part-7/section-7.42), describes effectiveness checks that confirm each consignee was notified and acted. The [EU Good Distribution Practice guidelines](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:52013XC1123(01)) (2013/C 343/01, §6.5) say distribution records should be readily accessible to whoever runs the recall. India's CDSCO publishes [monthly lists](https://cdsco.gov.in/opencms/opencms/en/Notifications/nsq-drugs/) of drug samples found Not of Standard Quality or spurious. RecallReach is a prototype for one step of that work, reconciling the records for one batch, and makes no regulatory or compliance claim.
+
+**Who it is for (illustration, fictional).** Asha is a recall coordinator at a regional distributor. A batch of oral solution is recalled. Her dispatch log says 1,000 bottles went to four destinations; the pharmacies' stock systems and the returns desk account for 960 of them, with a duplicated return, a record in the wrong unit and a hold reference that names no shipment. She needs to know which 40 bottles are not accounted for, who to ask, and what evidence would close the gap, and she needs to be able to show her working. That is the drill in the demo.
+
+**Next step beyond the hackathon:** a supervised mock recall with one distributor's recall coordinator or a supervising pharmacist, on a past closed recall or a synthetic exercise in their real record formats, compared against their current process ([docs/PILOT_PLAN.md](docs/PILOT_PLAN.md)). No pilot has taken place yet.
+
 ## What it does
 
 For one manufacturer + product + batch, counted in one unit:

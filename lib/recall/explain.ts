@@ -1,4 +1,4 @@
-import type { Issue, LedgerRecord, RecallCase, Reconciliation, StockState, ValidatedFact } from './types.ts';
+import type { Issue, LedgerRecord, RecallCase, Reconciliation, Source, StockState, ValidatedFact } from './types.ts';
 import { reconcile, supersededMap } from './engine.ts';
 
 // Evidence Challenge ("Why this finding?"). Every line is derived from the engine's record statuses,
@@ -7,12 +7,21 @@ const STATES: StockState[] = ['available', 'quarantined', 'returned', 'dispensed
 const UNCONFIRMED = /\b(pending|unknown|unconfirmed|tbc|tbd|to be confirmed)\b/i;
 const fmt = (n: number) => n.toLocaleString('en-US');
 const label = (row: LedgerRecord) => row.reference || row.event_id || `row ${row.source_row}`;
+const minute = (iso: string) => `${iso.slice(0, 16).replace('T', ' ')} UTC`;
+const list = (xs: string[], word: 'and' | 'or') => xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} ${word} ${xs.at(-1)}`;
 
 export type Balance = Record<StockState, number>;
 export type ChallengeStep = { record_id: string; text: string; balance: Balance };
 export type ChallengeItem = { record_id: string | null; text: string };
+/** One evidence source and the records in it that name the shipment (empty: no imported record from it does). */
+export type SourceView = { source_id: string; name: string; via: string; items: ChallengeItem[] };
 export type Challenge = {
   title: string; statement: string; basis: 'engine_calculated' | 'source_reported';
+  /** One plain line answering the question, built from the engine balance and which sources name the shipment. */
+  answer: string | null;
+  sources: SourceView[];
+  /** Reads of a connected source scoped to this shipment, with what they returned at the time. */
+  reads: string[];
   snapshot: { validated: string | null; current: string; changed: boolean } | null;
   evidence: string[];
   calculation: ChallengeStep[]; result: string | null;
@@ -37,11 +46,44 @@ function calculation(c: RecallCase, r: Reconciliation, shipmentId: string): Chal
   return steps;
 }
 
+const movement = (x: LedgerRecord, r: Reconciliation) => `${x.type === 'shipment' ? 'opening shipment' : `${x.from_state} → ${x.to_state}`}, ${x.raw_quantity ?? fmt(x.quantity)} ${x.unit}; ${r.record_status[x.id]?.status ?? 'unknown'}.`;
+const kindLabel = (src: Source) => src.kind === 'sample' ? 'fictional training file' : src.kind === 'correction' ? 'operator correction' : src.kind === 'manual' ? 'entered by an operator' : 'CSV import';
+// Imports from the same connected-source table are one source system; other sources are grouped by name.
+const systemKey = (src: Source) => src.origin ? `${src.origin.mode}|${src.origin.instance ?? ''}|${src.origin.table}` : `name|${src.name}`;
+const systemName = (src: Source) => src.origin ? `${src.origin.table} (${src.origin.mode === 'mock' ? 'MOCK connected source, not Zetaris' : 'through Zetaris'})` : src.name;
+
+/** Which source says what about one shipment. Silence is reported as "no imported record names it", never as proof of absence. */
+function sourceViews(c: RecallCase, r: Reconciliation, shipmentId: string) {
+  const systems = new Map<string, Source[]>();
+  for (const src of c.sources) systems.set(systemKey(src), [...(systems.get(systemKey(src)) ?? []), src]);
+  const sources: SourceView[] = [...systems.values()].map(group => {
+    const reads = group.map(src => src.origin?.fetched_at).filter((x): x is string => !!x).sort();
+    return { source_id: group[0].id, name: systemName(group[0]),
+      via: reads.length ? `${reads.length} import${reads.length === 1 ? '' : 's'}, last read ${minute(reads.at(-1)!)}` : group.length > 1 ? `${kindLabel(group[0])}, ${group.length} files` : kindLabel(group[0]),
+      items: c.records.filter(x => x.shipment_id === shipmentId && group.some(src => src.id === x.source_id)).map(x => ({ record_id: x.id, text: `${label(x)}: ${movement(x, r)}` })) };
+  });
+  // Shipment-scoped reads through a connected source, grouped when several tables were read together with the same result.
+  const groups = new Map<string, { live: boolean; at: string; rows: number; tables: string[] }>();
+  for (const [key, o] of Object.entries(c.scope_observations ?? {})) {
+    if (!key.endsWith(`|shipment=${shipmentId}`)) continue;
+    const [instance, table] = key.split('|'), live = !instance.startsWith('mock:'), id = `${live}|${o.observed_at.slice(0, 16)}|${o.rows}`;
+    const g = groups.get(id) ?? { live, at: o.observed_at, rows: o.rows, tables: [] };
+    g.tables.push(table); groups.set(id, g);
+  }
+  const reads = [...groups.values()].sort((a, b) => a.at.localeCompare(b.at)).map(g => `${g.live ? 'Checked live through Zetaris' : 'Read from a MOCK connected source (not Zetaris)'} at ${minute(g.at)}: ${g.rows} row${g.rows === 1 ? '' : 's'} for ${shipmentId} in ${list(g.tables, 'and')} (as of that read).`);
+  return { sources, reads };
+}
+
 function shipmentChallenge(ctx: Context, shipmentId: string, focus: Issue | null): Omit<Challenge, 'title' | 'statement' | 'basis' | 'snapshot'> {
   const { c, r } = ctx, unit = c.alert.unit, s = r.shipments.find(x => x.shipment_id === shipmentId);
   const issues = r.issues.filter(i => i.shipment_id === shipmentId && i.kind !== 'Record review');
   const steps = calculation(c, r, shipmentId);
   const result = s ? `Engine balance for ${shipmentId}: ${balanceText(s, unit)}, of ${fmt(s.quantity)} accepted.` : `${shipmentId} has no accepted opening record, so the engine keeps no balance for it.`;
+  const { sources, reads } = sourceViews(c, r, shipmentId);
+  const naming = sources.filter(x => x.items.length).map(x => `“${x.name}”`), silent = sources.filter(x => !x.items.length).map(x => `“${x.name}”`);
+  const said = naming.length ? `${silent.length && naming.length === 1 ? 'Only ' : ''}${list(naming, 'and')} ${naming.length === 1 ? 'has an imported record' : 'have imported records'} naming ${shipmentId}${silent.length ? `; no imported record from ${list(silent, 'or')} names it` : ''}.` : `No imported record names ${shipmentId}.`;
+  const units = (q: number) => `${fmt(q)} ${q === 1 ? unit.replace(/s$/, '') : unit}`;
+  const answer = !s ? result : `${s.available > 0 ? `${units(s.available)} of ${shipmentId} ${s.available === 1 ? 'has' : 'have'} no accepted quarantine, return or dispensing record.` : `Nothing of ${shipmentId} is still “available”: ${units(s.quarantined + s.returned)} reported contained and ${units(s.dispensed)} recorded as dispensed.`} ${said}`;
 
   // Records about this shipment that were not counted, and review records elsewhere that might be about it.
   const conflicts: ChallengeItem[] = c.records.filter(x => x.shipment_id === shipmentId && r.record_status[x.id]?.status !== 'applied')
@@ -74,7 +116,7 @@ function shipmentChallenge(ctx: Context, shipmentId: string, focus: Issue | null
   // Evidence added since the previous run, and after this finding was validated.
   const changes: Challenge['changes'] = [];
   const affecting = (from: string, to?: string) => c.sources.filter(src => src.added_at > from && (!to || src.added_at <= to))
-    .flatMap(src => c.records.filter(x => x.source_id === src.id && x.shipment_id === shipmentId).map(x => ({ record_id: x.id, text: `${label(x)} from “${src.name}” (${src.added_at.slice(0, 16).replace('T', ' ')} UTC): ${x.type === 'shipment' ? 'opening shipment' : `${x.from_state} → ${x.to_state}`}, ${x.raw_quantity ?? fmt(x.quantity)} ${x.unit}; ${r.record_status[x.id]?.status ?? 'unknown'}.` })));
+    .flatMap(src => c.records.filter(x => x.source_id === src.id && x.shipment_id === shipmentId).map(x => ({ record_id: x.id, text: `${label(x)} from “${src.name}” (${minute(src.added_at)}): ${movement(x, r)}` })));
   const prior = c.snapshots.filter(sn => !ctx.validatedAt || sn.at < ctx.validatedAt).at(-1);
   if (prior) { const items = affecting(prior.at, ctx.validatedAt); if (items.length) changes.push({ heading: `Added since the previous run (${prior.at.slice(0, 16).replace('T', ' ')} UTC)`, items }); }
   if (ctx.validatedAt) { const items = affecting(ctx.validatedAt); if (items.length) changes.push({ heading: 'Added after this finding was validated', items }); }
@@ -90,10 +132,10 @@ function shipmentChallenge(ctx: Context, shipmentId: string, focus: Issue | null
       before: { available: s.available, quarantined: s.quarantined, returned: s.returned, dispensed: s.dispensed }, after: { available: a.available, quarantined: a.quarantined, returned: a.returned, dispensed: a.dispensed },
       closed: issues.filter(i => !open.has(i.id)).map(i => i.title), still_open: issues.filter(i => open.has(i.id)).map(i => i.title) };
   }
-  return { evidence: [...(focus ? [focus.id] : []), ...(s?.evidence_ids ?? [])], calculation: steps, result, conflicts, unknowns, could_change: could, approvals, changes, hypothetical };
+  return { answer, sources, reads, evidence: [...(focus ? [focus.id] : []), ...(s?.evidence_ids ?? [])], calculation: steps, result, conflicts, unknowns, could_change: could, approvals, changes, hypothetical };
 }
 
-const none = { calculation: [], result: null, conflicts: [], unknowns: [], could_change: [], approvals: [], changes: [], hypothetical: null };
+const none = { answer: null, sources: [], reads: [], calculation: [], result: null, conflicts: [], unknowns: [], could_change: [], approvals: [], changes: [], hypothetical: null };
 
 /** "Why this finding?" for an open issue in the current reconciliation. */
 export function challengeIssue(issue: Issue, ctx: Context): Challenge {

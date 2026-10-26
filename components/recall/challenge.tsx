@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { AlertTriangle, Calculator, CircleHelp, FlaskConical, GitCompare, ShieldAlert, Stamp } from 'lucide-react';
+import { AlertTriangle, Calculator, CircleHelp, Database, FlaskConical, GitCompare, ShieldAlert, Stamp } from 'lucide-react';
 import type { LedgerRecord } from '@/lib/recall/types';
 import type { Balance, Challenge } from '@/lib/recall/explain';
 import { CiteChips, Tag, type Payload } from './shared';
@@ -14,7 +14,9 @@ const Section = ({ icon, title, children }: { icon: ReactNode; title: string; ch
 /** Evidence Challenge: why a finding holds, built only from records, engine statuses and typed fields. */
 export function ChallengeView({ ch, data, open }: { ch: Challenge; data: Payload; open: (row: LedgerRecord | null, ids: string[]) => void }) {
   const { case: c, result: r } = data;
+  const openRecord = (id: string | null) => { const row = id ? c.records.find(x => x.id === id) : undefined; if (row) open(row, [row.id]); };
   return <div className="dialog-body challenge">
+    {ch.answer && <p className="challenge-answer">{ch.answer}</p>}
     <div className="challenge-statement">
       <div className="claim-head"><Tag tone="teal">{ch.basis === 'engine_calculated' ? 'CALCULATED BY THE ENGINE' : 'REPORTED BY A SOURCE'}</Tag>{ch.snapshot && <Tag tone={ch.snapshot.changed ? 'amber' : ''}>{ch.snapshot.changed ? 'EVIDENCE HAS CHANGED SINCE' : 'CURRENT EVIDENCE'}</Tag>}</div>
       <p>{ch.statement}</p>
@@ -24,6 +26,11 @@ export function ChallengeView({ ch, data, open }: { ch: Challenge; data: Payload
     {(ch.calculation.length > 0 || ch.result) && <Section icon={<Calculator size={15} />} title="How it was calculated">
       {ch.calculation.length > 0 && <ol className="challenge-steps">{ch.calculation.map((s, i) => <li key={i}><button type="button" className="text-button" onClick={() => { const row = c.records.find(x => x.id === s.record_id); if (row) open(row, [row.id]); }}>{s.text}</button><BalanceRow b={s.balance} /></li>)}</ol>}
       {ch.result && <p className="challenge-result">{ch.result}</p>}
+    </Section>}
+    {ch.sources.length > 0 && <Section icon={<Database size={15} />} title="What each source says">
+      <ul className="challenge-sources">{ch.sources.map(src => <li key={src.source_id}><p><strong>{src.name}</strong> <span className="subtle">{src.via}</span></p>
+        {src.items.length ? <ul className="challenge-list">{src.items.map((x, i) => <li key={i}><button type="button" className="text-button" onClick={() => openRecord(x.record_id)}>{x.text}</button></li>)}</ul> : <p className="subtle">No imported record from this source names this shipment.</p>}</li>)}</ul>
+      {ch.reads.length > 0 && <ul className="challenge-list challenge-reads">{ch.reads.map(x => <li key={x}>{x}</li>)}</ul>}
     </Section>}
     {ch.conflicts.length > 0 && <Section icon={<ShieldAlert size={15} />} title="Not counted, conflicts and exclusions">
       <ul className="challenge-list">{ch.conflicts.map((x, i) => <li key={i}>{x.record_id ? <button type="button" className="text-button" onClick={() => { const row = c.records.find(y => y.id === x.record_id); if (row) open(row, [row.id]); }}>{x.text}</button> : x.text}</li>)}</ul>

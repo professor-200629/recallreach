@@ -68,6 +68,36 @@ test('the hypothetical preview reruns the engine and shows which issues would st
   assert.equal(JSON.stringify(c), before, 'the preview does not touch the case');
 });
 
+test('what each source says: who names RR-104, who does not, and what a live read returned at the time', () => {
+  const c = createScenarioCase('missing-40', 'x7', NOW), names = Object.fromEntries(c.sources.map(s => [s.id, s.name]));
+  c.scope_observations = {
+    'zetaris://localhost:8888/org/1|recall_pharmacy.stock_events|batch=DEMO-042|shipment=RR-104': { observed_at: LATER, rows: 0 },
+    'zetaris://localhost:8888/org/1|recall_returns.return_notes|batch=DEMO-042|shipment=RR-104': { observed_at: LATER, rows: 0 },
+    'mock://fixtures|pharmacy_stock_events|batch=DEMO-042|shipment=RR-104': { observed_at: NOW, rows: 1 },
+    'zetaris://localhost:8888/org/1|recall_pharmacy.stock_events|batch=DEMO-042|shipment=RR-103': { observed_at: LATER, rows: 2 },
+  };
+  const ch = explain(c, 'stock:RR-104'), dispatch = 'sample-missing-40-distributor_dispatches';
+  assert.equal(ch.answer, `40 bottles of RR-104 have no accepted quarantine, return or dispensing record. Only “${names[dispatch]}” has an imported record naming RR-104; no imported record from “${names['sample-missing-40-pharmacy_stock_events']}” or “${names['sample-missing-40-return_records']}” names it.`);
+  assert.deepEqual(ch.sources.map(s => s.items.length), c.sources.map(s => s.id === dispatch ? 1 : 0));
+  assert.match(ch.sources.find(s => s.source_id === dispatch)!.items[0].text, /^DISPATCH-104: opening shipment, 40 bottles; applied\.$/);
+  assert.deepEqual(ch.reads, [
+    'Read from a MOCK connected source (not Zetaris) at 2026-10-24 00:00 UTC: 1 row for RR-104 in pharmacy_stock_events (as of that read).',
+    'Checked live through Zetaris at 2026-10-24 03:00 UTC: 0 rows for RR-104 in recall_pharmacy.stock_events and recall_returns.return_notes (as of that read).',
+  ], 'only reads scoped to this shipment; mock reads are labelled; silence is dated, not a clearance');
+  assert.doesNotMatch(text(ch), /has no record|no record exists|confirmed absent/i);
+  addFollowUp(c);
+  const after = explain(c, 'destination:RR-104');
+  assert.match(after.answer!, /^Nothing of RR-104 is still “available”: 40 bottles reported contained and 0 bottles recorded as dispensed\. /);
+  assert.match(after.answer!, /“Training follow-up\.csv”/);
+  // Two imports from the same Zetaris table are one source system, named once.
+  const origin = { system: 'zetaris' as const, mode: 'live' as const, table: 'recall_pharmacy.stock_events', instance: 'zetaris://localhost:8888/org/1', latency_ms: 1, sql: '' };
+  for (const [id, at] of [['z1', NOW], ['z2', LATER]]) c.sources.push({ id, name: `Pharmacy stock events via Zetaris ${at}`, kind: 'zetaris', content: '', added_at: at, row_count: 0, origin: { ...origin, query_id: id, fetched_at: at } });
+  const grouped = explain(c, 'destination:RR-104');
+  assert.equal(grouped.sources.filter(s => s.name === 'recall_pharmacy.stock_events (through Zetaris)').length, 1);
+  assert.equal(grouped.sources.find(s => s.source_id === 'z1')!.via, '2 imports, last read 2026-10-24 03:00 UTC');
+  assert.match(grouped.answer!, /or “recall_pharmacy\.stock_events \(through Zetaris\)” names it\.$/);
+});
+
 test('explanations contain no invented likelihoods', () => {
   const c = createScenarioCase('missing-40', 'x6', NOW), r = reconcileCase(c);
   for (const issue of r.issues) assert.doesNotMatch(text(challengeIssue(issue, { c, r, current: 'x' })), /\d+\s?%|\b(likely|probably|probability|chance|confidence)\b/i, issue.id);
