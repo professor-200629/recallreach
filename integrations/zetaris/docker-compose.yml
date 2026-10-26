@@ -15,6 +15,8 @@ services:
     image: postgres:16-alpine
     container_name: recallreach-sources
     environment:
+      # Local-only password for a fictional fixture database: the port is bound to 127.0.0.1 and the data
+      # is invented. It is not a real credential; change it if you expose this container anywhere.
       POSTGRES_PASSWORD: recallreach-local-admin
     ports:
       - "127.0.0.1:5433:5432"

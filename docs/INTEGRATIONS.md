@@ -63,8 +63,9 @@ Sources: the *Run the platform locally* page in Zetaris Cloud (<https://cloud.en
 1. **Registry login — in Ubuntu, not PowerShell.** On the *Run locally* page click **Get the platform** (step 1), copy the `docker login zetarishackathon.azurecr.io …` command and paste it into an **Ubuntu** window. Expect `Login Succeeded`. (Never paste it anywhere else.)
 2. **One command for the rest of the install** (in the same Ubuntu window; 20–30 minutes, mostly the 4 GB download):
    ```bash
-   bash /mnt/c/Users/Balu/Documents/Codex/2026-10-23/new-chat-4/recallreach/integrations/zetaris/bring-up.sh
+   bash <your RecallReach clone>/integrations/zetaris/bring-up.sh
    ```
+   On Windows the clone is under `/mnt/c/...` in Ubuntu, for example `/mnt/c/Users/<you>/recallreach`. The script expects the Zetaris download in `~/zetaris/zetaris-platform`; set `ZETARIS_DIR` to use another folder.
    It runs `preflight.sh`, `docker compose pull`, `docker compose up -d`, waits for the one-time bootstrap, runs `verify.sh` (expect 9 of 9 PASS), starts the fixture database, attaches it to the Zetaris network as `recallreach-sources`, and checks that Zetaris's network can read it. It stops at the first failure and is safe to rerun.
 3. **Sign in and change the password.** Open <http://localhost:3000>, sign in with the default administrator account from the *Run locally* page (step 7), then change the password from the user menu (top right). Type the password carefully: **three wrong attempts lock the account**, and the login then says "Not Allowed" even with the right password (see troubleshooting).
 4. **Organisation ID and API key.** Management → Organisation shows the numeric **ID** (`1` on a fresh local install). Management → API Tokens → **+** creates a key; it is shown once. Then, in PowerShell:

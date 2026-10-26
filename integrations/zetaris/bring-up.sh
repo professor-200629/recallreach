@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Brings up a local Zetaris platform plus RecallReach's fictional source database.
 # Run inside WSL (Ubuntu) AFTER `docker login zetarishackathon.azurecr.io` succeeded there:
-#   bash /mnt/c/Users/Balu/Documents/Codex/2026-10-23/new-chat-4/recallreach/integrations/zetaris/bring-up.sh
+#   bash <your RecallReach clone>/integrations/zetaris/bring-up.sh   (on Windows, e.g. /mnt/c/Users/<you>/recallreach/...)
+# It expects the Zetaris download in ~/zetaris/zetaris-platform; set ZETARIS_DIR to use another folder.
 # Safe to rerun: each step is skipped or repeated harmlessly when already done.
 # It never prints credentials and changes nothing outside Docker.
 set -euo pipefail
