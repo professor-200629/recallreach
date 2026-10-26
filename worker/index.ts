@@ -1,6 +1,7 @@
 import handler from "vinext/server/fetch-handler";
 import { runWithConnectorBinding } from "../lib/connector-context";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
+import { demoFetch } from "../lib/recall/demo";
 
 const worker = {
   fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
@@ -23,7 +24,10 @@ const worker = {
         },
       };
     }
-    return runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
+    const serve = (r: Request) => runWithConnectorBinding(binding, () => handler.fetch(r, env, ctx));
+    // Public demo: anonymous per-browser sandboxes instead of Sites sign-in (lib/recall/demo.ts).
+    if ((env as unknown as Record<string, unknown>).RECALLREACH_PUBLIC_DEMO === "1") return demoFetch(request, serve);
+    return serve(request);
   },
 };
 

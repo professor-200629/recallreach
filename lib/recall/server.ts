@@ -12,8 +12,11 @@ import type { IntegrationEvent } from './sources/external';
 // (see app/chatgpt-auth.ts); this Worker must only be served behind that dispatcher.
 // Secrets and provider settings are read from server-side bindings, never from the client.
 const vars = () => env as unknown as Record<string, unknown>;
+/** The public demo deployment (see lib/recall/demo.ts): rules mode only, no connected sources, no secrets. */
+export const publicDemo = () => vars().RECALLREACH_PUBLIC_DEMO === '1';
 
 function external(onEvent: (e: IntegrationEvent) => void): ExternalSetup {
+  if (publicDemo()) return { source: null, mode: 'none', detail: 'Public demo: Zetaris is not connected here. RecallReach was tested against a local Zetaris 2.4.3 instance with fictional data; the record and the demo video are in the repository (docs/INTEGRATIONS.md).' };
   let config;
   try { config = zetarisConfigFromEnv(vars()); } catch (e) { return { source: null, mode: 'none', detail: (e as Error).message }; }
   if (config) return { source: new ZetarisSource(config, onEvent), mode: 'live', detail: `Configured for ${new URL(config.restUrl).host} (organisation ${config.orgId}). Connected only after a successful check.`, tables: config.tables };
@@ -24,7 +27,8 @@ function external(onEvent: (e: IntegrationEvent) => void): ExternalSetup {
 const handlers = () => createHandlers({
   repo: new CaseRepository(getD1()),
   identify: async () => { const u = await getChatGPTUser(); return u ? { userId: u.userId, displayName: u.displayName } : null; },
-  provider: () => providerFromEnv(vars()),
+  // The public demo never runs a live model, even if a key were set: rules mode only.
+  provider: () => providerFromEnv(publicDemo() ? {} : vars()),
   external,
 });
 
