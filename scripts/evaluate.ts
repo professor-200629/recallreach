@@ -8,6 +8,7 @@
 // Run: npm run eval            (no network, no model)
 //      node --env-file=.dev.vars --experimental-transform-types scripts/evaluate.ts --live --runs 3 --only corvel-vials --tag <name>
 // Live results are never overwritten: each live series goes to its own file, named by --tag.
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { SCENARIOS, scenarioSources, toLedgerCsv, type Scenario } from '../lib/recall/sample.ts';
 import { parseLedgerCsv } from '../lib/recall/csv.ts';
@@ -110,6 +111,14 @@ function scoreRun(s: Scenario, run: AgentRun, rubric?: typeof CORVEL_RUBRIC) {
     missing_evidence_identified: `${Object.keys(key.unresolved).filter(id => linked.has(`stock:${id}`)).length}/${Object.keys(key.unresolved).length}`,
     follow_ups_proposed: a?.follow_ups.length ?? 0,
     ...(rubricScores ? { follow_up_rubric: rubricScores, follow_up_rubric_points: `${rubricScores.reduce((n, r) => n + (r.proposed ? 1 : 0) + (r.owner_ok ? 1 : 0) + (r.names_required ? 1 : 0), 0)}/${rubricScores.length * 3}` } : {}),
+    // What the run actually did, so a result can be explained without re-running it.
+    trace: {
+      steps: run.steps.map(x => ({ seq: x.seq, tool: x.tool, args: x.args, ok: x.ok, ...(x.error ? { error: x.error } : {}), summary: x.summary, record_ids: x.record_ids, duration_ms: x.duration_ms })),
+      facts: facts.map(f => ({ type: f.type, status: f.status, claimed: f.claimed, statement: f.statement, problems: f.problems, ...(f.note ? { note: f.note } : {}) })),
+      follow_ups: (a?.follow_ups ?? []).map(p => ({ issue_id: p.issue_id, owner_role: p.owner_role, action: p.action, evidence_requested: p.evidence_requested, accepted: p.accepted, problems: p.problems })),
+      evidence_requests: (a?.evidence_requests ?? []).map(e => ({ issue_id: e.issue_id, description: e.description, would_change: e.would_change, linked: e.linked, problems: e.problems })),
+      summary: a?.summary ?? null,
+    },
   };
 }
 
@@ -133,7 +142,10 @@ if (!live && (tag || only)) throw new Error('--tag and --only are for live serie
 const file = `eval/results${live ? '-live' : ''}${only ? `-${only}` : ''}${tag ? `-${tag}` : ''}.json`;
 // A recorded live series is evidence: never replace one. Only the offline file (eval/results.json) is regenerated.
 if (file !== 'eval/results.json' && existsSync(file)) throw new Error(`${file} already exists. Live results are never overwritten; pass a new --tag.`);
-const results: Record<string, unknown> = { generated_at: new Date().toISOString(), note: 'Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.', held_out_key_commit: '1313452', ...(tag ? { series: tag } : {}), scenarios: {} };
+// The code a series ran on: the commit, and whether the working tree had uncommitted changes.
+const git = (...a: string[]) => { try { return execFileSync('git', a, { encoding: 'utf8' }).trim(); } catch { return null; } };
+const status = git('status', '--porcelain'), code = { commit: git('rev-parse', '--short', 'HEAD'), uncommitted_changes: status === null ? null : status !== '' };
+const results: Record<string, unknown> = { generated_at: new Date().toISOString(), note: 'Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.', held_out_key_commit: '1313452', code, ...(tag ? { series: tag } : {}), scenarios: {} };
 for (const { scenario: s, held_out, rubric } of Object.values(ALL)) {
   if (only && s.id !== only) continue;
   const states: [string, RecallCase][] = [['initial', caseFor(s)]];
