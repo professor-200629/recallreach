@@ -1,0 +1,928 @@
+{
+  "generated_at": "2026-10-27T17:25:19.115Z",
+  "note": "Automated results on fictional fixtures with hand-written answer keys. Not evidence of real-world performance.",
+  "held_out_key_commit": "1313452",
+  "code": {
+    "commit": "c6c8320",
+    "uncommitted_changes": false
+  },
+  "series": "after-fixes",
+  "scenarios": {
+    "halvex-tablets": {
+      "held_out": true,
+      "initial": {
+        "baseline": {
+          "unresolved_found": {
+            "HX-406": 60
+          },
+          "unresolved_correct": "0/3",
+          "unresolved_false_positives": 1,
+          "wrongly_counted_records": 7,
+          "totals": {
+            "shipped": 690,
+            "available": -450,
+            "quarantined": 750,
+            "returned": 370,
+            "dispensed": 20
+          },
+          "totals_correct": false,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": false,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": false,
+            "Which records need review?": false,
+            "Which near-miss batch records need checking?": false,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": false
+          },
+          "questions_correct": 2,
+          "questions_total": 7
+        },
+        "engine": {
+          "unresolved_found": {
+            "HX-401": 30,
+            "HX-402": 150,
+            "HX-404": 80
+          },
+          "unresolved_correct": "3/3",
+          "unresolved_false_positives": 0,
+          "wrongly_counted_records": 0,
+          "totals": {
+            "shipped": 630,
+            "available": 260,
+            "quarantined": 100,
+            "returned": 250,
+            "dispensed": 20
+          },
+          "totals_correct": true,
+          "questions": {
+            "Which shipments are unresolved, and by how much?": true,
+            "How much was dispensed, and where?": true,
+            "Which destinations are unconfirmed?": true,
+            "Which records need review?": true,
+            "Which near-miss batch records need checking?": true,
+            "Which records are duplicates?": true,
+            "Are the source-reported totals correct?": true
+          },
+          "questions_correct": 7,
+          "questions_total": 7
+        }
+      },
+      "agent_rules_mode": {
+        "mode": "rules",
+        "provider": "none",
+        "model": "rules-v3",
+        "status": "completed",
+        "status_detail": "Rules mode: a fixed decision procedure chose tools from the question and intermediate results. No language model was used.",
+        "limits": {
+          "total_timeout_ms": 240000,
+          "max_model_calls": 0,
+          "max_tool_calls": 40,
+          "max_request_tokens": null
+        },
+        "duration_ms": 72,
+        "tool_calls": 18,
+        "rejected_tool_calls": 0,
+        "model_calls": 0,
+        "malformed_calls": 0,
+        "oversize_retries": 0,
+        "shortened_requests": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "estimated_cost_usd": null,
+        "facts_submitted": 12,
+        "facts_validated": 12,
+        "facts_rejected": 0,
+        "rejected_fact_reasons": [],
+        "key_facts_correct": "5/5",
+        "key_facts": [
+          {
+            "item": "HX-401 available 30",
+            "found": true
+          },
+          {
+            "item": "HX-402 available 150",
+            "found": true
+          },
+          {
+            "item": "HX-404 available 80",
+            "found": true
+          },
+          {
+            "item": "HX-401 dispensed 20",
+            "found": true
+          },
+          {
+            "item": "HX-404 destination unconfirmed",
+            "found": true
+          }
+        ],
+        "unsupported_claims_accepted": 0,
+        "overreach_flags": 0,
+        "missing_evidence_identified": "3/3",
+        "follow_ups_proposed": 4,
+        "follow_up_rubric": [
+          {
+            "issue_id": "stock:HX-401",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": false,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:HX-402",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "stock:HX-404",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          },
+          {
+            "issue_id": "dispensed:HX-401",
+            "proposed": true,
+            "owner_ok": true,
+            "names_required": true,
+            "overreach": 0
+          }
+        ],
+        "follow_up_rubric_points": "11/12",
+        "trace": {
+          "steps": [
+            {
+              "seq": 1,
+              "tool": "get_recall_scope",
+              "args": {
+                "purpose": "Confirm the exact recall scope before reading evidence."
+              },
+              "ok": true,
+              "summary": "Scope Riverbend Generics (fictional) / Halvex 10 mg tablets / batch HX-2040 in packs; 3 sources.",
+              "record_ids": [],
+              "duration_ms": 1
+            },
+            {
+              "seq": 2,
+              "tool": "run_reconciliation",
+              "args": {
+                "purpose": "Get balances and open issues from the deterministic engine."
+              },
+              "ok": true,
+              "summary": "630 accepted; 260 awaiting containment, 100 quarantined, 250 returned, 20 dispensed; 13 issues.",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 3,
+              "tool": "search_records",
+              "args": {
+                "purpose": "List records the engine held for review; one may explain a gap.",
+                "status": "review",
+                "limit": 20
+              },
+              "ok": true,
+              "summary": "6 matching records.",
+              "record_ids": [
+                "sample-halvex-tablets-pharmacy_stock_events:4",
+                "sample-halvex-tablets-pharmacy_stock_events:5",
+                "sample-halvex-tablets-pharmacy_stock_events:6",
+                "sample-halvex-tablets-pharmacy_stock_events:8",
+                "sample-halvex-tablets-return_records:3",
+                "sample-halvex-tablets-pharmacy_stock_events:9"
+              ],
+              "duration_ms": 23
+            },
+            {
+              "seq": 4,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for HX-402 in time order.",
+                "shipment_id": "HX-402"
+              },
+              "ok": true,
+              "summary": "3 records for HX-402; 150 awaiting containment.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:3",
+                "sample-halvex-tablets-pharmacy_stock_events:5",
+                "sample-halvex-tablets-pharmacy_stock_events:6"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 5,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind HX-402.",
+                "cite": "E12"
+              },
+              "ok": true,
+              "summary": "Original row 3 of Riverbend dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:3"
+              ],
+              "duration_ms": 1
+            },
+            {
+              "seq": 6,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference DN-402 is reused elsewhere.",
+                "reference": "DN-402"
+              },
+              "ok": true,
+              "summary": "1 records use reference DN-402.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:3"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 7,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:HX-402",
+                "action": "Ask Hillcrest Clinic Pharmacy to locate shipment HX-402 and report the status of 150 packs.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "A dated quarantine, return or dispensing record for 150 packs of HX-402.",
+                "citations": [
+                  "E12"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P1 for stock:HX-402 awaits human approval.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:3"
+              ],
+              "duration_ms": 1
+            },
+            {
+              "seq": 8,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for HX-404 in time order.",
+                "shipment_id": "HX-404"
+              },
+              "ok": true,
+              "summary": "2 records for HX-404; 80 awaiting containment.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:5",
+                "sample-halvex-tablets-pharmacy_stock_events:9"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 9,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind HX-404.",
+                "cite": "E13"
+              },
+              "ok": true,
+              "summary": "Original row 5 of Riverbend dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 10,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference DN-404 is reused elsewhere.",
+                "reference": "DN-404"
+              },
+              "ok": true,
+              "summary": "1 records use reference DN-404.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 11,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:HX-404",
+                "action": "Ask the distributor for proof of delivery for HX-404 (DN-404) and the name of the responsible recipient.",
+                "owner_role": "distributor",
+                "evidence_requested": "Proof of delivery and a status report for 80 packs from the named recipient.",
+                "citations": [
+                  "E13"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P2 for stock:HX-404 awaits human approval.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:5"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 12,
+              "tool": "get_shipment_ledger",
+              "args": {
+                "purpose": "Read every record for HX-401 in time order.",
+                "shipment_id": "HX-401"
+              },
+              "ok": true,
+              "summary": "5 records for HX-401; 30 awaiting containment.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:2",
+                "sample-halvex-tablets-pharmacy_stock_events:4",
+                "sample-halvex-tablets-pharmacy_stock_events:2",
+                "sample-halvex-tablets-pharmacy_stock_events:3",
+                "sample-halvex-tablets-return_records:2"
+              ],
+              "duration_ms": 2
+            },
+            {
+              "seq": 13,
+              "tool": "get_source_row",
+              "args": {
+                "purpose": "Check the original dispatch row behind HX-401.",
+                "cite": "E8"
+              },
+              "ok": true,
+              "summary": "Original row 2 of Riverbend dispatch log (fictional).csv.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 14,
+              "tool": "find_reference",
+              "args": {
+                "purpose": "Check whether dispatch reference DN-401 is reused elsewhere.",
+                "reference": "DN-401"
+              },
+              "ok": true,
+              "summary": "1 records use reference DN-401.",
+              "record_ids": [
+                "sample-halvex-tablets-distributor_dispatches:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 15,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "stock:HX-401",
+                "action": "Ask Lakeside Pharmacy to reissue HOLD-L2 with a full date, time and timezone; it was rejected for an ambiguous timestamp.",
+                "owner_role": "pharmacy_staff",
+                "evidence_requested": "Corrected record HOLD-L2 for HX-401 with an ISO timestamp including timezone.",
+                "citations": [
+                  "E2",
+                  "E8"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P3 for stock:HX-401 awaits human approval.",
+              "record_ids": [
+                "sample-halvex-tablets-pharmacy_stock_events:4",
+                "sample-halvex-tablets-distributor_dispatches:2"
+              ],
+              "duration_ms": 0
+            },
+            {
+              "seq": 16,
+              "tool": "propose_follow_up",
+              "args": {
+                "purpose": "Propose a next step for human approval.",
+                "issue_id": "dispensed:HX-401",
+                "action": "Assign a supervising pharmacist to review dispensing records for HX-401 against the recall instructions, outside this workspace.",
+                "owner_role": "supervising_pharmacist",
+                "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+                "citations": [
+                  "dispensed:HX-401"
+                ]
+              },
+              "ok": true,
+              "summary": "Proposal P4 for dispensed:HX-401 awaits human approval.",
+              "record_ids": [],
+              "duration_ms": 1
+            },
+            {
+              "seq": 17,
+              "tool": "recall_memory",
+              "args": {
+                "purpose": "Check earlier notes on this case and whether they still hold.",
+                "query": "Which shipments of batch HX-2040 still have packs without a containment or dispensing record, and what would resolve each?"
+              },
+              "ok": true,
+              "summary": "0 memories (0 current, 0 stale, superseded or unknown).",
+              "record_ids": [],
+              "duration_ms": 0
+            },
+            {
+              "seq": 18,
+              "tool": "compare_with_previous_run",
+              "args": {
+                "purpose": "Check what changed since the previous investigation run."
+              },
+              "ok": true,
+              "summary": "No previous run to compare with.",
+              "record_ids": [],
+              "duration_ms": 1
+            },
+            {
+              "seq": 19,
+              "tool": "submit_findings",
+              "args": {
+                "facts": 12
+              },
+              "ok": true,
+              "summary": "12 facts, 1 notes, 3 evidence requests submitted.",
+              "record_ids": [],
+              "duration_ms": 0
+            }
+          ],
+          "facts": [
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "HX-402",
+                "state": "available",
+                "quantity": 150,
+                "unit": "packs"
+              },
+              "statement": "Shipment HX-402 (Hillcrest Clinic Pharmacy): 150 packs available (no accepted quarantine, return or dispensing record), of 150 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:HX-402"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 150 packs. Hillcrest Clinic Pharmacy: shipment HX-402 has 150 packs without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "HX-404",
+                "state": "available",
+                "quantity": 80,
+                "unit": "packs"
+              },
+              "statement": "Shipment HX-404 (Pending confirmation): 80 packs available (no accepted quarantine, return or dispensing record), of 80 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:HX-404"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 80 packs. Pending confirmation: shipment HX-404 has 80 packs without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "destination:HX-404"
+              },
+              "statement": "Open issue, Destination unconfirmed: Confirm where shipment HX-404 went. The opening record names “Pending confirmation” as the destination. Movements reported for this shipment do not establish who holds the stock.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "HX-401",
+                "state": "available",
+                "quantity": 30,
+                "unit": "packs"
+              },
+              "statement": "Shipment HX-401 (Lakeside Pharmacy): 30 packs available (no accepted quarantine, return or dispensing record), of 300 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "stock:HX-401"
+              },
+              "statement": "Open issue, Stock follow-up: Locate and check 30 packs. Lakeside Pharmacy: shipment HX-401 has 30 packs without an accepted quarantine, return or dispensing record.",
+              "problems": []
+            },
+            {
+              "type": "shipment_balance",
+              "status": "validated",
+              "claimed": {
+                "type": "shipment_balance",
+                "shipment_id": "HX-401",
+                "state": "dispensed",
+                "quantity": 20,
+                "unit": "packs"
+              },
+              "statement": "Shipment HX-401 (Lakeside Pharmacy): 20 packs recorded as dispensed, of 300 accepted. Calculated by the engine from accepted records.",
+              "problems": []
+            },
+            {
+              "type": "open_issue",
+              "status": "validated",
+              "claimed": {
+                "type": "open_issue",
+                "issue_id": "dispensed:HX-401"
+              },
+              "statement": "Open issue, Pharmacist follow-up: 20 packs recorded as dispensed. Lakeside Pharmacy reported dispensing this quantity. Records do not establish who consumed it or whether anyone was harmed.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E4",
+                "status": "review"
+              },
+              "statement": "Record HOLD-H1 (Pharmacy stock exports (fictional).csv, row 5) is held for review and not counted: Event Q-H1 has conflicting versions. None of those versions has been applied.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E5",
+                "status": "review"
+              },
+              "statement": "Record HOLD-H1 (Pharmacy stock exports (fictional).csv, row 6) is held for review and not counted: Event Q-H1 has conflicting versions. None of those versions has been applied.",
+              "problems": []
+            },
+            {
+              "type": "record_status",
+              "status": "validated",
+              "claimed": {
+                "type": "record_status",
+                "record": "E3",
+                "status": "review"
+              },
+              "statement": "Record HOLD-P1 (Pharmacy stock exports (fictional).csv, row 9) is held for review and not counted: This record is dated in the future. Its stock effect has not been applied.",
+              "problems": []
+            }
+          ],
+          "follow_ups": [
+            {
+              "issue_id": "stock:HX-402",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Hillcrest Clinic Pharmacy to locate shipment HX-402 and report the status of 150 packs.",
+              "evidence_requested": "A dated quarantine, return or dispensing record for 150 packs of HX-402.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:HX-404",
+              "owner_role": "distributor",
+              "action": "Ask the distributor for proof of delivery for HX-404 (DN-404) and the name of the responsible recipient.",
+              "evidence_requested": "Proof of delivery and a status report for 80 packs from the named recipient.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:HX-401",
+              "owner_role": "pharmacy_staff",
+              "action": "Ask Lakeside Pharmacy to reissue HOLD-L2 with a full date, time and timezone; it was rejected for an ambiguous timestamp.",
+              "evidence_requested": "Corrected record HOLD-L2 for HX-401 with an ISO timestamp including timezone.",
+              "accepted": true,
+              "problems": []
+            },
+            {
+              "issue_id": "dispensed:HX-401",
+              "owner_role": "supervising_pharmacist",
+              "action": "Assign a supervising pharmacist to review dispensing records for HX-401 against the recall instructions, outside this workspace.",
+              "evidence_requested": "A note that the dispensing review was done and what instructions were followed, with no patient details.",
+              "accepted": true,
+              "problems": []
+            }
+          ],
+          "evidence_requests": [
+            {
+              "issue_id": "stock:HX-402",
+              "description": "No dated containment, return or dispensing record covers 150 packs of HX-402.",
+              "would_change": "A record from Hillcrest Clinic Pharmacy for HX-402, same batch, in packs, showing the current status of the 150 packs, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:HX-404",
+              "description": "No dated containment, return or dispensing record covers 80 packs of HX-404.",
+              "would_change": "A record from the distributor or the actual recipient for HX-404, same batch, in packs, showing the current status of the 80 packs, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            },
+            {
+              "issue_id": "stock:HX-401",
+              "description": "No dated containment, return or dispensing record covers 30 packs of HX-401.",
+              "would_change": "A record from Lakeside Pharmacy for HX-401, same batch, in packs, showing the current status of the 30 packs, could move them out of “available”. Any such record is still checked by the engine.",
+              "linked": true,
+              "problems": []
+            }
+          ],
+          "summary": "260 packs across 3 shipments (HX-402, HX-404, HX-401) lack an accepted containment or dispensing record. 12 typed facts and 4 proposed follow-ups await human review."
+        },
+        "stock_unchanged_by_run": true
+      },
+      "agent_live": [
+        {
+          "mode": "live",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "status": "provider_error",
+          "status_detail": "network: Cannot reach groq.",
+          "limits": {
+            "total_timeout_ms": 480000,
+            "max_model_calls": 10,
+            "max_tool_calls": 16,
+            "max_request_tokens": 8000
+          },
+          "duration_ms": 1552,
+          "tool_calls": 0,
+          "rejected_tool_calls": 0,
+          "model_calls": 2,
+          "malformed_calls": 0,
+          "oversize_retries": 0,
+          "shortened_requests": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": null,
+          "facts_submitted": 0,
+          "facts_validated": 0,
+          "facts_rejected": 0,
+          "rejected_fact_reasons": [],
+          "key_facts_correct": "0/5",
+          "key_facts": [
+            {
+              "item": "HX-401 available 30",
+              "found": false
+            },
+            {
+              "item": "HX-402 available 150",
+              "found": false
+            },
+            {
+              "item": "HX-404 available 80",
+              "found": false
+            },
+            {
+              "item": "HX-401 dispensed 20",
+              "found": false
+            },
+            {
+              "item": "HX-404 destination unconfirmed",
+              "found": false
+            }
+          ],
+          "unsupported_claims_accepted": 0,
+          "overreach_flags": 0,
+          "missing_evidence_identified": "0/3",
+          "follow_ups_proposed": 0,
+          "follow_up_rubric": [
+            {
+              "issue_id": "stock:HX-401",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:HX-402",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:HX-404",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "dispensed:HX-401",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            }
+          ],
+          "follow_up_rubric_points": "0/12",
+          "trace": {
+            "steps": [],
+            "facts": [],
+            "follow_ups": [],
+            "evidence_requests": [],
+            "summary": null
+          },
+          "stock_unchanged_by_run": true
+        },
+        {
+          "mode": "live",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "status": "provider_error",
+          "status_detail": "network: Cannot reach groq.",
+          "limits": {
+            "total_timeout_ms": 480000,
+            "max_model_calls": 10,
+            "max_tool_calls": 16,
+            "max_request_tokens": 8000
+          },
+          "duration_ms": 1518,
+          "tool_calls": 0,
+          "rejected_tool_calls": 0,
+          "model_calls": 2,
+          "malformed_calls": 0,
+          "oversize_retries": 0,
+          "shortened_requests": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": null,
+          "facts_submitted": 0,
+          "facts_validated": 0,
+          "facts_rejected": 0,
+          "rejected_fact_reasons": [],
+          "key_facts_correct": "0/5",
+          "key_facts": [
+            {
+              "item": "HX-401 available 30",
+              "found": false
+            },
+            {
+              "item": "HX-402 available 150",
+              "found": false
+            },
+            {
+              "item": "HX-404 available 80",
+              "found": false
+            },
+            {
+              "item": "HX-401 dispensed 20",
+              "found": false
+            },
+            {
+              "item": "HX-404 destination unconfirmed",
+              "found": false
+            }
+          ],
+          "unsupported_claims_accepted": 0,
+          "overreach_flags": 0,
+          "missing_evidence_identified": "0/3",
+          "follow_ups_proposed": 0,
+          "follow_up_rubric": [
+            {
+              "issue_id": "stock:HX-401",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:HX-402",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:HX-404",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "dispensed:HX-401",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            }
+          ],
+          "follow_up_rubric_points": "0/12",
+          "trace": {
+            "steps": [],
+            "facts": [],
+            "follow_ups": [],
+            "evidence_requests": [],
+            "summary": null
+          },
+          "stock_unchanged_by_run": true
+        },
+        {
+          "mode": "live",
+          "provider": "groq",
+          "model": "openai/gpt-oss-120b",
+          "status": "provider_error",
+          "status_detail": "network: Cannot reach groq.",
+          "limits": {
+            "total_timeout_ms": 480000,
+            "max_model_calls": 10,
+            "max_tool_calls": 16,
+            "max_request_tokens": 8000
+          },
+          "duration_ms": 1524,
+          "tool_calls": 0,
+          "rejected_tool_calls": 0,
+          "model_calls": 2,
+          "malformed_calls": 0,
+          "oversize_retries": 0,
+          "shortened_requests": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": null,
+          "facts_submitted": 0,
+          "facts_validated": 0,
+          "facts_rejected": 0,
+          "rejected_fact_reasons": [],
+          "key_facts_correct": "0/5",
+          "key_facts": [
+            {
+              "item": "HX-401 available 30",
+              "found": false
+            },
+            {
+              "item": "HX-402 available 150",
+              "found": false
+            },
+            {
+              "item": "HX-404 available 80",
+              "found": false
+            },
+            {
+              "item": "HX-401 dispensed 20",
+              "found": false
+            },
+            {
+              "item": "HX-404 destination unconfirmed",
+              "found": false
+            }
+          ],
+          "unsupported_claims_accepted": 0,
+          "overreach_flags": 0,
+          "missing_evidence_identified": "0/3",
+          "follow_ups_proposed": 0,
+          "follow_up_rubric": [
+            {
+              "issue_id": "stock:HX-401",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:HX-402",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "stock:HX-404",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            },
+            {
+              "issue_id": "dispensed:HX-401",
+              "proposed": false,
+              "owner_ok": false,
+              "names_required": false,
+              "overreach": 0
+            }
+          ],
+          "follow_up_rubric_points": "0/12",
+          "trace": {
+            "steps": [],
+            "facts": [],
+            "follow_ups": [],
+            "evidence_requests": [],
+            "summary": null
+          },
+          "stock_unchanged_by_run": true
+        }
+      ]
+    }
+  }
+}
