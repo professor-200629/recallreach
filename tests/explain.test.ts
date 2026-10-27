@@ -23,12 +23,17 @@ const addFollowUp = (c: RecallCase) => {
 
 test('why RR-104 is unresolved: the calculation, and why no rejected record explains it', () => {
   const ch = explain(createScenarioCase('missing-40', 'x1', NOW), 'stock:RR-104');
-  assert.equal(ch.calculation.length, 1); assert.match(ch.calculation[0].text, /Opening shipment DISPATCH-104 at “Destination pending confirmation”: \+40 available/);
+  assert.equal(ch.calculation.length, 1); assert.match(ch.calculation[0].text, /Opening shipment DISPATCH-104 at “Destination pending confirmation”: \+40 awaiting containment/);
   assert.deepEqual(ch.calculation[0].balance, { available: 40, quarantined: 0, returned: 0, dispensed: 0 });
-  assert.match(ch.result!, /RR-104: 40 available, 0 quarantined, 0 returned, 0 dispensed \(bottles\), of 40 accepted/);
+  assert.match(ch.result!, /RR-104: 40 awaiting containment, 0 quarantined, 0 returned, 0 dispensed \(bottles\), of 40 accepted/);
   assert.match(text(ch), /None of the 4 records held for review elsewhere names RR-104, its location or a quantity of 40/);
-  assert.match(text(ch), /current status of the 40 bottles still “available”/);
-  assert.match(ch.could_change.join(' '), /dated quarantine, return or dispensing record for RR-104 \(batch DEMO-042, in bottles/);
+  assert.match(text(ch), /current status of the 40 bottles still awaiting containment: .* does not mean they are safe to sell or use/);
+  const could = ch.could_change.join(' ');
+  assert.match(could, /dated quarantine, return or dispensing record for RR-104 \(batch DEMO-042, in bottles/);
+  // An unconfirmed destination: say how evidence naming the real recipient is handled, without changing the original.
+  assert.match(could, /matches it to the shipment by location, and the opening record still says “Destination pending confirmation”/);
+  assert.match(could, /If that evidence names the actual recipient, first correct the opening record DISPATCH-104 to that recipient .* The original record stays in the history, marked superseded\./);
+  assert.doesNotMatch(could, /already counted/, 'nothing is counted at that location yet');
 });
 
 test('why approval cannot change it: a decision is listed, and stock is unchanged', () => {
@@ -46,7 +51,7 @@ test('which new evidence changed the result, and why a reported quarantine is no
   addFollowUp(c);
   const ch = explain(c, 'destination:RR-104');
   const added = ch.changes.find(g => /Added since the previous run/.test(g.heading));
-  assert.ok(added, JSON.stringify(ch.changes)); assert.match(added.items[0].text, /available → quarantined, 40 bottles; applied/);
+  assert.ok(added, JSON.stringify(ch.changes)); assert.match(added.items[0].text, /awaiting containment → quarantined, 40 bottles; applied/);
   assert.match(ch.unknowns.join(' '), /does not name a responsible recipient, so the destination stays unconfirmed/);
   assert.match(ch.could_change.join(' '), /Proof of delivery naming a responsible recipient would close “Destination unconfirmed”\. A quarantine or return report alone does not/);
 });
@@ -87,7 +92,7 @@ test('what each source says: who names RR-104, who does not, and what a live rea
   assert.doesNotMatch(text(ch), /has no record|no record exists|confirmed absent/i);
   addFollowUp(c);
   const after = explain(c, 'destination:RR-104');
-  assert.match(after.answer!, /^Nothing of RR-104 is still “available”: 40 bottles reported contained and 0 bottles recorded as dispensed\. /);
+  assert.match(after.answer!, /^Nothing of RR-104 is still awaiting containment: 40 bottles reported contained and 0 bottles recorded as dispensed\. /);
   assert.match(after.answer!, /“Training follow-up\.csv”/);
   // Two imports from the same Zetaris table are one source system, named once.
   const origin = { system: 'zetaris' as const, mode: 'live' as const, table: 'recall_pharmacy.stock_events', instance: 'zetaris://localhost:8888/org/1', latency_ms: 1, sql: '' };

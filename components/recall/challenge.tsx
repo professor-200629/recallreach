@@ -7,7 +7,7 @@ import type { Balance, Challenge } from '@/lib/recall/explain';
 import { CiteChips, Tag, type Payload } from './shared';
 
 const STATES = ['available', 'quarantined', 'returned', 'dispensed'] as const;
-const BalanceRow = ({ b }: { b: Balance }) => <span className="balance-row">{STATES.map(s => <span key={s}><small>{s}</small><strong>{b[s].toLocaleString('en-IN')}</strong></span>)}</span>;
+const BalanceRow = ({ b }: { b: Balance }) => <span className="balance-row">{STATES.map(s => <span key={s}><small>{s === 'available' ? 'awaiting containment' : s}</small><strong>{b[s].toLocaleString('en-IN')}</strong></span>)}</span>;
 
 const Section = ({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) => <section className="challenge-section"><h3>{icon}{title}</h3>{children}</section>;
 
@@ -45,6 +45,7 @@ export function ChallengeView({ ch, data, open }: { ch: Challenge; data: Payload
       {ch.hypothetical.closed.length > 0 && <p className="subtle">Would close: {ch.hypothetical.closed.join('; ')}.</p>}
       {ch.hypothetical.still_open.length > 0 && <p className="subtle">Would stay open: {ch.hypothetical.still_open.join('; ')}.</p>}
     </Section>}
+    <p className="fine-print">“Awaiting containment” means no accepted record shows this stock quarantined, returned or dispensed. It never means the stock is safe to sell.</p>
     <p className="fine-print">Every line above comes from the case records, the engine’s record statuses and the finding’s typed fields. No likelihoods are estimated.</p>
   </div>;
 }

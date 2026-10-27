@@ -4,6 +4,9 @@ import { reconcile, supersededMap } from './engine.ts';
 // Evidence Challenge ("Why this finding?"). Every line is derived from the engine's record statuses,
 // the case records and the fact's typed fields. Nothing is estimated and no probabilities are given.
 const STATES: StockState[] = ['available', 'quarantined', 'returned', 'dispensed'];
+// The engine's "available" means no accepted containment record yet. It is worded as "awaiting containment"
+// so that no one reads it as stock that is fine to sell.
+const stateName = (s: string) => s === 'available' ? 'awaiting containment' : s;
 const UNCONFIRMED = /\b(pending|unknown|unconfirmed|tbc|tbd|to be confirmed)\b/i;
 const fmt = (n: number) => n.toLocaleString('en-US');
 const label = (row: LedgerRecord) => row.reference || row.event_id || `row ${row.source_row}`;
@@ -32,21 +35,21 @@ export type Challenge = {
 type Context = { c: RecallCase; r: Reconciliation; current: string; now?: number; validatedAt?: string; validatedSnapshot?: string };
 
 const empty = (): Balance => ({ available: 0, quarantined: 0, returned: 0, dispensed: 0 });
-const balanceText = (b: Balance, unit: string) => STATES.map(s => `${fmt(b[s])} ${s}`).join(', ') + ` (${unit})`;
+const balanceText = (b: Balance, unit: string) => STATES.map(s => `${fmt(b[s])} ${stateName(s)}`).join(', ') + ` (${unit})`;
 const byEngineOrder = (a: LedgerRecord, b: LedgerRecord) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at) || (a.type === b.type ? a.event_id.localeCompare(b.event_id) : a.type === 'shipment' ? -1 : 1);
 
 /** Applied records of one shipment in the engine's order, with the running balance after each. */
 function calculation(c: RecallCase, r: Reconciliation, shipmentId: string): ChallengeStep[] {
   const steps: ChallengeStep[] = [], b = empty();
   for (const row of c.records.filter(x => x.shipment_id === shipmentId && r.record_status[x.id]?.status === 'applied').sort(byEngineOrder)) {
-    if (row.type === 'shipment') { b.available += row.quantity; steps.push({ record_id: row.id, text: `Opening shipment ${label(row)} at “${row.location}”: +${fmt(row.quantity)} available.`, balance: { ...b } }); continue; }
+    if (row.type === 'shipment') { b.available += row.quantity; steps.push({ record_id: row.id, text: `Opening shipment ${label(row)} at “${row.location}”: +${fmt(row.quantity)} awaiting containment.`, balance: { ...b } }); continue; }
     b[row.from_state as StockState] -= row.quantity; b[row.to_state as StockState] += row.quantity;
-    steps.push({ record_id: row.id, text: `${label(row)} (${row.occurred_at}): ${fmt(row.quantity)} reported moved from ${row.from_state} to ${row.to_state}.`, balance: { ...b } });
+    steps.push({ record_id: row.id, text: `${label(row)} (${row.occurred_at}): ${fmt(row.quantity)} reported moved from ${stateName(row.from_state)} to ${stateName(row.to_state)}.`, balance: { ...b } });
   }
   return steps;
 }
 
-const movement = (x: LedgerRecord, r: Reconciliation) => `${x.type === 'shipment' ? 'opening shipment' : `${x.from_state} → ${x.to_state}`}, ${x.raw_quantity ?? fmt(x.quantity)} ${x.unit}; ${r.record_status[x.id]?.status ?? 'unknown'}.`;
+const movement = (x: LedgerRecord, r: Reconciliation) => `${x.type === 'shipment' ? 'opening shipment' : `${stateName(x.from_state)} → ${stateName(x.to_state)}`}, ${x.raw_quantity ?? fmt(x.quantity)} ${x.unit}; ${r.record_status[x.id]?.status ?? 'unknown'}.`;
 const kindLabel = (src: Source) => src.kind === 'sample' ? 'fictional training file' : src.kind === 'correction' ? 'operator correction' : src.kind === 'manual' ? 'entered by an operator' : 'CSV import';
 // Imports from the same connected-source table are one source system; other sources are grouped by name.
 const systemKey = (src: Source) => src.origin ? `${src.origin.mode}|${src.origin.instance ?? ''}|${src.origin.table}` : `name|${src.name}`;
@@ -83,7 +86,7 @@ function shipmentChallenge(ctx: Context, shipmentId: string, focus: Issue | null
   const naming = sources.filter(x => x.items.length).map(x => `“${x.name}”`), silent = sources.filter(x => !x.items.length).map(x => `“${x.name}”`);
   const said = naming.length ? `${silent.length && naming.length === 1 ? 'Only ' : ''}${list(naming, 'and')} ${naming.length === 1 ? 'has an imported record' : 'have imported records'} naming ${shipmentId}${silent.length ? `; no imported record from ${list(silent, 'or')} names it` : ''}.` : `No imported record names ${shipmentId}.`;
   const units = (q: number) => `${fmt(q)} ${q === 1 ? unit.replace(/s$/, '') : unit}`;
-  const answer = !s ? result : `${s.available > 0 ? `${units(s.available)} of ${shipmentId} ${s.available === 1 ? 'has' : 'have'} no accepted quarantine, return or dispensing record.` : `Nothing of ${shipmentId} is still “available”: ${units(s.quarantined + s.returned)} reported contained and ${units(s.dispensed)} recorded as dispensed.`} ${said}`;
+  const answer = !s ? result : `${s.available > 0 ? `${units(s.available)} of ${shipmentId} ${s.available === 1 ? 'has' : 'have'} no accepted quarantine, return or dispensing record.` : `Nothing of ${shipmentId} is still awaiting containment: ${units(s.quarantined + s.returned)} reported contained and ${units(s.dispensed)} recorded as dispensed.`} ${said}`;
 
   // Records about this shipment that were not counted, and review records elsewhere that might be about it.
   const conflicts: ChallengeItem[] = c.records.filter(x => x.shipment_id === shipmentId && r.record_status[x.id]?.status !== 'applied')
@@ -94,13 +97,19 @@ function shipmentChallenge(ctx: Context, shipmentId: string, focus: Issue | null
   if (s && s.available > 0 && !near.length) conflicts.push({ record_id: null, text: `None of the ${reviews.length} records held for review elsewhere names ${shipmentId}, its location or a quantity of ${fmt(s.available)}, so no rejected record explains this gap.` });
 
   const unknowns = ['Quantities are as the records report them; nothing here was physically checked.'];
-  if (s && s.available > 0) unknowns.push(`The current status of the ${fmt(s.available)} ${unit} still “available”: no accepted record reports a quarantine, return or dispensing for them.`);
+  if (s && s.available > 0) unknowns.push(`The current status of the ${fmt(s.available)} ${unit} still awaiting containment: no accepted record reports a quarantine, return or dispensing for them. “Awaiting containment” does not mean they are safe to sell or use.`);
   if (s && UNCONFIRMED.test(s.location)) unknowns.push(`Who holds shipment ${shipmentId}: its opening record names “${s.location}”.${s.quarantined + s.returned > 0 ? ` A reported quarantine or return at that location says where stock is said to be held; it does not name a responsible recipient, so the destination stays unconfirmed.` : ''}`);
   if (s && s.dispensed > 0) unknowns.push(`Who received the ${fmt(s.dispensed)} ${unit} recorded as dispensed, and with what outcome. Records do not show this, and patient information is kept outside this workspace.`);
 
   const could: string[] = [];
   if (s && s.available > 0) {
-    could.push(`A dated quarantine, return or dispensing record for ${shipmentId} (batch ${c.alert.batch}, in ${unit}, at “${s.location}”, with a full timestamp and timezone) would move up to ${fmt(s.available)} out of “available”, once it passes the engine’s identity, unit, chronology and quantity checks.`);
+    const checks = `once it passes the engine’s identity, unit, chronology and quantity checks`;
+    if (!UNCONFIRMED.test(s.location)) could.push(`A dated quarantine, return or dispensing record for ${shipmentId} (batch ${c.alert.batch}, in ${unit}, at “${s.location}”, with a full timestamp and timezone) would move up to ${fmt(s.available)} out of awaiting containment, ${checks}.`);
+    else {
+      const row = c.records.find(x => x.id === s.evidence_ids[0]), held = s.quarantined + s.returned + s.dispensed;
+      could.push(`A dated quarantine, return or dispensing record for ${shipmentId} (batch ${c.alert.batch}, in ${unit}, with a full timestamp and timezone) would move up to ${fmt(s.available)} out of awaiting containment, ${checks}. The engine matches it to the shipment by location, and the opening record still says “${s.location}”.`);
+      could.push(`If that evidence names the actual recipient, first correct the opening record${row ? ` ${label(row)}` : ''} to that recipient (Replace with corrected values), citing the proof of delivery, then import it. The original record stays in the history, marked superseded.${held ? ` Records already counted at “${s.location}” would then be held for review until they are corrected too.` : ''} A record that names a different location is held for review, never matched by guesswork.`);
+    }
     for (const x of near.filter(x => /timestamp|timezone/i.test(r.record_status[x.id]?.reason ?? ''))) could.push(`Reissuing ${label(x)} with a valid timestamp and the right shipment ID would let the engine check it again.`);
   }
   const opening = steps.find(st => c.records.find(x => x.id === st.record_id)?.type === 'shipment');
@@ -128,7 +137,7 @@ function shipmentChallenge(ctx: Context, shipmentId: string, focus: Issue | null
     const hyp: LedgerRecord = { id: 'hypothetical', event_id: 'HYPOTHETICAL', shipment_id: shipmentId, type: 'movement', from_state: 'available', to_state: 'quarantined', product: c.alert.product, manufacturer: c.alert.manufacturer, batch: c.alert.batch, quantity: s.available, unit, location: s.location, reference: 'HYPOTHETICAL', occurred_at: at, source_id: 'hypothetical', source_row: 0 };
     const after = reconcile(c.alert, [...c.records, hyp], { superseded: supersededMap(c), now: ctx.now });
     const a = after.shipments.find(x => x.shipment_id === shipmentId)!, open = new Set(after.issues.map(i => i.id));
-    hypothetical = { description: `If a record reporting all ${fmt(s.available)} ${unit} of ${shipmentId} moved from available to quarantined at “${s.location}” were imported now. Not evidence; nothing is saved.`,
+    hypothetical = { description: `If a record reporting all ${fmt(s.available)} ${unit} of ${shipmentId} moved from awaiting containment to quarantined at “${s.location}” were imported now. Not evidence; nothing is saved.`,
       before: { available: s.available, quarantined: s.quarantined, returned: s.returned, dispensed: s.dispensed }, after: { available: a.available, quarantined: a.quarantined, returned: a.returned, dispensed: a.dispensed },
       closed: issues.filter(i => !open.has(i.id)).map(i => i.title), still_open: issues.filter(i => open.has(i.id)).map(i => i.title) };
   }
