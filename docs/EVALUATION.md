@@ -85,12 +85,12 @@ The request-fitting changes described above (`a07e5a2`) were made because of the
 
 What this shows, plainly:
 
-- **Still 0 of 5 key facts in every run, as scored.** No run ended on an oversized request or a malformed tool call, the failures the changes targeted: no request was refused as too large (4 to 6 per run were shortened to fit), and all 5 malformed calls were retried. Two of the three runs ended on Groq's per-minute token limit instead, before submitting anything.
+- **Still 0 of 5 key facts in every run, as scored.** No run ended on an oversized request or a malformed tool call, the failures the changes targeted: no request was refused as too large (4 to 6 per run were shortened to fit), and all 5 malformed calls were retried. Two of the three runs ended on Groq's per-minute token limit instead, without an accepted submission.
 - **Run 3 completed, with findings close to the answer but not in the form the scorer counts.** Its 3 validated facts are open-issue facts, one for each unresolved shipment with the right quantity: CV-302 20 vials, CV-303 30 vials, CV-304 60 vials. The scorer counts a key fact only as a balance fact ("CV-302 available 20"), so they score 0. They have not been re-scored: changing the scoring after seeing a result would turn the held-out case into a development fixture. Run 3 did not state CV-301's 30 dispensed vials or CV-304's unconfirmed destination. It linked an evidence request to all three unresolved shipments (3 of 3, the first live run to do so) and proposed follow-ups for CV-302 and CV-303 that name the shipment and quantity but assign them to the recall coordinator rather than pharmacy staff (4 of 12 rubric points).
 - **The checks held.** No false fact was accepted and no run changed stock. Run 1's follow-up citing records it had not read was refused; run 2's submission without follow-ups for the issues it had reviewed was sent back.
 - **Conclusion:** engine correctness is shown on this case; live-agent reliability is still not established on Groq's free tier. The numbers that hold up are the engine's and rules mode's.
 
-In total the live model has had ten runs on the held-out case (three at 240 s, three at 480 s, one unplanned at 240 s, three after the request-fitting changes). None stated a key fact in the form the scorer counts; one (§2c, run 3) named all three unresolved shipments with the right quantities as validated open-issue facts.
+In total the live model has had ten runs on the held-out case (three at 240 s, three at 480 s, one unplanned at 240 s, three after the request-fitting changes). None stated a key fact in the form the scorer counts; one (§2c, run 3) named all three unresolved shipments with the right quantities as validated open-issue facts. For the second held-out case, see §2d.
 
 ### 2d. A second held-out case (Halvex tablets), written after the first series
 
@@ -113,7 +113,25 @@ The runner changes made after that freeze (`500a795`): repeated per-minute rate 
 
 The engine, unchanged since before the first held-out case, answers all seven questions on a case written after it. Rules mode loses one rubric point: its follow-up for HX-401 asks for the corrected HOLD-L2 record (the 30-pack hold rejected for its missing timezone) but does not name the 30 packs.
 
-**Live series (planned before it runs):** 3 runs on this case at the 480 s limit, `--tag after-fixes`, starting at 17:25 UTC on 27 Oct 2026, when Groq's daily allowance is certainly full again, recorded in `eval/results-live-halvex-tablets-after-fixes.json` whatever the result.
+**Live series (planned before it ran):** 3 runs on this case at the 480 s limit, `--tag after-fixes`, starting at 17:25 UTC on 27 Oct 2026, when Groq's daily allowance was certainly full again, recorded in `eval/results-live-halvex-tablets-after-fixes.json` whatever the result.
+
+**The first attempt never reached the model.** The series started on schedule (commit `c6c8320`, clean working tree), but at that moment this laptop could not resolve `api.groq.com` (`getaddrinfo ENOTFOUND`). All three runs ended within 1.6 s as provider errors ("network: Cannot reach groq"), with no tokens used and nothing sent to the model (its `model_calls` of 2 per run counts one attempt and one retry, both failing before a request was sent). That file is committed as it is (`70fe5d6`). With no model output there was nothing to keep or discard, so the same three runs were started again at 18:00 UTC, once Groq answered a one-request probe: same agent code, prompt, answer key, scorer and limits (the file records commit `70fe5d6`, which only added the first file, and a clean tree), under their own tag, `eval/results-live-halvex-tablets-after-fixes-rerun.json` (`1453963`). Both files are kept, and no other live runs were made on this case. (Their `held_out_key_commit` field reads `1313452`, a fixed value that `scripts/evaluate.ts` writes into every results file; the Halvex key is in `9237cc1`, as `git log -- eval/heldout/halvex-tablets.ts` shows.) The re-run's file also keeps each run's tool steps, submitted facts, follow-ups and evidence requests.
+
+| Run | Status | Time (waiting) | Tool / model calls | Malformed calls (all retried) | Tokens in / out | Key facts | Facts submitted / validated | Missing evidence identified | Follow-up rubric points |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | provider error: one model call refused for the per-minute token limit more often than its 6 retries allow | 384.6 s (359 s) | 9 / 9 | 3 | 43.9k / 1.9k | 0 / 5 | 0 / 0 | 0 / 3 | 0 / 12 |
+| 2 | provider error: the same | 371.1 s (342 s) | 8 / 9 | 3 | 44.1k / 2.7k | 0 / 5 | 0 / 0 | 0 / 3 | 0 / 12 |
+| 3 | completed | 204.3 s (179 s) | 8 / 10 | 0 | 49.3k / 4.1k | **3 / 5** | 6 / 6 | 1 / 3 | 3 / 12 |
+
+What this shows, plainly:
+
+- **The first live run on a held-out case to state key facts as scored.** Run 3 stated the three unresolved shipments as validated balance facts with the right quantities (HX-401 30, HX-402 150 and HX-404 80 packs awaiting containment), plus an open-issue fact for each. All 6 facts it submitted were validated; none was rejected. It did not state HX-401's 20 dispensed packs or HX-404's unconfirmed destination as facts (its unverified summary mentions the destination, which the scorer does not count). It proposed one follow-up, for HX-401, to pharmacy staff, naming the shipment and the 30 packs (3 of 12 rubric points), and none for the other three issues, so only 1 of 3 unresolved shipments has a linked evidence request or proposal. One tool call was refused: a first submission, made straight after the reconciliation, with no follow-up for the open issues it had reviewed. It was sent back, and the run then read the ledgers, proposed the one follow-up and submitted again. Run 2's first submission was sent back for the same reason.
+- **Still not reliable.** Two of three runs ended on Groq's per-minute token limit without an accepted submission, as in §2c: the longer back-off in `500a795` did not prevent it. All 6 malformed tool calls were retried, and no request was refused as too large (6 or 7 per run were shortened to fit).
+- **The checks held.** No false fact was accepted and no run changed stock.
+- **What it does not show.** The prompt line asking for `shipment_balance` facts was added after the Corvel runs, and run 3 used that form; one run cannot show that the line caused it. This case was committed by the same developer before those runner changes, so it is held out from them, not independent.
+- **Conclusion:** live-agent reliability is still not established on Groq's free tier (one completed run in three). The completed run's facts were right and checked, which is what the design is for; the numbers that hold up are still the engine's and rules mode's.
+
+Across both held-out cases the live model has now had 13 runs that reached Groq (10 on Corvel, 3 on Halvex). One of them stated key facts in the form the scorer counts: 3 of 5, on Halvex.
 
 ## 3. Development fixtures
 
@@ -186,7 +204,7 @@ One read-only statement joining all three datasources inside Zetaris (`scripts/z
 
 ## 7. Token use and cost
 
-All live calls used Groq's free tier, as in earlier sessions (no cost estimate is configured, and the account's billing page was not checked in this session). Totals so far: about 606k input and 49k output tokens (seven in-app runs, the four earlier evaluation runs, the ten held-out runs, and a few smoke checks); the §2c series used 127.7k in and 7.7k out. Free-tier limits: 8,000 tokens per minute and 200,000 tokens per day per model; the daily cap was reached on 25 Oct 2026.
+All live calls used Groq's free tier, as in earlier sessions (no cost estimate is configured, and the account's billing page was not checked in this session). Totals so far: about 743k input and 58k output tokens (seven in-app runs, the four earlier evaluation runs, the thirteen held-out runs that reached Groq, and a few smoke checks); the §2c series used 127.7k in and 7.7k out, and the §2d re-run 137.3k in and 8.8k out. Free-tier limits: 8,000 tokens per minute and 200,000 tokens per day per model; the daily cap was reached on 25 Oct 2026.
 
 ## 8. One informal outside try of the online demo (27 Oct 2026)
 
