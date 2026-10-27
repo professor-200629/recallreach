@@ -1,6 +1,6 @@
 # Evaluation
 
-Everything here is **automated testing on fictional fixtures** or **observed live runs** recorded on 24–26 Oct 2026. There has been **no evaluation with real users or real recall data**, and nothing here measures time saved or real-world outcomes.
+Everything here is **automated testing on fictional fixtures** or **observed live runs** recorded on 24–27 Oct 2026. Apart from one informal try of the online demo by a medical shop owner (§8), there has been **no evaluation with real users or real recall data**, and nothing here measures time saved or real-world outcomes.
 
 **Caveat:** the same developer wrote the engine, the rules procedure, the fixtures and the answer keys, including both held-out cases. Each held-out key was committed before any run on its case, so it was not tuned to results, but neither was written independently. Treat every score below as "behaves as designed on cases built to exercise it", not as independent accuracy.
 
@@ -187,3 +187,17 @@ One read-only statement joining all three datasources inside Zetaris (`scripts/z
 ## 7. Token use and cost
 
 All live calls used Groq's free tier, as in earlier sessions (no cost estimate is configured, and the account's billing page was not checked in this session). Totals so far: about 606k input and 49k output tokens (seven in-app runs, the four earlier evaluation runs, the ten held-out runs, and a few smoke checks); the §2c series used 127.7k in and 7.7k out. Free-tier limits: 8,000 tokens per minute and 200,000 tokens per day per model; the daily cap was reached on 25 Oct 2026.
+
+## 8. One informal outside try of the online demo (27 Oct 2026)
+
+On 27 Oct 2026 the owner of a medical shop tried the [public demo](https://recallreach-demo.balu04t.workers.dev) from a link and sent written feedback. This is one person, informal, with no observation or timing: not a usability study, and not a recall coordinator. Quoted with their permission, by role only:
+
+> "I understood RecallReach helps identify recalled stock that still needs investigation and explains the supporting records. “Available” could be confusing because it might sound safe to sell. The tested workflow worked."
+
+Their fuller notes also asked to keep the demo's limits prominent, and said the evidence request for RR-104 was confusing: it asked for a record at "Destination pending confirmation" and did not say how to handle evidence naming the actual recipient without silently changing the original record.
+
+Changed the same day (commit `bad5557`, display text only; the engine, the agent and its tools, and the evaluation are unchanged):
+
+- "Available" now reads **awaiting containment** in *Why this finding?*, the record dialog, the snapshot table and the CSV help, with a note that it never means the stock is safe to sell. The engine's state name is unchanged.
+- For a shipment whose destination is unconfirmed, *What evidence could change this* now says the engine matches evidence to the shipment by the opening record's location, and that evidence naming the actual recipient needs an operator correction of the opening record first, citing the proof of delivery. The original record stays in the history, marked superseded.
+- The demo's limits were already in a banner on every page; unchanged.

@@ -10,7 +10,7 @@ Built solo by Balu for the [Open Agent Hackathon 2026](https://hackathon.genai.w
 
 **Try it online, no sign-in:** <https://recallreach-demo.balu04t.workers.dev> (public demo: rules mode only, no AI model online, no Zetaris connection, fictional data, each browser gets its own sandbox)
 
-> Status: hackathon prototype. Tested on fictional fixtures only. Not validated with real recall coordinators or pharmacists, and not ready for operational use. See [Known limitations](#known-limitations).
+> Status: hackathon prototype. Tested on fictional fixtures only. One medical shop owner tried the online demo informally ([EVALUATION.md §8](docs/EVALUATION.md)); it has not been validated with recall coordinators or pharmacists, and is not ready for operational use. See [Known limitations](#known-limitations).
 
 ![“Why this finding?” for shipment RR-104: a one-line answer, the engine’s calculation, and what each source system says about the shipment](docs/images/why-this-finding.png)
 
@@ -107,7 +107,7 @@ Unknown does not mean safe. A record outside the alert is not a safety clearance
 
 ## Known limitations
 
-- **Fictional data only.** There has been no real-user pilot and no feedback from coordinators or pharmacists yet.
+- **Fictional data only.** There has been no real-user pilot. One medical shop owner tried the online demo informally; their main point, that "available" could sound safe to sell, was fixed the same day (EVALUATION.md §8). There is no feedback from recall coordinators or pharmacists yet.
 - **Zetaris was verified on one local instance only**, with fictional source databases. It has not been tested against a hosted Zetaris cluster or real source systems, and a hosted RecallReach cannot reach a Zetaris running on a laptop (see DEPLOYMENT.md).
 - **Live model runs use Groq's free tier** (8,000 tokens per minute, 200,000 per day). A live run waits on those limits for most of its time and keeps every request under 8,000 tokens; it stops at 8 minutes (configurable), at 10 model calls, or as soon as the day's allowance is used up. On the held-out case the live model has not stated a key fact in ten runs, at either time limit or after the request-fitting changes (EVALUATION.md records every run).
 - **What "validated" means, and does not.** The validator checks the seven typed fact forms field by field; it cannot check free text, so the model's summary and interpretations are always shown as unverified. A validated fact is as good as the engine and the imported records: it says what the records report, not what physically happened.

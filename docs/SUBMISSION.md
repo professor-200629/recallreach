@@ -34,6 +34,8 @@ Verified on 25 Oct 2026 against that local instance: `verify.sh` 9/9; the in-app
 
 On the held-out case (answer key committed in `1313452` before any run), a spreadsheet-style filter finds 1 of 3 unresolved shipments (60 vials in 1 shipment); the engine and rules mode find all 3 (110 vials). The live model stated 0 of the 5 key facts in 10 runs, as scored. Across those runs it submitted 6 facts, all true and none of them key, and no false fact was accepted. In the latest series, run after changes made in response to the earlier runs, two of three runs ended on Groq's per-minute token limit; the one that completed named all three unresolved shipments with the right quantities, but as open-issue facts, which the scorer (fixed before the runs) does not count. On a second held-out case, written after those runs and committed in `9237cc1` before anything ran on it, the filter finds 0 of 3 unresolved shipments and the engine all 3 (260 packs, 7 of 7 questions); rules mode states 5 of 5 key facts. A live series on it is scheduled for 27 Oct 2026, 17:25 UTC. The same person wrote the engine, the fixtures and the answer keys, so these are not independent accuracy figures. Details, including every failed run: [EVALUATION.md](EVALUATION.md).
 
+One medical shop owner tried the online demo informally on 27 Oct 2026. Their main point, that "available" could sound safe to sell, was fixed the same day: the app now says "awaiting containment" ([EVALUATION.md §8](EVALUATION.md)). This is one person, not a usability study.
+
 ## Pre-existing work (rules 4.2 and 5.4)
 
 Created inside the build window:
@@ -57,7 +59,7 @@ AI assistance: the code was written with AI coding assistants (the earlier sessi
 | Technical (20) | [ARCHITECTURE.md](ARCHITECTURE.md); automated tests (`npm test`, counts in EVALUATION.md); [EVALUATION.md](EVALUATION.md); [JUDGE_GUIDE.md](JUDGE_GUIDE.md) |
 | Innovation (15) | Typed facts (`lib/recall/agent/facts.ts`), the Evidence Challenge "Why this finding?" (`lib/recall/explain.ts`), dependency-tracked memory with an honest *unknown* (`lib/recall/memory/hmem.ts`); tests in `tests/facts.test.ts`, `tests/trust.test.ts`, `tests/explain.test.ts` |
 | Demo (15) | The demo video; [DEMO_SCRIPT.md](DEMO_SCRIPT.md) |
-| Product & UX (10) | `components/recall/*`; browser checks in EVALUATION.md; [OPERATOR_TEST.md](OPERATOR_TEST.md) |
+| Product & UX (10) | `components/recall/*`; the online demo; browser checks and one informal outside try (EVALUATION.md §6, §8); [OPERATOR_TEST.md](OPERATOR_TEST.md) |
 | Sponsor tech (10) | [INTEGRATIONS.md](INTEGRATIONS.md) (verification record); `eval/zetaris-check-2026-10-25.txt`; the Integrations screen; `vendor/meterless-hmem/VENDORED.md` |
 
 ## Rules this entry was checked against
